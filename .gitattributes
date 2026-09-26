@@ -1,0 +1,6 @@
+# Shell scripts also run inside the Linux build containers (copied from the
+# working tree): keep them LF even on Windows checkouts with core.autocrlf.
+*.sh text eol=lf
+
+# Binary test vectors: never apply line ending conversion.
+*.bin binary
