@@ -3,7 +3,8 @@ package cli
 import (
 	"os"
 	"path/filepath"
-	"strings"
+
+	"github.com/mfbonfigli/gotiler/v3/tiler/plugin"
 )
 
 func findPointCloudFilesInFolder(folder string) ([]string, error) {
@@ -16,10 +17,11 @@ func findPointCloudFilesInFolder(folder string) ([]string, error) {
 		if f.IsDir() {
 			continue
 		}
-		ext := strings.ToLower(filepath.Ext(f.Name()))
-		if ext == ".las" || ext == ".laz" {
-			out = append(out, filepath.Join(folder, f.Name()))
+		// registry-aware, so plugin-provided formats (e.g. e57) are picked up
+		if !plugin.IsPointCloudExtension(f.Name()) {
+			continue
 		}
+		out = append(out, filepath.Join(folder, f.Name()))
 	}
 	return out, nil
 }

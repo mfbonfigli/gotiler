@@ -202,20 +202,33 @@ function Run-Tests {
         return
     }
 
-    $Files = Get-ChildItem -Path $TestDir -File
+    # the coordinate conversion tests need the PROJ database shipped with the build
+    $env:PROJ_DATA = (Resolve-Path "./build/$Arch/share").Path
+    $TestRoot = (Resolve-Path $TestDir).Path
+    $RepoRoot = (Resolve-Path "$PSScriptRoot/..").Path
+
+    # test binaries mirror the package layout: run each one from its package
+    # directory, like go test does, so tests find their testdata
+    $Files = Get-ChildItem -Path $TestRoot -File -Recurse -Include "*.test", "*.test.exe"
 
     foreach ($File in $Files) {
 
-        Write-Host "    => Running: $($File.Name)" -ForegroundColor Cyan
+        $PkgDir = $File.DirectoryName.Substring($TestRoot.Length).TrimStart("\", "/").Replace("\", "/")
+        Write-Host "    => Running: ./$PkgDir" -ForegroundColor Cyan
 
-        & $File.FullName "-test.v"
+        Push-Location (Join-Path $RepoRoot $PkgDir)
+        try {
+            & $File.FullName "-test.v"
+        } finally {
+            Pop-Location
+        }
 
         if ($LASTEXITCODE -ne 0) {
-            Write-ErrorMsg "    [FAIL] $($File.Name)"
+            Write-ErrorMsg "    [FAIL] ./$PkgDir"
             exit $LASTEXITCODE
         }
 
-        Write-Host "    [PASS] $($File.Name)" -ForegroundColor Green
+        Write-Host "    [PASS] ./$PkgDir" -ForegroundColor Green
     }
 }
 

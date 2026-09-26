@@ -4,26 +4,105 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"math/rand"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime/pprof"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/mfbonfigli/gotiler-core/tiler"
-	"github.com/mfbonfigli/gotiler-core/tiler/model"
-	"github.com/mfbonfigli/gotiler-core/tiler/mutator"
-	"github.com/mfbonfigli/gotiler-core/tiler/plugin"
-	"github.com/mfbonfigli/gotiler-core/version"
+	"github.com/mfbonfigli/gotiler/v3/plugins/compression"
+
+	// registers the .e57 reader with the point cloud reader registry
+	_ "github.com/mfbonfigli/gotiler/v3/plugins/e57"
+	geotiffcolorizer "github.com/mfbonfigli/gotiler/v3/plugins/geotiff-colorizer"
+
+	// registers the extended color ramp library with the colorizer registry
+	_ "github.com/mfbonfigli/gotiler/v3/plugins/ramps"
+	"github.com/mfbonfigli/gotiler/v3/plugins/subsampler"
+	"github.com/mfbonfigli/gotiler/v3/plugins/threetz"
+	"github.com/mfbonfigli/gotiler/v3/tiler"
+	coordproj "github.com/mfbonfigli/gotiler/v3/tiler/coord/proj"
+	"github.com/mfbonfigli/gotiler/v3/tiler/model"
+	"github.com/mfbonfigli/gotiler/v3/tiler/mutator"
+	"github.com/mfbonfigli/gotiler/v3/tiler/plugin"
+	"github.com/mfbonfigli/gotiler/v3/version"
 	"github.com/schollz/progressbar/v3"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
+	"golang.org/x/term"
 )
 
+// defaultFlagStringer is the flag stringer provided by the cli library,
+// captured before the tabular override below is installed.
+var defaultFlagStringer = cli.FlagStringer
+
+func init() {
+	cli.FlagStringer = tabularFlagStringer
+}
+
+// tabularFlagStringer wraps long flag usage strings into multiple lines, each
+// prefixed with a tab: the help tabwriter then aligns every line under the
+// usage column, so the flag help reads like a table instead of overflowing to
+// the start of the next terminal row.
+func tabularFlagStringer(f cli.Flag) string {
+	s := defaultFlagStringer(f)
+	names, usage, ok := strings.Cut(s, "\t")
+	if !ok {
+		return s
+	}
+	words := strings.Fields(usage)
+	if len(words) == 0 {
+		return s
+	}
+	width := flagUsageWidth()
+	var b strings.Builder
+	b.WriteString(names)
+	b.WriteString("\t")
+	lineLen := 0
+	for i, word := range words {
+		if i > 0 {
+			if lineLen+1+len(word) > width {
+				b.WriteString("\n\t")
+				lineLen = 0
+			} else {
+				b.WriteString(" ")
+				lineLen++
+			}
+		}
+		b.WriteString(word)
+		lineLen += len(word)
+	}
+	return b.String()
+}
+
+// flagUsageWidth returns the target width of the flag usage column, derived
+// from the terminal width when available.
+func flagUsageWidth() int {
+	// approximate width taken by the flag names column in the help output
+	const nameColumnWidth = 40
+	width := 80
+	if tw, _, err := term.GetSize(int(os.Stdout.Fd())); err == nil {
+		width = tw - nameColumnWidth
+	}
+	if width < 40 {
+		width = 40
+	}
+	if width > 100 {
+		width = 100
+	}
+	return width
+}
+
 const DefaultVersion = "3.0.0"
+
+// threeTZFilename is the name of the archive written inside each tileset's
+// output folder when --3tz is active.
+const threeTZFilename = "tileset.3tz"
 
 type TilerProvider func() (tiler.Tiler, error)
 
@@ -88,14 +167,10 @@ const logo = `
 ╚██████╔╝╚██████╔╝   ██║   ██║███████╗███████╗██║  ██║    ╚██████╗███████╗██║
  ╚═════╝  ╚═════╝    ╚═╝   ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝     ╚═════╝╚══════╝╚═╝
 -----------------------------------------------------------------------------
-                         *** COMMUNITY EDITION ***
------------------------------------------------------------------------------
 A fast OGC 3D Tiles generator for point clouds.
 Copyright YYYY - Massimo Federico Bonfigli
 build: ZZZZ
-
-Check out gotiler.io for more tools!
-{{end_color}}                                                                  
+{{end_color}}
 `
 
 func DefaultBranding() Branding {
@@ -107,7 +182,7 @@ func DefaultBranding() Branding {
 	}
 }
 
-func NewApp(opts Options) *cli.App {
+func NewApp(opts Options) *cli.Command {
 	if opts.BuildInfo.DefaultVersion == "" {
 		opts.BuildInfo.DefaultVersion = DefaultVersion
 	}
@@ -116,23 +191,24 @@ func NewApp(opts Options) *cli.App {
 		opts.TilerProvider = DefaultTilerProvider
 	}
 	c := defaultCliOptions()
-	ctx := Context{
+	cmdCtx := Context{
 		BuildInfo: opts.BuildInfo,
 		Branding:  opts.Branding,
 	}
-	pointCloudAction := func(cCtx *cli.Context) error {
-		if cCtx.Args().Len() == 0 {
-			_ = cli.ShowAppHelp(cCtx)
+	pointCloudAction := func(ctx context.Context, cmd *cli.Command) error {
+		if cmd.Args().Len() == 0 {
+			_ = cli.ShowAppHelp(cmd)
 			return fmt.Errorf("input path must be set")
 		}
-		return pointCloudCommand(opts.TilerProvider, c, cCtx.Args().First())
+		return pointCloudCommand(opts.TilerProvider, c, cmd.Args().First())
 	}
 	commands := []*cli.Command{
 		{
 			Name:  "version",
 			Usage: "print the gotiler version",
-			Action: func(cCtx *cli.Context) error {
-				fmt.Fprintln(cCtx.App.Writer, cCtx.App.Version)
+			Action: func(ctx context.Context, cmd *cli.Command) error {
+				root := cmd.Root()
+				fmt.Fprintln(root.Writer, root.Version)
 				return nil
 			},
 		},
@@ -149,34 +225,29 @@ func NewApp(opts Options) *cli.App {
 			Aliases: opts.PointCloudCommandAliases,
 			Usage:   "convert a point cloud file or folder into 3D tiles",
 			Flags:   getPointCloudFlags(c),
-			Action: func(cCtx *cli.Context) error {
-				if cCtx.Args().Len() == 0 {
-					lineage := cCtx.Lineage()
-					helpCtx := cCtx
-					if len(lineage) > 1 {
-						helpCtx = lineage[1]
-					}
-					_ = cli.ShowCommandHelp(helpCtx, pointCloudCommandName)
+			Action: func(ctx context.Context, cmd *cli.Command) error {
+				if cmd.Args().Len() == 0 {
+					_ = cli.ShowSubcommandHelp(cmd)
 					return fmt.Errorf("input path must be set")
 				}
-				return pointCloudCommand(opts.TilerProvider, c, cCtx.Args().First())
+				return pointCloudCommand(opts.TilerProvider, c, cmd.Args().First())
 			},
 		})
 	}
 	for _, factory := range opts.ExtraCommands {
-		if cmd := factory(ctx); cmd != nil {
+		if cmd := factory(cmdCtx); cmd != nil {
 			commands = append(commands, cmd)
 		}
 	}
-	return &cli.App{
-		Name:                 opts.Branding.Name,
-		Usage:                opts.Branding.Usage,
-		Version:              opts.BuildInfo.VersionString(),
-		HideVersion:          true,
-		Flags:                appFlags,
-		Action:               appAction,
-		Commands:             commands,
-		EnableBashCompletion: true,
+	return &cli.Command{
+		Name:                  opts.Branding.Name,
+		Usage:                 opts.Branding.Usage,
+		Version:               opts.BuildInfo.VersionString(),
+		HideVersion:           true,
+		Flags:                 appFlags,
+		Action:                appAction,
+		Commands:              commands,
+		EnableShellCompletion: true,
 	}
 }
 
@@ -277,11 +348,96 @@ func getFlags(c *cliOpts) []cli.Flag {
 			Usage:       `comma-separated list of optional per-point attributes to include in the output tiles. Accepts any attribute exposed by the input files, matched case-insensitively: standard names such as "intensity", "classification", "return_number", "number_of_returns"; reader-specific ones (e.g. "gps_time", "scan_angle", "point_source_id", "user_data" for LAS/LAZ); and any extra-byte or extension attribute defined in the source. Attributes not found in the source are skipped, and attributes whose data type cannot be represented by the chosen tileset version may be omitted from the output. Use "none" to export no attributes (smaller tiles, no metadata). Default is "intensity,classification".`,
 			Destination: &c.attributes,
 		},
+		&cli.StringFlag{
+			Name:        "colorize",
+			Value:       c.colorize,
+			Usage:       `colorize points from a numeric attribute or local point coordinate using "attribute:gradient[:modifier...]", for example "z:viridis" or "intensity:turbo:reverse:steps=8". The gradient is stretched between the 2nd and 98th percentile of the values found in the data; gradients encoding absolute scales, like "las-classification", are applied as is. Gradients include "viridis", "magma", "inferno", "plasma", "cividis", "turbo", "grayscale", "heat", "las-classification", plus an extended library: topographic ("terrain", "gist-earth", "batlow", "oleron", "nuuk", "topo"), sequential ("cubehelix", "mako", "rocket", "haline", "amp", "ylgnbu", "blues", "viridis-pastel"), diverging ("rdbu", "brbg", "spectral", "piyg", "coolwarm", "seismic", "balance", "roma", "berlin"), and categorical ("dark2", "paired", "set2", "accent"); see the README for details. Modifiers: "reverse" flips the color order, "steps=N" quantizes into N discrete bands, "stretch=pLow,pHigh" sets the percentile stretch ("stretch=minmax" scales over the full range), "blend=0.5" mixes the gradient with the original point color.`,
+			Destination: &c.colorize,
+		},
 		&cli.BoolFlag{
 			Name:        "include-withheld",
 			Value:       c.includeWithheld,
 			Usage:       "include points marked as withheld. By default, withheld points are filtered out when the source exposes a withheld attribute.",
 			Destination: &c.includeWithheld,
+		},
+		&cli.Float64Flag{
+			Name:        "longitude",
+			Value:       c.longitude,
+			Usage:       "only with --crs local: the longitude in EPSG:4326 coordinates (degrees) at which to place the model's origin.",
+			Destination: &c.longitude,
+		},
+		&cli.Float64Flag{
+			Name:        "latitude",
+			Value:       c.latitude,
+			Usage:       "only with --crs local: the latitude in EPSG:4326 coordinates (degrees) at which to place the model's origin.",
+			Destination: &c.latitude,
+		},
+		&cli.Float64Flag{
+			Name:        "height",
+			Value:       c.height,
+			Usage:       "only with --crs local: the height in meters relative to the WGS84 ellipsoid at which to place the model's origin.",
+			Destination: &c.height,
+		},
+		&cli.Float64Flag{
+			Name:        "heading",
+			Value:       c.heading,
+			Usage:       "only with --crs local: the rotation in degrees from the local north direction where a positive angle is increasing eastward.",
+			Destination: &c.heading,
+		},
+		&cli.Float64Flag{
+			Name:        "pitch",
+			Value:       c.pitch,
+			Usage:       "only with --crs local: the rotation in degrees from the local east-north plane. Positive pitch angles are above the plane. Negative pitch angles are below the plane.",
+			Destination: &c.pitch,
+		},
+		&cli.Float64Flag{
+			Name:        "roll",
+			Value:       c.roll,
+			Usage:       "only with --crs local: the rotation in degrees applied to the local east axis.",
+			Destination: &c.roll,
+		},
+		&cli.Float64Flag{
+			Name:        "scale",
+			Aliases:     []string{"s"},
+			Value:       c.scale,
+			Usage:       "only with --crs local: the uniform scale to apply to the model. The tiler assumes the units for the input model(s) are in meters.",
+			Destination: &c.scale,
+		},
+		&cli.StringFlag{
+			Name:        "input-up-axis",
+			Value:       c.inputUpAxis,
+			Usage:       `only with --crs local: overrides the model's default up axis and treats the given axis ("x", "y" or "z") as up.`,
+			Destination: &c.inputUpAxis,
+		},
+		&cli.StringFlag{
+			Name:        "compression",
+			Value:       c.compression,
+			Usage:       `compression applied to the output tiles: "meshopt" (default) compresses GLB tile content with meshoptimizer EXT_meshopt_compression and quantization, "none" disables compression. Compression requires tileset version 1.1; version 1.0 (.pnts) output is never compressed.`,
+			Destination: &c.compression,
+		},
+		&cli.BoolFlag{
+			Name:        "meshopt-khr",
+			Value:       c.meshoptKHR,
+			Usage:       `only with --compression meshopt: compress the tiles with the Khronos KHR_meshopt_compression extension and its version 1 codec, which produces smaller tiles than the default EXT_meshopt_compression. Fewer viewers support it: CesiumJS added it in version 1.143.`,
+			Destination: &c.meshoptKHR,
+		},
+		&cli.Float64Flag{
+			Name:        "subsample",
+			Value:       c.subsample,
+			Usage:       "percentage of points to keep, in (0, 100]. Points are dropped uniformly at random while reading. Default is 100 (keep everything).",
+			Destination: &c.subsample,
+		},
+		&cli.StringFlag{
+			Name:        "geotiff-colorize",
+			Value:       c.geoTIFFColorize,
+			Usage:       "colorize points on the fly from an RGB/RGBA GeoTIFF orthophoto",
+			Destination: &c.geoTIFFColorize,
+		},
+		&cli.BoolFlag{
+			Name:        "3tz",
+			Value:       c.threeTZ,
+			Usage:       `write each tileset as a single OGC 3D Tiles Archive (".3tz" file) saved inside the tileset's output folder, instead of a folder of loose tiles. Folder inputs without --join produce one archive per file, each inside its own output subfolder.`,
+			Destination: &c.threeTZ,
 		},
 		&cli.BoolFlag{
 			Name:        "plain",
@@ -322,6 +478,22 @@ type cliOpts struct {
 	geCorrection          float64
 	attributes            string
 	includeWithheld       bool
+	colorize              string
+	// placement flags, active with --crs local
+	longitude   float64
+	latitude    float64
+	height      float64
+	heading     float64
+	pitch       float64
+	roll        float64
+	scale       float64
+	inputUpAxis string
+	// output and pipeline extensions
+	compression     string
+	meshoptKHR      bool
+	subsample       float64
+	geoTIFFColorize string
+	threeTZ         bool
 }
 
 func defaultCliOptions() *cliOpts {
@@ -340,6 +512,20 @@ func defaultCliOptions() *cliOpts {
 		geCorrection:          1.0,
 		attributes:            "intensity,classification",
 		includeWithheld:       false,
+		colorize:              "",
+		longitude:             0,
+		latitude:              0,
+		height:                0,
+		heading:               0,
+		pitch:                 0,
+		roll:                  0,
+		scale:                 1,
+		inputUpAxis:           "z",
+		compression:           "meshopt",
+		meshoptKHR:            false,
+		subsample:             100,
+		geoTIFFColorize:       "",
+		threeTZ:               false,
 	}
 }
 
@@ -367,6 +553,25 @@ func (c *cliOpts) validate() {
 	}
 	if _, err := model.ParseAttributes(strings.Split(c.attributes, ",")); err != nil {
 		log.Fatalf("--attributes: %v", err)
+	}
+	if _, err := parseColorizer(c.colorize); err != nil {
+		log.Fatalf("--colorize: %v", err)
+	}
+	if c.placementMode() {
+		if _, err := c.placement().Transform(); err != nil {
+			log.Fatalf("invalid placement: %v", err)
+		}
+	} else if c.placementFlagsSet() {
+		log.Fatal(`the placement flags (--longitude, --latitude, --height, --heading, --pitch, --roll, --scale, --input-up-axis) require --crs local`)
+	}
+	if c.compression != "meshopt" && c.compression != "none" {
+		log.Fatalf(`--compression: unsupported value %q, expected "meshopt" or "none"`, c.compression)
+	}
+	if c.meshoptKHR && (c.compression != "meshopt" || c.version == "1.0") {
+		log.Fatal("--meshopt-khr requires --compression meshopt and tileset version 1.1")
+	}
+	if c.subsample <= 0 || c.subsample > 100 {
+		log.Fatalf("--subsample: percentage must be in (0, 100], got %v", c.subsample)
 	}
 }
 
@@ -555,31 +760,79 @@ func (c *cliOpts) printSummary(input, mode string) {
 		fmt.Fprintf(os.Stderr, "Init GE:    %s\n", initialGeometricErrorDisp)
 		fmt.Fprintf(os.Stderr, "GE Corr:    %gx\n", c.geCorrection)
 		fmt.Fprintf(os.Stderr, "Attribs:    %s\n", c.attributes)
+		fmt.Fprintf(os.Stderr, "Colorize:   %s\n", colorizeSummary(c.colorize))
 		fmt.Fprintf(os.Stderr, "Incl Withheld: %v\n", c.includeWithheld)
+		if c.placementMode() {
+			for _, row := range c.placementRows() {
+				fmt.Fprintf(os.Stderr, "%-19s %s\n", row[0]+":", row[1])
+			}
+		}
+		fmt.Fprintf(os.Stderr, "Compress:   %s\n", c.compressionSummary())
+		fmt.Fprintf(os.Stderr, "Subsample:  %s\n", c.subsampleSummary())
+		fmt.Fprintf(os.Stderr, "GeoTIFF:    %s\n", colorizeSummary(c.geoTIFFColorize))
+		fmt.Fprintf(os.Stderr, "3TZ:        %s\n", c.threeTZSummary())
 		fmt.Fprintln(os.Stderr)
 		return
 	}
 
 	fmt.Fprintln(os.Stderr, boxHeader("📥 Inputs & Outputs "))
-	fmt.Fprintln(os.Stderr, boxRow("📁 Input Source:       ", truncLeft(input, boxInnerWidth-23)))
-	fmt.Fprintln(os.Stderr, boxRow("📂 Output Destination: ", truncLeft(c.output, boxInnerWidth-23)))
-	fmt.Fprintln(os.Stderr, boxRow("🔄 Execution Mode:     ", mode))
-	fmt.Fprintln(os.Stderr, boxRow("🔗 Join Clouds:        ", joinDisp))
+	fmt.Fprintln(os.Stderr, boxRow("• Input Source:       ", truncLeft(input, boxInnerWidth-23)))
+	fmt.Fprintln(os.Stderr, boxRow("• Output Destination: ", truncLeft(c.output, boxInnerWidth-23)))
+	fmt.Fprintln(os.Stderr, boxRow("• Execution Mode:     ", mode))
+	fmt.Fprintln(os.Stderr, boxRow("• Join Clouds:        ", joinDisp))
 	fmt.Fprintln(os.Stderr, boxFooter())
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, boxHeader("📊 Processing Options "))
-	fmt.Fprintln(os.Stderr, boxRow("🌐 Source CRS:         ", crsDisp))
-	fmt.Fprintln(os.Stderr, boxRow("🔢 Target Pts/Tile:    ", formatComma(c.pointsPerTile)))
-	fmt.Fprintln(os.Stderr, boxRow("📐 3D Tiles Version:   ", c.version))
-	fmt.Fprintln(os.Stderr, boxRow("📏 Z-Offset Correct:   ", fmt.Sprintf("%g meters", c.zOffset)))
-	fmt.Fprintln(os.Stderr, boxRow("📈 Refine Mode:        ", capitalize(c.refineMode)))
-	fmt.Fprintln(os.Stderr, boxRow("🎨 8-Bit Color Corr:   ", capitalize(fmt.Sprintf("%v", c.eightBit))))
-	fmt.Fprintln(os.Stderr, boxRow("📐 Initial Geom Err:   ", initialGeometricErrorDisp))
-	fmt.Fprintln(os.Stderr, boxRow("🔧 GE Correction:      ", fmt.Sprintf("%gx", c.geCorrection)))
-	fmt.Fprintln(os.Stderr, boxRowWrapped("📊 Attributes:         ", c.attributes))
-	fmt.Fprintln(os.Stderr, boxRow("Include Withheld:     ", fmt.Sprintf("%v", c.includeWithheld)))
+	fmt.Fprintln(os.Stderr, boxRow("• Source CRS:         ", crsDisp))
+	fmt.Fprintln(os.Stderr, boxRow("• Target Pts/Tile:    ", formatComma(c.pointsPerTile)))
+	fmt.Fprintln(os.Stderr, boxRow("• 3D Tiles Version:   ", c.version))
+	fmt.Fprintln(os.Stderr, boxRow("• Z-Offset Correct:   ", fmt.Sprintf("%g meters", c.zOffset)))
+	fmt.Fprintln(os.Stderr, boxRow("• Refine Mode:        ", capitalize(c.refineMode)))
+	fmt.Fprintln(os.Stderr, boxRow("• 8-Bit Color Corr:   ", capitalize(fmt.Sprintf("%v", c.eightBit))))
+	fmt.Fprintln(os.Stderr, boxRow("• Initial Geom Err:   ", initialGeometricErrorDisp))
+	fmt.Fprintln(os.Stderr, boxRow("• GE Correction:      ", fmt.Sprintf("%gx", c.geCorrection)))
+	fmt.Fprintln(os.Stderr, boxRowWrapped("• Attributes:         ", c.attributes))
+	fmt.Fprintln(os.Stderr, boxRow("• Colorize:             ", colorizeSummary(c.colorize)))
+	fmt.Fprintln(os.Stderr, boxRow("• Include Withheld:     ", fmt.Sprintf("%v", c.includeWithheld)))
+	if c.placementMode() {
+		for _, row := range c.placementRows() {
+			fmt.Fprintln(os.Stderr, boxRow("• "+padToWidth(row[0]+":", 20)+" ", row[1]))
+		}
+	}
+	fmt.Fprintln(os.Stderr, boxRow("• Compression:          ", c.compressionSummary()))
+	fmt.Fprintln(os.Stderr, boxRow("• Subsample:            ", c.subsampleSummary()))
+	fmt.Fprintln(os.Stderr, boxRow("• GeoTIFF Colorize:     ", colorizeSummary(c.geoTIFFColorize)))
+	fmt.Fprintln(os.Stderr, boxRow("• 3TZ Archive:          ", c.threeTZSummary()))
 	fmt.Fprintln(os.Stderr, boxFooter())
 	fmt.Fprintln(os.Stderr)
+}
+
+func (c *cliOpts) compressionSummary() string {
+	switch {
+	case c.compression == "none":
+		return "Disabled"
+	case c.version == "1.0":
+		// .pnts output has no compressed variant
+		return "Disabled (3D Tiles 1.0)"
+	case c.meshoptKHR:
+		return "KHR_meshopt_compression + KHR_mesh_quantization"
+	default:
+		return "EXT_meshopt_compression + KHR_mesh_quantization"
+	}
+}
+
+func (c *cliOpts) subsampleSummary() string {
+	if c.subsample >= 100 {
+		return "Disabled"
+	}
+	return fmt.Sprintf("%g%% of points kept", c.subsample)
+}
+
+func (c *cliOpts) threeTZSummary() string {
+	if !c.threeTZ {
+		return "Disabled"
+	}
+	return threeTZFilename + " in each tileset's output folder"
 }
 
 func formatInitialGeometricError(ge float64) string {
@@ -589,6 +842,130 @@ func formatInitialGeometricError(ge float64) string {
 	return fmt.Sprintf("%g meters", ge)
 }
 
+func colorizeSummary(spec string) string {
+	if spec == "" {
+		return "disabled"
+	}
+	return spec
+}
+
+// placementMode reports whether the input is ungeoreferenced local cartesian
+// data to be placed on the globe through the placement flags ("--crs local").
+func (c *cliOpts) placementMode() bool {
+	return strings.EqualFold(strings.TrimSpace(c.crs), "local")
+}
+
+// placement builds the tiler placement from the placement flags.
+func (c *cliOpts) placement() tiler.Placement {
+	return tiler.Placement{
+		Longitude: c.longitude,
+		Latitude:  c.latitude,
+		Height:    c.height,
+		Heading:   c.heading,
+		Pitch:     c.pitch,
+		Roll:      c.roll,
+		Scale:     c.scale,
+		UpAxis:    tiler.Axis(strings.ToLower(strings.TrimSpace(c.inputUpAxis))),
+	}
+}
+
+// placementFlagsSet reports whether any placement flag differs from its default.
+func (c *cliOpts) placementFlagsSet() bool {
+	return c.longitude != 0 || c.latitude != 0 || c.height != 0 || c.heading != 0 ||
+		c.pitch != 0 || c.roll != 0 || c.scale != 1 || !strings.EqualFold(c.inputUpAxis, "z")
+}
+
+// placementRows returns the label/value summary rows of the active placement.
+func (c *cliOpts) placementRows() [][2]string {
+	p := c.placement()
+	scale := p.Scale
+	if scale == 0 {
+		scale = 1
+	}
+	up := string(p.UpAxis)
+	if up == "" {
+		up = "z"
+	}
+	return [][2]string{
+		{"Placement Lon/Lat", fmt.Sprintf("%g, %g", p.Longitude, p.Latitude)},
+		{"Placement Height", fmt.Sprintf("%gm", p.Height)},
+		{"Placement H/P/R", fmt.Sprintf("%g/%g/%g", p.Heading, p.Pitch, p.Roll)},
+		{"Placement Scale", fmt.Sprintf("%g", scale)},
+		{"Placement Up Axis", up},
+	}
+}
+
+func parseColorizer(spec string) (*mutator.Colorizer, error) {
+	if spec == "" {
+		return nil, nil
+	}
+	parts := strings.Split(spec, ":")
+	if len(parts) < 2 {
+		return nil, fmt.Errorf(`expected "attribute:gradient[:modifier...]"`)
+	}
+	attribute := parts[0]
+	gradient := parts[1]
+	if attribute == "" {
+		return nil, fmt.Errorf("attribute name cannot be empty")
+	}
+	if gradient == "" {
+		return nil, fmt.Errorf("gradient name cannot be empty")
+	}
+	var opts []mutator.ColorizerOption
+	for _, mod := range parts[2:] {
+		opt, err := parseColorizerModifier(mod)
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, opt)
+	}
+	return mutator.NewColorizer(attribute, gradient, opts...)
+}
+
+// parseColorizerModifier parses one colorize spec modifier: "reverse",
+// "steps=N", "stretch=pLow,pHigh" (or "stretch=minmax"), "blend=alpha".
+func parseColorizerModifier(mod string) (mutator.ColorizerOption, error) {
+	key, value, hasValue := strings.Cut(mod, "=")
+	switch key {
+	case "reverse":
+		if hasValue {
+			return nil, fmt.Errorf(`modifier "reverse" takes no value`)
+		}
+		return mutator.WithReverse(), nil
+	case "steps":
+		n, err := strconv.Atoi(value)
+		if err != nil {
+			return nil, fmt.Errorf("invalid steps %q: %w", value, err)
+		}
+		return mutator.WithSteps(n), nil
+	case "stretch":
+		if value == "minmax" {
+			return mutator.WithStretch(0, 100), nil
+		}
+		lowStr, highStr, ok := strings.Cut(value, ",")
+		if !ok {
+			return nil, fmt.Errorf(`invalid stretch %q: expected "pLow,pHigh" or "minmax"`, value)
+		}
+		low, err := strconv.ParseFloat(lowStr, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid stretch lower percentile %q: %w", lowStr, err)
+		}
+		high, err := strconv.ParseFloat(highStr, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid stretch upper percentile %q: %w", highStr, err)
+		}
+		return mutator.WithStretch(low, high), nil
+	case "blend":
+		alpha, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid blend %q: %w", value, err)
+		}
+		return mutator.WithBlend(alpha), nil
+	default:
+		return nil, fmt.Errorf("unknown colorize modifier %q", mod)
+	}
+}
+
 func (c *cliOpts) getTilerOptions() *tiler.TilerOptions {
 	c.validate()
 	mutators := []mutator.Mutator{
@@ -596,6 +973,25 @@ func (c *cliOpts) getTilerOptions() *tiler.TilerOptions {
 	}
 	if !c.includeWithheld {
 		mutators = append(mutators, mutator.NewWithheldFilter())
+	}
+	if colorizer, err := parseColorizer(c.colorize); err != nil {
+		log.Fatalf("--colorize: %v", err)
+	} else if colorizer != nil {
+		mutators = append(mutators, colorizer)
+	}
+	if c.subsample < 100 {
+		mutators = append(mutators, subsampler.New(c.subsample/100))
+	}
+	if c.geoTIFFColorize != "" {
+		converter, err := coordproj.NewConverter()
+		if err != nil {
+			log.Fatalf("--geotiff-colorize: %v", err)
+		}
+		geoColorizer, err := geotiffcolorizer.NewColorizerFromFile(c.geoTIFFColorize, converter)
+		if err != nil {
+			log.Fatalf("--geotiff-colorize: %v", err)
+		}
+		mutators = append(mutators, geoColorizer)
 	}
 	refineMode := model.RefineAdd
 	if c.refineMode == "replace" {
@@ -607,23 +1003,33 @@ func (c *cliOpts) getTilerOptions() *tiler.TilerOptions {
 	}
 	// Already validated in validate(), so error can be safely ignored here.
 	attrs, _ := model.ParseAttributes(strings.Split(c.attributes, ","))
-	return tiler.NewTilerOptions(
+	tilerOpts := tiler.NewTilerOptions(
 		tiler.WithEightBitColors(c.eightBit),
 		tiler.WithMutators(mutators),
 		tiler.WithPointsPerTile(c.pointsPerTile),
 		tiler.WithProgressCallback(progressCb),
-		tiler.WithEncoder(encoderIDForVersion(c.version)),
+		tiler.WithEncoder(c.encoderID()),
 		tiler.WithRefineMode(refineMode),
 		tiler.WithInitialGeometricError(c.initialGeometricError),
 		tiler.WithGECorrection(c.geCorrection),
 		tiler.WithAttributes(attrs),
 	)
+	if c.placementMode() {
+		tilerOpts.Apply(tiler.WithPlacement(c.placement()))
+	}
+	return tilerOpts
 }
 
-func encoderIDForVersion(tilesetVersion string) string {
-	switch tilesetVersion {
-	case "1.0":
+// encoderID selects the geometry encoder: compressed GLB by default; .pnts
+// (tileset version 1.0) output has no compressed variant.
+func (c *cliOpts) encoderID() string {
+	switch {
+	case c.version == "1.0":
 		return plugin.EncoderPNTS
+	case c.compression == "meshopt" && c.meshoptKHR:
+		return compression.EncoderCompressedGLBKHR
+	case c.compression == "meshopt":
+		return compression.EncoderCompressedGLB
 	default:
 		return plugin.EncoderGLB
 	}
@@ -647,14 +1053,21 @@ func pointCloudCommand(provider TilerProvider, opts *cliOpts, inputPath string) 
 	}
 	tilerOpts := opts.getTilerOptions()
 	crs := opts.crs
-	if code, err := strconv.Atoi(crs); err == nil {
+	if opts.placementMode() {
+		// placement mode: the tiler receives no CRS and places the local
+		// coordinates on the globe through the placement transform
+		crs = ""
+	} else if code, err := strconv.Atoi(crs); err == nil {
 		crs = fmt.Sprintf("EPSG:%d", code)
 	}
 
 	if !info.IsDir() {
 		opts.printSummary(inputPath, "File")
 		runnable := func(ctx context.Context) error {
-			return t.ProcessFiles([]string{inputPath}, opts.output, crs, tilerOpts, ctx)
+			if err := t.ProcessFiles([]string{inputPath}, opts.output, crs, tilerOpts, ctx); err != nil {
+				return err
+			}
+			return opts.packageTilesets(nil)
 		}
 		launch(opts, runnable)
 		return nil
@@ -671,11 +1084,107 @@ func pointCloudCommand(provider TilerProvider, opts *cliOpts, inputPath string) 
 			if err != nil {
 				return err
 			}
-			return t.ProcessFiles(files, opts.output, crs, tilerOpts, ctx)
+			if err := t.ProcessFiles(files, opts.output, crs, tilerOpts, ctx); err != nil {
+				return err
+			}
+			return opts.packageTilesets(nil)
 		}
-		return t.ProcessFolder(inputPath, opts.output, crs, tilerOpts, ctx)
+		if err := t.ProcessFolder(inputPath, opts.output, crs, tilerOpts, ctx); err != nil {
+			return err
+		}
+		// folder mode produces one tileset per file, each in a subfolder of
+		// the output folder named after the file
+		files, err := findPointCloudFilesInFolder(inputPath)
+		if err != nil {
+			return err
+		}
+		return opts.packageTilesets(files)
 	}
 	launch(opts, runnable)
+	return nil
+}
+
+// packageTilesets archives the written tilesets into .3tz files when --3tz is
+// active. With no input files it packages the single tileset in the output
+// folder; otherwise it packages one tileset subfolder per input file.
+func (c *cliOpts) packageTilesets(inputFiles []string) error {
+	if !c.threeTZ {
+		return nil
+	}
+	folders := []string{c.output}
+	if len(inputFiles) > 0 {
+		folders = folders[:0]
+		for _, f := range inputFiles {
+			sub := strings.TrimSuffix(filepath.Base(f), filepath.Ext(f))
+			folders = append(folders, filepath.Join(c.output, sub))
+		}
+	}
+	for _, folder := range folders {
+		if err := packageTileset(folder); err != nil {
+			return fmt.Errorf("--3tz: %v", err)
+		}
+	}
+	return nil
+}
+
+// packageTileset archives the tileset in outputFolder into a .3tz file inside
+// the folder itself, then removes the loose tileset files, leaving the archive
+// as the only artifact.
+func packageTileset(outputFolder string) error {
+	archivePath := filepath.Join(outputFolder, threeTZFilename)
+	archive, err := threetz.New(archivePath)
+	if err != nil {
+		return err
+	}
+	err = filepath.WalkDir(outputFolder, func(path string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if d.IsDir() || path == archivePath {
+			return nil
+		}
+		rel, err := filepath.Rel(outputFolder, path)
+		if err != nil {
+			return err
+		}
+		src, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer src.Close()
+		dst, err := archive.Open(filepath.ToSlash(rel))
+		if err != nil {
+			return err
+		}
+		if _, err := io.Copy(dst, src); err != nil {
+			_ = dst.Close()
+			return err
+		}
+		return dst.Close()
+	})
+	if err == nil {
+		err = archive.Finalize()
+	} else {
+		_ = archive.Finalize()
+	}
+	if err != nil {
+		// do not leave a partial archive behind
+		_ = os.Remove(archivePath)
+		return err
+	}
+	// remove the loose tileset files, leaving only the archive
+	entries, err := os.ReadDir(outputFolder)
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		if e.Name() == threeTZFilename {
+			continue
+		}
+		if err := os.RemoveAll(filepath.Join(outputFolder, e.Name())); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -870,9 +1379,8 @@ func formatThroughput(pts int64, elapsed time.Duration) string {
 
 var donationMessages = []string{
 	"🌟 Happy with your new 3D Tiles? Consider starring the project: https://github.com/mfbonfigli/gotiler",
-	"🚀 Want point cloud compression or E57 support? Check out GoTiler Pro: https://gotiler.io",
 	"⏳ Has GoTiler CLI saved your team time? Help keep the engine open and sustainable: https://ko-fi.com/mfbonfigli",
-	"💚 Enjoying the GoTiler CLI Community Edition? Support open-source maintenance and development: https://ko-fi.com/mfbonfigli",
+	"💚 Enjoying GoTiler CLI? Support open-source maintenance and development: https://ko-fi.com/mfbonfigli",
 }
 
 func printDonationMessage() {

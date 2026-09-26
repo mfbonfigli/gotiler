@@ -24,15 +24,18 @@ Output:
   build/
     linux-amd64/
       share/
-      gotiler-lin-amd64
+      gotiler
+      THIRD-PARTY-LICENSES.md
     linux-arm64/
       share/
-      gotiler-lin-arm64
+      gotiler
+      THIRD-PARTY-LICENSES.md
     windows-amd64/
       share/
-      gotiler-win-amd64.exe
+      gotiler.exe
+      THIRD-PARTY-LICENSES.md
     tests/
-      linux-amd64/
+      linux-amd64/     test binaries, one per package directory
       linux-arm64/
       windows-amd64/
 '
@@ -169,17 +172,11 @@ main() {
             return
         fi
 
-        find "$test_dir" -type f | while read -r test_file; do
-            local filename
-            filename="$(basename "$test_file")"
-            echo -e "${Cyan}    Testing: ${filename}...${Reset}"
-            chmod +x "$test_file"
-            if ! "$test_file" -test.v; then
-                echo -e "${Red}    Test failed: ${filename}${Reset}"
-                exit 1
-            fi
-            echo -e "${BoldGreen}    PASS: ${filename}${Reset}"
-        done
+        if ! bash "$(dirname "${BASH_SOURCE[0]}")/run-tests.sh" "$test_dir" "./build/$target_arch/share"; then
+            echo -e "${Red}    Tests failed for ${target_arch}${Reset}"
+            exit 1
+        fi
+        echo -e "${BoldGreen}    PASS: ${target_arch}${Reset}"
     }
 
     echo -e "${Blue} => Running tests...${Reset}"

@@ -6,8 +6,13 @@ on:
       - 'v3.*'
 
 permissions:
-  contents: write
+  contents: read
   actions: read
+
+# Every dependency is public, so no access token is needed to build.
+# Test binaries run from their package directories in a checkout of the
+# repository (tests read testdata/ files relative to it), with PROJ_DATA
+# pointing at the PROJ database built alongside them: see scripts/run-tests.sh.
 
 jobs:
   # -------------------------------------------------------------------
@@ -66,7 +71,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: gotiler-linux-arm64-tests
-          path: build/tests/linux-arm64/
+          path: |
+            build/tests/linux-arm64/
+            build/linux-arm64/share/
           if-no-files-found: error
 
   # -------------------------------------------------------------------
@@ -76,21 +83,18 @@ jobs:
     needs: build-linux-arm64
     runs-on: ubuntu-24.04-arm
     steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
       - name: Download linux-arm64 test binaries
         uses: actions/download-artifact@v8
         with:
           name: gotiler-linux-arm64-tests
-          path: tests/
+          path: build/
 
       - name: Run linux-arm64 tests
         shell: bash
-        run: |
-          for test_file in tests/*; do
-            [ -f "$test_file" ] || continue
-            chmod +x "$test_file"
-            echo "Running $(basename "$test_file")..."
-            "$test_file" -test.v || exit 1
-          done
+        run: bash scripts/run-tests.sh build/tests/linux-arm64 build/linux-arm64/share
 
   # -------------------------------------------------------------------
   # Build: windows-amd64 (cross-compiled on Linux via mingw-w64)
@@ -122,7 +126,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: gotiler-windows-amd64-tests
-          path: build/tests/windows-amd64/
+          path: |
+            build/tests/windows-amd64/
+            build/windows-amd64/share/
           if-no-files-found: error
 
   # -------------------------------------------------------------------
@@ -132,26 +138,22 @@ jobs:
     needs: build-windows-amd64
     runs-on: windows-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
       - name: Download windows-amd64 test binaries
         uses: actions/download-artifact@v8
         with:
           name: gotiler-windows-amd64-tests
-          path: tests
+          path: build/
 
       - name: Run windows-amd64 tests
-        shell: powershell
-        run: |
-          $Files = Get-ChildItem -Path tests -File
-          foreach ($File in $Files) {
-            Write-Host "Running $($File.Name)..."
-            & $File.FullName "-test.v"
-            if ($LASTEXITCODE -ne 0) {
-              throw "Test failed: $($File.Name)"
-            }
-          }
+        shell: bash
+        run: bash scripts/run-tests.sh build/tests/windows-amd64 build/windows-amd64/share
 
   # -------------------------------------------------------------------
-  # Create draft GitHub Release with 3 per-platform zip files
+  # Create draft GitHub Release with 3 per-platform zip files, their
+  # SHA-256 checksums and signed build provenance attestations
   # -------------------------------------------------------------------
   create-release:
     needs:
@@ -160,6 +162,11 @@ jobs:
       - test-windows-amd64
     runs-on: ubuntu-24.04
     if: success()
+    permissions:
+      contents: write      # create the draft release
+      actions: read
+      id-token: write      # sign the attestations through Sigstore
+      attestations: write  # store the attestations
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -190,32 +197,47 @@ jobs:
 
           # --- linux-amd64 ---
           mkdir -p pkg
-          cp artifacts/linux-amd64/gotiler-lin-amd64 pkg/gotiler
+          cp artifacts/linux-amd64/gotiler pkg/gotiler
           chmod +x pkg/gotiler
           cp -r artifacts/linux-amd64/share pkg/
-          cp README.md LICENSE.md THIRD-PARTY-LICENSES.md pkg/
+          cp artifacts/linux-amd64/THIRD-PARTY-LICENSES.md pkg/
+          cp README.md LICENSE.md pkg/
           (cd pkg && zip -r "../release-zips/gotiler-linux-amd64-${TAG}.zip" .)
           rm -rf pkg
 
           # --- linux-arm64 ---
           mkdir -p pkg
-          cp artifacts/linux-arm64/gotiler-lin-arm64 pkg/gotiler
+          cp artifacts/linux-arm64/gotiler pkg/gotiler
           chmod +x pkg/gotiler
           cp -r artifacts/linux-arm64/share pkg/
-          cp README.md LICENSE.md THIRD-PARTY-LICENSES.md pkg/
+          cp artifacts/linux-arm64/THIRD-PARTY-LICENSES.md pkg/
+          cp README.md LICENSE.md pkg/
           (cd pkg && zip -r "../release-zips/gotiler-linux-arm64-${TAG}.zip" .)
           rm -rf pkg
 
           # --- windows-amd64 ---
           mkdir -p pkg
-          cp artifacts/windows-amd64/gotiler-win-amd64.exe pkg/gotiler.exe
+          cp artifacts/windows-amd64/gotiler.exe pkg/gotiler.exe
           cp -r artifacts/windows-amd64/share pkg/
-          cp README.md LICENSE.md THIRD-PARTY-LICENSES.md pkg/
+          cp artifacts/windows-amd64/THIRD-PARTY-LICENSES.md pkg/
+          cp README.md LICENSE.md pkg/
           (cd pkg && zip -r "../release-zips/gotiler-windows-amd64-${TAG}.zip" .)
           rm -rf pkg
 
           echo "Release zips created:"
           ls -la release-zips/
+
+      - name: Generate checksums
+        shell: bash
+        working-directory: release-zips
+        run: |
+          sha256sum *.zip > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Attest build provenance
+        uses: actions/attest@v4
+        with:
+          subject-path: release-zips/*.zip
 
       - name: Create draft release
         uses: softprops/action-gh-release@v3
@@ -234,5 +256,23 @@ jobs:
             | Linux ARM64  | `gotiler-linux-arm64-${{ github.ref_name }}.zip` |
             | Windows x86_64 | `gotiler-windows-amd64-${{ github.ref_name }}.zip` |
 
-            Each zip contains the executable, PROJ data files (`share/`), and license documentation.
-          files: release-zips/*.zip
+            Each zip contains the executable, PROJ data files (`share/`), and license documentation, including the platform's third-party licenses.
+
+            ### Verifying downloads
+
+            `SHA256SUMS` lists the SHA-256 checksum of every zip. On Linux, from the download folder:
+
+            ```bash
+            sha256sum -c SHA256SUMS --ignore-missing
+            ```
+
+            On Windows, compare the output of `Get-FileHash <zip>` with the zip's line in `SHA256SUMS`.
+
+            Every zip also has a signed build provenance attestation, proving it was built by this repository's release workflow. With the GitHub CLI:
+
+            ```bash
+            gh attestation verify gotiler-linux-amd64-${{ github.ref_name }}.zip --repo ${{ github.repository }}
+            ```
+          files: |
+            release-zips/*.zip
+            release-zips/SHA256SUMS

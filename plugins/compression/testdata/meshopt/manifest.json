@@ -1,0 +1,186 @@
+[
+	{
+		"name": "positions",
+		"count": 700,
+		"stride": 8,
+		"input": "positions.input.bin",
+		"encoded": [
+			{
+				"file": "positions.v1l2.bin",
+				"version": 1,
+				"level": 2
+			},
+			{
+				"file": "positions.v1l3.bin",
+				"version": 1,
+				"level": 3
+			},
+			{
+				"file": "positions.v0.bin",
+				"version": 0,
+				"level": 2
+			}
+		]
+	},
+	{
+		"name": "colors",
+		"count": 300,
+		"stride": 4,
+		"input": "colors.input.bin",
+		"encoded": [
+			{
+				"file": "colors.v1l2.bin",
+				"version": 1,
+				"level": 2
+			},
+			{
+				"file": "colors.v1l3.bin",
+				"version": 1,
+				"level": 3
+			},
+			{
+				"file": "colors.v0.bin",
+				"version": 0,
+				"level": 2
+			}
+		]
+	},
+	{
+		"name": "floats",
+		"count": 500,
+		"stride": 4,
+		"input": "floats.input.bin",
+		"encoded": [
+			{
+				"file": "floats.v1l2.bin",
+				"version": 1,
+				"level": 2
+			},
+			{
+				"file": "floats.v1l3.bin",
+				"version": 1,
+				"level": 3
+			},
+			{
+				"file": "floats.v0.bin",
+				"version": 0,
+				"level": 2
+			}
+		]
+	},
+	{
+		"name": "bitfield",
+		"count": 400,
+		"stride": 4,
+		"input": "bitfield.input.bin",
+		"encoded": [
+			{
+				"file": "bitfield.v1l2.bin",
+				"version": 1,
+				"level": 2
+			},
+			{
+				"file": "bitfield.v1l3.bin",
+				"version": 1,
+				"level": 3
+			},
+			{
+				"file": "bitfield.v0.bin",
+				"version": 0,
+				"level": 2
+			}
+		]
+	},
+	{
+		"name": "random",
+		"count": 200,
+		"stride": 12,
+		"input": "random.input.bin",
+		"encoded": [
+			{
+				"file": "random.v1l2.bin",
+				"version": 1,
+				"level": 2
+			},
+			{
+				"file": "random.v1l3.bin",
+				"version": 1,
+				"level": 3
+			},
+			{
+				"file": "random.v0.bin",
+				"version": 0,
+				"level": 2
+			}
+		]
+	},
+	{
+		"name": "sparse",
+		"count": 1000,
+		"stride": 16,
+		"input": "sparse.input.bin",
+		"encoded": [
+			{
+				"file": "sparse.v1l2.bin",
+				"version": 1,
+				"level": 2
+			},
+			{
+				"file": "sparse.v1l3.bin",
+				"version": 1,
+				"level": 3
+			},
+			{
+				"file": "sparse.v0.bin",
+				"version": 0,
+				"level": 2
+			}
+		]
+	},
+	{
+		"name": "wide",
+		"count": 100,
+		"stride": 64,
+		"input": "wide.input.bin",
+		"encoded": [
+			{
+				"file": "wide.v1l2.bin",
+				"version": 1,
+				"level": 2
+			},
+			{
+				"file": "wide.v1l3.bin",
+				"version": 1,
+				"level": 3
+			},
+			{
+				"file": "wide.v0.bin",
+				"version": 0,
+				"level": 2
+			}
+		]
+	},
+	{
+		"name": "single",
+		"count": 1,
+		"stride": 4,
+		"input": "single.input.bin",
+		"encoded": [
+			{
+				"file": "single.v1l2.bin",
+				"version": 1,
+				"level": 2
+			},
+			{
+				"file": "single.v1l3.bin",
+				"version": 1,
+				"level": 3
+			},
+			{
+				"file": "single.v0.bin",
+				"version": 0,
+				"level": 2
+			}
+		]
+	}
+]

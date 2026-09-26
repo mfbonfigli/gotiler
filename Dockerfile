@@ -71,20 +71,37 @@ RUN mkdir -p \
     /artifacts/linux-amd64/share \
     /artifacts/tests/linux-amd64
 
+# netgo,osusergo keep net and os/user in pure Go: with a -static CGO_LDFLAGS,
+# binaries whose only cgo comes from the standard library (e.g. anything using
+# net/http, like the s3upload tests) otherwise fail to link, and the static
+# executable would depend on the host glibc for name resolution
 ENV PKG_CONFIG_PATH="/vcpkg/installed/x64-linux/lib/pkgconfig" \
     CGO_ENABLED="1" \
-    CGO_LDFLAGS="-L/vcpkg/installed/x64-linux/lib -g -O2 -static -lstdc++ -lsqlite3 -ltiff -lz -ljpeg -llzma -lm"
+    CGO_LDFLAGS="-L/vcpkg/installed/x64-linux/lib -g -O2 -static -lstdc++ -lsqlite3 -ltiff -lz -ljpeg -llzma -lm" \
+    GOFLAGS="-tags=netgo,osusergo"
 
 ARG VERSION="3.0.0-dev"
 ARG GIT_COMMIT="unknown"
-RUN go build -o /artifacts/linux-amd64/gotiler-lin-amd64 -ldflags "-X main.GitCommit=${GIT_COMMIT} -X main.Version=${VERSION}" ./cmd/main.go
+RUN go build -o /artifacts/linux-amd64/gotiler -ldflags "-X main.GitCommit=${GIT_COMMIT} -X main.Version=${VERSION}" ./cmd/main.go
 
-RUN for pkg in $(go list ./...); do \
-      pkg_name=$(echo "$pkg" | tr '/' '_'); \
-      go test -c -o /artifacts/tests/linux-amd64/${pkg_name}.test $pkg; \
+# test binaries mirror the package layout: scripts/run-tests.sh runs each one
+# from its package directory, where tests find their testdata
+RUN for dir in $(go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.Dir}}{{end}}' ./...); do \
+      rel="${dir#$PWD/}"; \
+      go test -c -o "/artifacts/tests/linux-amd64/${rel}/pkg.test" "./${rel}" || exit 1; \
     done
 
 RUN cp -r /usr/local/share/proj/. /artifacts/linux-amd64/share/
+
+RUN bash scripts/3p-license-gen.sh --out /artifacts/linux-amd64/THIRD-PARTY-LICENSES.md \
+      --notice "PROJ=${PROJECT_FOLDER}/${PROJ_VERSION}/COPYING" \
+      --notice "SQLite=/vcpkg/installed/x64-linux/share/sqlite3/copyright" \
+      --notice "libtiff=/vcpkg/installed/x64-linux/share/tiff/copyright" \
+      --notice "libjpeg-turbo=/vcpkg/installed/x64-linux/share/libjpeg-turbo/copyright" \
+      --notice "liblzma (XZ Utils)=/vcpkg/installed/x64-linux/share/liblzma/copyright" \
+      --notice "zlib=/vcpkg/installed/x64-linux/share/zlib/copyright" \
+      --notice "GNU C Library (glibc)=/usr/share/doc/libc6/copyright" \
+      --notice "GNU Lesser General Public License v2.1 (glibc)=/usr/share/common-licenses/LGPL-2.1"
 
 
 ##################################
@@ -131,24 +148,38 @@ RUN mkdir -p \
     /artifacts/linux-arm64/share \
     /artifacts/tests/linux-arm64
 
+# netgo,osusergo: see the linux-amd64 builder
 ENV PKG_CONFIG_PATH="/vcpkg/installed/arm64-linux/lib/pkgconfig" \
     CC="aarch64-linux-gnu-gcc" \
     CXX="aarch64-linux-gnu-g++" \
     GOOS="linux" \
     GOARCH="arm64" \
     CGO_ENABLED="1" \
-    CGO_LDFLAGS="-L/vcpkg/installed/arm64-linux/lib -g -O2 -static -lstdc++ -lsqlite3 -ltiff -lz -ljpeg -llzma -lm"
+    CGO_LDFLAGS="-L/vcpkg/installed/arm64-linux/lib -g -O2 -static -lstdc++ -lsqlite3 -ltiff -lz -ljpeg -llzma -lm" \
+    GOFLAGS="-tags=netgo,osusergo"
 
 ARG VERSION="3.0.0-dev"
 ARG GIT_COMMIT="unknown"
-RUN go build -o /artifacts/linux-arm64/gotiler-lin-arm64 -ldflags "-X main.GitCommit=${GIT_COMMIT} -X main.Version=${VERSION}" ./cmd/main.go
+RUN go build -o /artifacts/linux-arm64/gotiler -ldflags "-X main.GitCommit=${GIT_COMMIT} -X main.Version=${VERSION}" ./cmd/main.go
 
-RUN for pkg in $(go list ./...); do \
-      pkg_name=$(echo "$pkg" | tr '/' '_'); \
-      go test -c -o /artifacts/tests/linux-arm64/${pkg_name}.test $pkg; \
+# test binaries mirror the package layout: scripts/run-tests.sh runs each one
+# from its package directory, where tests find their testdata
+RUN for dir in $(go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.Dir}}{{end}}' ./...); do \
+      rel="${dir#$PWD/}"; \
+      go test -c -o "/artifacts/tests/linux-arm64/${rel}/pkg.test" "./${rel}" || exit 1; \
     done
 
 RUN cp -r /usr/local/share/proj/. /artifacts/linux-arm64/share/
+
+RUN bash scripts/3p-license-gen.sh --out /artifacts/linux-arm64/THIRD-PARTY-LICENSES.md \
+      --notice "PROJ=${PROJECT_FOLDER}/${PROJ_VERSION}/COPYING" \
+      --notice "SQLite=/vcpkg/installed/arm64-linux/share/sqlite3/copyright" \
+      --notice "libtiff=/vcpkg/installed/arm64-linux/share/tiff/copyright" \
+      --notice "libjpeg-turbo=/vcpkg/installed/arm64-linux/share/libjpeg-turbo/copyright" \
+      --notice "liblzma (XZ Utils)=/vcpkg/installed/arm64-linux/share/liblzma/copyright" \
+      --notice "zlib=/vcpkg/installed/arm64-linux/share/zlib/copyright" \
+      --notice "GNU C Library (glibc)=/usr/share/doc/libc6-arm64-cross/copyright" \
+      --notice "GNU Lesser General Public License v2.1 (glibc)=/usr/share/common-licenses/LGPL-2.1"
 
 
 ##################################
@@ -211,14 +242,25 @@ ENV PKG_CONFIG_PATH="/vcpkg/installed/x64-mingw-static/lib/pkgconfig" \
 
 ARG VERSION="3.0.0-dev"
 ARG GIT_COMMIT="unknown"
-RUN go build -o /artifacts/windows-amd64/gotiler-win-amd64.exe -ldflags "-X main.GitCommit=${GIT_COMMIT} -X main.Version=${VERSION}" ./cmd/main.go
+RUN go build -o /artifacts/windows-amd64/gotiler.exe -ldflags "-X main.GitCommit=${GIT_COMMIT} -X main.Version=${VERSION}" ./cmd/main.go
 
-RUN for pkg in $(go list ./...); do \
-      pkg_name=$(echo "$pkg" | tr '/' '_'); \
-      go test -c -o /artifacts/tests/windows-amd64/${pkg_name}.test.exe $pkg; \
+# test binaries mirror the package layout: scripts/run-tests.sh runs each one
+# from its package directory, where tests find their testdata
+RUN for dir in $(go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.Dir}}{{end}}' ./...); do \
+      rel="${dir#$PWD/}"; \
+      go test -c -o "/artifacts/tests/windows-amd64/${rel}/pkg.test.exe" "./${rel}" || exit 1; \
     done
 
 RUN cp -r /usr/local/share/proj/. /artifacts/windows-amd64/share/
+
+RUN bash scripts/3p-license-gen.sh --out /artifacts/windows-amd64/THIRD-PARTY-LICENSES.md \
+      --notice "PROJ=${PROJECT_FOLDER}/${PROJ_VERSION}/COPYING" \
+      --notice "SQLite=/vcpkg/installed/x64-mingw-static/share/sqlite3/copyright" \
+      --notice "libtiff=/vcpkg/installed/x64-mingw-static/share/tiff/copyright" \
+      --notice "libjpeg-turbo=/vcpkg/installed/x64-mingw-static/share/libjpeg-turbo/copyright" \
+      --notice "liblzma (XZ Utils)=/vcpkg/installed/x64-mingw-static/share/liblzma/copyright" \
+      --notice "zlib=/vcpkg/installed/x64-mingw-static/share/zlib/copyright" \
+      --notice "mingw-w64 runtime=/usr/share/doc/mingw-w64-x86-64-dev/copyright"
 
 
 ##################################

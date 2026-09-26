@@ -11,6 +11,11 @@ on:
 permissions:
   contents: read
 
+# Every dependency is public, so no access token is needed to build.
+# Test binaries run from their package directories in a checkout of the
+# repository (tests read testdata/ files relative to it), with PROJ_DATA
+# pointing at the PROJ database built alongside them: see scripts/run-tests.sh.
+
 jobs:
   # -------------------------------------------------------------------
   # Build and test: linux-amd64 (native; tests run inline)
@@ -52,7 +57,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: build-linux-arm64-tests-${{ github.run_id }}
-          path: build/tests/linux-arm64/
+          path: |
+            build/tests/linux-arm64/
+            build/linux-arm64/share/
           if-no-files-found: error
 
   # -------------------------------------------------------------------
@@ -62,21 +69,18 @@ jobs:
     needs: build-linux-arm64
     runs-on: ubuntu-24.04-arm
     steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
       - name: Download linux-arm64 test binaries
         uses: actions/download-artifact@v8
         with:
           name: build-linux-arm64-tests-${{ github.run_id }}
-          path: tests/
+          path: build/
 
       - name: Run linux-arm64 tests
         shell: bash
-        run: |
-          for test_file in tests/*; do
-            [ -f "$test_file" ] || continue
-            chmod +x "$test_file"
-            echo "Running $(basename "$test_file")..."
-            "$test_file" -test.v || exit 1
-          done
+        run: bash scripts/run-tests.sh build/tests/linux-arm64 build/linux-arm64/share
 
   # -------------------------------------------------------------------
   # Build: windows-amd64 (cross-compiled on Linux via mingw-w64)
@@ -100,7 +104,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: build-windows-amd64-tests-${{ github.run_id }}
-          path: build/tests/windows-amd64/
+          path: |
+            build/tests/windows-amd64/
+            build/windows-amd64/share/
           if-no-files-found: error
 
   # -------------------------------------------------------------------
@@ -110,20 +116,15 @@ jobs:
     needs: build-windows-amd64
     runs-on: windows-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
       - name: Download windows-amd64 test binaries
         uses: actions/download-artifact@v8
         with:
           name: build-windows-amd64-tests-${{ github.run_id }}
-          path: tests
+          path: build/
 
       - name: Run windows-amd64 tests
-        shell: powershell
-        run: |
-          $Files = Get-ChildItem -Path tests -File
-          foreach ($File in $Files) {
-            Write-Host "Running $($File.Name)..."
-            & $File.FullName "-test.v"
-            if ($LASTEXITCODE -ne 0) {
-              throw "Test failed: $($File.Name)"
-            }
-          }
+        shell: bash
+        run: bash scripts/run-tests.sh build/tests/windows-amd64 build/windows-amd64/share
