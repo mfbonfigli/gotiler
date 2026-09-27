@@ -4,45 +4,26 @@
   <img src="gotiler-cli-banner.png" alt="Gotiler Repository Banner" width="100%">
 </p>
 
-**GoTiler CLI** (formerly also known as *gocesiumtiler*) is a **high-performance** tool for turning **point clouds** (LAS, LAZ and E57) into streaming-ready **OGC 3D Tiles** **1.0** and **1.1** formats, ready to use in **CesiumJS** and modern 3D geospatial viewers supporting 3D Tiles.
+**GoTiler CLI** (formerly *gocesiumtiler*) converts **LAS, LAZ and E57** point clouds into streaming-ready **OGC 3D Tiles 1.0 and 1.1**, ready for **CesiumJS** and other 3D Tiles viewers.
 
-Powered by an out-of-core tiling engine, on modern hardware backed by fast NVMe storage it leads benchmarks tiling **4M+ points per second** with low memory requirements, processing point clouds with hundreds of millions of points in seconds rather than minutes. The engine lives in this repository too and can be embedded in Go programs: see [LIBRARY.md](LIBRARY.md).
+Its out-of-core high-performance engine can tile over **4 million points per second** on modern hardware with NVMe storage while using little memory, so clouds of hundreds of millions of points take seconds rather than minutes.
+
+## ✨ Features
+
+* **Fast and out-of-core:** uses every CPU core and fast NVMe drives, and tiles billion-point clouds without running out of RAM.
+* **Compressed tiles by default:** 3D Tiles 1.1 output uses `EXT_meshopt_compression` and `KHR_mesh_quantization` (or the newer `KHR_meshopt_compression`), cutting tileset size by 70% or more.
+* **LAS, LAZ and E57 input:** every LAS/LAZ version (1.0–1.4) and point format, plus E57 scans (experimental).
+* **Automatic reprojection:** reads the CRS from LAS GeoTIFF or WKT metadata and transforms coordinates with the embedded PROJ library. Ungeoreferenced clouds can be placed on the globe by hand.
+* **3D Tiles 1.0 and 1.1:** `.pnts` or glTF (`.glb`) tiles, optionally packed into a single `.3tz` archive.
+* **Uniform tiles, one setting:** set `--points-per-tile` and the cloud is split into tiles of about that size. Geometric error and `ADD`/`REPLACE` refinement can be tuned.
+* **Per-point attributes:** export intensity, classification, GPS time, LAS extra bytes or any other attribute of the input.
+* **Colorization:** color points by any attribute or coordinate with 36 color ramps and gradient controls, or directly from an RGB GeoTIFF orthophoto.
+* **Subsampling and merging:** thin out huge clouds while tiling, or merge a folder of files into one tileset.
+* **Self-contained:** one executable plus its bundled PROJ data, with live progress bars. No runtime, shared library, Docker or other tools to install.
 
 ## ❤️ Support the Project
 
 GoTiler is an AGPLv3 open-source project maintained with love. If it saves you time or resources, consider **[making a donation](https://ko-fi.com/mfbonfigli)** to support ongoing maintenance, or starring the repository.
-
-## ✨ Features
-
-### 🚀 Performance & Scale
-* **Blazing Fast:** Can process over 4M+ points/sec on modern hardware. Leverages all CPU cores to maximize throughput and squeezes the performances of fast Gen5 NVME drives.
-* **Out-of-Core Processing:** Crunch billion-point clouds without blowing up your RAM.
-* **Tile Compression:** Leverages `EXT_meshopt_compression` (or the newer `KHR_meshopt_compression`) and `KHR_mesh_quantization` to shrink tile size by 70% or more. **On by default.**
-* **Built-in Subsampling:** Optionally thin out massive point clouds on the fly during the tiling process with a single flag.
-
-### 🌐 Formats & GIS Power
-* **Native LAS & LAZ Support:** Handles all LAS/LAZ file versions (1.0–1.4) and all point formats with automatic CRS detection from embedded VLRs.
-* **E57 Support:** Reads `.e57` point clouds natively (experimental), including scan-prototype extension fields as per-point attributes.
-* **Next-Gen 3D Tiles:** Generate tiles following 3D Tiles v1.0 specs (`.pnts`) or v1.1 (`.glb`/glTF).
-* **3TZ Archives:** Package each tileset as a single OGC 3D Tiles Archive (`.3tz`) file instead of a folder of loose tiles.
-* **Embedded PROJ Reprojection:** Powered by the industry-standard PROJ library for automatic, accurate coordinate transformations with zero-config CRS detection that extracts GeoTIFF/WKT metadata straight from LAS headers.
-
-### 🎨 Colorization
-* **Attribute Colorization:** Color points from any numeric attribute or coordinate with automatic percentile stretching.
-* **Extended Ramp Library:** 27 additional scientific and cartographic color ramps (see [Color Ramps](#color-ramps)).
-* **Advanced Gradient Controls:** Percentile-stretch tuning, discrete banding and color blending modifiers.
-* **GeoTIFF Colorization:** Color points on the fly from an RGB/RGBA GeoTIFF orthophoto.
-
-### 🎛️ Tiling Control & Pipeline
-* **High-Quality Output:** Automatically partitions clouds into optimized, approximately uniform tiles by number of points.
-* **Intuitive Control:** Just set `--points-per-tile` to control the tile size and let the smart algorithm do the heavy lifting of partitioning the cloud in uniform tiles.
-* **Customizable:** Optionally fine tune parameters like the geometric error at tiling time to control the rendering behavior.
-* **Flexible Refine Modes:** Toggle between `ADD` and `REPLACE` modes to balance network requests against bandwidth.
-* **Merge mode:** Read multiple input files and produce a single aggregate 3D Tiles output.
-
-### 💻 User Experience
-* **Zero System Dependencies:** One self-contained executable. No external runtime, docker or other tools required.
-* **Modern CLI:** Stay informed with real-time progress bars and live speed estimations.
 
 ## 📸 Demo
 
@@ -50,11 +31,11 @@ GoTiler is an AGPLv3 open-source project maintained with love. If it saves you t
 
 *15.9M points from a thinned [Helsinki dataset](https://doi.org/10.5281/zenodo.5578198) tiled in 3.7 seconds on an Intel Core i5-13600K with a Samsung 980 PRO NVMe SSD. This is just a quick preview: the tool scales to billions of points.*
 
-📸 Preview tilesets generated by GoTiler CLI at [this website](https://d39maarsub1d2t.cloudfront.net/index.html).
+Browse tilesets generated with GoTiler on the [preview website](https://d39maarsub1d2t.cloudfront.net/index.html).
 
 ## 🏁 Benchmarks
 
-The following table shows the time it took to tile the [Helsinki point cloud](https://zenodo.org/records/5578198) dataset compared with other tools. The cloud has 313M points and is stored in a 13GB LAS file.
+Time and peak memory to tile the [Helsinki point cloud](https://zenodo.org/records/5578198) (313M points, 13 GB LAS file), measured on the same AWS EC2 `i4i.2xlarge` instance running Ubuntu 24.04. [scripts/benchmark.sh](scripts/benchmark.sh) reproduces the runs.
 
 | **tool** | **execution time** | **max memory** |
 |------|---------------|-----------|
@@ -62,131 +43,88 @@ The following table shows the time it took to tile the [Helsinki point cloud](ht
 | [**py3dtiles 12.1.1**](https://gitlab.com/py3dtiles/py3dtiles) | 7m 11s | 2.56 GB |
 | [**mago 3d tiler 1.15.4**](https://github.com/Gaia3D/mago-3d-tiler) | 14m 17s | 16.81 GB |
 
-They have been measured on the same AWS EC2 instance `i4i.2xlarge` running Ubuntu linux 24.04. Check out ./scripts/benchmark.sh for how the tests have been run and to reproduce them.
-
-## 💼 Commercial Licensing
-
-GoTiler is released under the GNU AGPLv3. If its terms do not fit your use case, for example to embed the engine in proprietary software or services, commercial licenses are available: please get in touch with the maintainer through [GitHub](https://github.com/mfbonfigli).
-
 ## 📣 Installation
 
-Prebuilt binaries for Windows x86_64, Linux x86_64 and Linux ARM64 are provided with each Github release.
+Each [GitHub release](https://github.com/mfbonfigli/gotiler/releases) has prebuilt archives for Windows x86_64, Linux x86_64 and Linux ARM64. Unzip one anywhere: the executable must stay next to its `share` folder, which holds the PROJ data. A symbolic link to the executable, for example from a folder on your `PATH`, works too.
 
-1. Download a release archive from the [Releases page](https://github.com/mfbonfigli/gotiler/releases).
-2. Unzip it somewhere of your choice. Make sure the executable stays in the same folder as the `share` directory; a symbolic link to the executable from elsewhere, e.g. a folder on your `PATH`, works too.
-3. Done
+For high-precision datum conversions, including vertical ones, download the grids you need from the PROJ CDN into `share/`.
 
-If you need advanced datum grids for high precision coordinate conversion, download them from the PROJ CDN and place them in `share/`.
+While processing, gotiler keeps temporary working files in a `tmp` folder inside the output folder, so the output drive needs extra free disk space. The space is released at the end of processing.
 
-While processing, gotiler keeps temporary working files in a `tmp` folder inside the output folder, so the output drive needs extra free disk space during execution. The space is released at the end of processing.
+## ⚡ Quick Start
 
-### ⚡Quick Start
-
-Tile a single LAS/LAZ/E57 file saving the output into ./out folder:
+Tile a LAS, LAZ or E57 file into `./out`:
 
 ```bash
 gotiler -o ./out ./input.las
 ```
 
-Tile every point cloud file in a folder into separate tilesets:
+Tile every point cloud file in a folder into separate tilesets, or join them into one tileset packaged as a `.3tz` archive:
 
 ```bash
 gotiler -o ./out ./las_folder
-```
-
-Tile every point cloud file in a folder as one joined tileset, packaged as a single .3tz archive:
-
-```bash
 gotiler -o ./out --join --3tz ./las_folder
 ```
 
-Folders are not scanned recursively: files in subfolders are ignored.
+Folders are not scanned recursively: files in subfolders are ignored. `gotiler version` prints the application version and `gotiler --help` lists every flag.
 
-### Commands
-
-| Command | Description |
-|---------|-------------|
-| `gotiler` | Convert a point cloud file or folder into 3D Tiles. |
-| `gotiler version` | Print the gotiler application version. |
+## 🛠️ Usage
 
 ### CLI Flags
 
 | Flag | Default | Description |
 |---|---:|---|
-| `--out`, `-o` | *<required>* | Output folder for generated tilesets. |
-| `--crs`, `-c` | *<empty>* (autodetect) | Input CRS, e.g. `EPSG:4326`, `EPSG:28355+5773`, a Proj4 string, or WKT. Bare numbers become EPSG codes. Pass `local` to accept ungeoreferenced input (see [Placing Ungeoreferenced Point Clouds](#placing-ungeoreferenced-point-clouds)). Required for E57 inputs. |
+| `--out`, `-o` | *required* | Output folder for the generated tilesets. |
+| `--crs`, `-c` | autodetect | Input CRS: an EPSG code such as `EPSG:4326` (bare numbers work too), a compound code with a vertical datum such as `EPSG:32633+3855`, a Proj4 string or WKT. Autodetected from LAS/LAZ metadata when omitted; required for E57. `local` accepts ungeoreferenced input, see [Placing Ungeoreferenced Point Clouds](#placing-ungeoreferenced-point-clouds). |
 | `--z-offset`, `-z` | `0` | Vertical offset in meters. |
-| `--points-per-tile`, `-p` | `50000` | Target points per tile. Must be 5,000 to 5,000,000. |
-| `--refine-mode`, `-r` | `add` | Tile refinement mode: `add` or `replace`. |
-| `--8-bit` | `false` | Treat LAS/LAZ source colors as 8-bit instead of 16-bit. |
-| `--version`, `-v` | `1.1` | 3D Tiles output version: `1.0` (`.pnts`) or `1.1` (`.glb`). |
-| `--initial-geometric-error` | `0` | Root geometric error target in meters. `0` derives it from the dataset. |
-| `--ge-correction` | `1.0` | Multiplier applied to output geometric errors. |
-| `--attributes` | `intensity,classification` | Optional per-point attributes to export: any attribute exposed by the input files (see [Per-Point Attributes](#per-point-attributes)), or `none`. |
-| `--colorize` | *<empty>* | Color points from a numeric attribute or local coordinate with `attribute:gradient[:modifier...]`, e.g. `z:viridis` or `intensity:turbo:reverse:steps=8`. See [Colorizing Points](#colorizing-points). |
-| `--include-withheld` | `false` | Include points marked as withheld. By default, withheld points are filtered out when the source exposes a `withheld` attribute. |
-| `--longitude` | `0` | Only with `--crs local`: longitude (EPSG:4326 degrees) at which to place the model's origin. |
-| `--latitude` | `0` | Only with `--crs local`: latitude (EPSG:4326 degrees) at which to place the model's origin. |
-| `--height` | `0` | Only with `--crs local`: height in meters relative to the WGS84 ellipsoid at which to place the model's origin. |
-| `--heading` | `0` | Only with `--crs local`: rotation in degrees from local north, positive eastward. |
-| `--pitch` | `0` | Only with `--crs local`: rotation in degrees from the local east-north plane, positive above. |
-| `--roll` | `0` | Only with `--crs local`: rotation in degrees about the local east axis. |
-| `--scale`, `-s` | `1` | Only with `--crs local`: uniform scale applied to the model (input units are assumed meters). |
-| `--input-up-axis` | `z` | Only with `--crs local`: treats the given axis (`x`, `y` or `z`) as the model's up axis. |
-| `--compression` | `meshopt` | Tile compression: `meshopt` compresses GLB tile content with meshoptimizer `EXT_meshopt_compression` + quantization; `none` disables it. Requires tileset version 1.1; `.pnts` (1.0) output is never compressed. See [Tile Compression](#tile-compression). |
-| `--meshopt-khr` | `false` | Only with `--compression meshopt`: compress with the Khronos `KHR_meshopt_compression` extension and its version 1 codec instead, for smaller tiles. Needs CesiumJS 1.143 or later. See [Tile Compression](#tile-compression). |
-| `--subsample` | `100` | Percentage of points to keep, in (0, 100]. Points are dropped uniformly at random while reading. |
-| `--geotiff-colorize` | *<empty>* | Colorize points on the fly from an RGB/RGBA GeoTIFF orthophoto. See [GeoTIFF Colorization](#geotiff-colorization). |
-| `--3tz` | `false` | Write each tileset as a single `.3tz` OGC 3D Tiles Archive saved inside the tileset's output folder, instead of loose tiles. See [3TZ Archives](#3tz-archives). |
-| `--join`, `-j` | `false` | For folder input, merge all point clouds into one tileset. |
-| `--plain` | `false` | Print plain milestone logs instead of progress bars. |
+| `--points-per-tile`, `-p` | `50000` | Target points per tile, from 5,000 to 5,000,000. |
+| `--refine-mode`, `-r` | `add` | Tile refinement: `add` or `replace`, see [Refine Mode](#refine-mode). |
+| `--8-bit` | `false` | Treat LAS/LAZ colors as 8-bit instead of 16-bit. |
+| `--version`, `-v` | `1.1` | 3D Tiles version: `1.0` (`.pnts`) or `1.1` (`.glb`). |
+| `--initial-geometric-error` | `0` | Root geometric error target in meters; `0` derives it from the dataset. |
+| `--ge-correction` | `1.0` | Multiplier applied to all output geometric errors. |
+| `--attributes` | `intensity,classification` | Per-point attributes to export, or `none`, see [Per-Point Attributes](#per-point-attributes). |
+| `--include-withheld` | `false` | Keep points flagged as withheld, which are dropped by default. |
+| `--colorize` | | Color points by attribute or coordinate, e.g. `z:viridis`, see [Colorizing Points](#colorizing-points). |
+| `--geotiff-colorize` | | Color points from an RGB/RGBA GeoTIFF orthophoto, see [GeoTIFF Colorization](#geotiff-colorization). |
+| `--compression` | `meshopt` | `meshopt` or `none`, see [Tile Compression](#tile-compression). |
+| `--meshopt-khr` | `false` | Use `KHR_meshopt_compression` instead of `EXT_meshopt_compression`, see [Tile Compression](#tile-compression). |
+| `--subsample` | `100` | Percentage of points to keep, in (0, 100]. |
+| `--3tz` | `false` | Write each tileset as a single `.3tz` archive, see [3TZ Archives](#3tz-archives). |
+| `--join`, `-j` | `false` | Merge all files of an input folder into one tileset. |
+| `--plain` | `false` | Print plain progress messages instead of progress bars. |
+| `--longitude`, `--latitude`, `--height`, `--heading`, `--pitch`, `--roll`, `--scale`/`-s`, `--input-up-axis` | | Only with `--crs local`: place the model on the globe, see [Placing Ungeoreferenced Point Clouds](#placing-ungeoreferenced-point-clouds). |
 | `--help`, `-h` | | Show help. |
 
 ### Refine Mode
 
-- `add`: each point belongs to exactly one level of detail. This reduces output size and bandwidth.
-- `replace`: child tiles replace parent tiles and include duplicated higher-level points. This can reduce visible LOD gaps at the cost of larger output.
+- `add` (default): each point is stored in exactly one level of detail, so the output is smaller and no point is downloaded twice. To show a tile, viewers must also load every coarser level above it.
+- `replace`: each tile repeats the points of the coarser levels and stands on its own, so viewers can skip those levels and make fewer requests, at the cost of larger output. In CesiumJS this needs the `skipLevelOfDetail` tileset option, which is off by default.
 
 ### Tile Compression
 
-3D Tiles 1.1 (`.glb`) output is compressed by default with `KHR_mesh_quantization` and
-`EXT_meshopt_compression`, typically shrinking tilesets by 70% or more with no visible quality
-loss. Viewers based on CesiumJS support both extensions out of the box. If your viewer does not,
-disable compression with:
+3D Tiles 1.1 (`.glb`) output is compressed by default with `EXT_meshopt_compression` and `KHR_mesh_quantization`, typically shrinking tilesets by 70% or more with no visible quality loss. CesiumJS supports both extensions; if your viewer doesn't, pass `--compression none`. 3D Tiles 1.0 (`.pnts`) output is never compressed.
+
+`--meshopt-khr` uses `KHR_meshopt_compression` instead, the Khronos successor of the EXT extension, whose improved codec produces smaller tiles at the same quality. Viewer support is still limited (CesiumJS added it in version 1.143), so EXT remains the default.
 
 ```bash
 gotiler -o ./out --compression none ./input.las
-```
-
-3D Tiles 1.0 (`.pnts`) output has no compressed variant and is always written uncompressed.
-
-`--meshopt-khr` switches to `KHR_meshopt_compression`, the Khronos successor of
-`EXT_meshopt_compression`, and its improved version 1 codec, which produces smaller tiles at the
-same quality. Viewer support is still limited: CesiumJS added it in version 1.143, and other
-engines may not support it yet, so the EXT variant stays the default.
-
-```bash
 gotiler -o ./out --meshopt-khr ./input.las
 ```
 
 ### E57 Input
 
-`.e57` files produced by terrestrial laser scanners are read natively (experimental). E57 files
-carry no CRS metadata, so `--crs` is required:
+`.e57` scans from terrestrial laser scanners are read natively (experimental). gotiler doesn't read a CRS from E57 files, so pass one with `--crs`, or use `--crs local` and the [placement flags](#placing-ungeoreferenced-point-clouds) for scans in a local frame:
 
 ```bash
 gotiler -o ./out --crs EPSG:32633 ./scan.e57
 ```
 
-Scans captured in a local frame can be placed on the globe with `--crs local` and the placement
-flags, see [Placing Ungeoreferenced Point Clouds](#placing-ungeoreferenced-point-clouds).
-
-Standard E57 fields (intensity, timestamp, normals, invalid flags, row/column indices, ...) and
-any extension field declared in the scan prototypes are available to `--attributes`.
+Standard E57 fields (intensity, timestamp, normals, invalid flags, row/column indices, …) and any extension field declared in the scan prototypes can be exported with `--attributes`.
 
 ### Subsampling
 
-Thin out massive datasets at tiling time by keeping a random percentage of points:
+`--subsample` keeps a random percentage of the points, thinning huge datasets while tiling:
 
 ```bash
 gotiler -o ./out --subsample 25 ./input.las
@@ -194,10 +132,7 @@ gotiler -o ./out --subsample 25 ./input.las
 
 ### 3TZ Archives
 
-`--3tz` packages each tileset as a single OGC 3D Tiles Archive (`.3tz`) saved **inside the
-tileset's output folder** (`<out>/tileset.3tz`), replacing the loose tile files. Folder inputs
-without `--join` produce one archive per input file, each inside its own output subfolder
-(`<out>/<name>/tileset.3tz`).
+`--3tz` writes each tileset as a single OGC 3D Tiles Archive, `<out>/tileset.3tz`, instead of loose tile files. Folder inputs without `--join` get one archive per file, in `<out>/<name>/tileset.3tz`.
 
 ```bash
 gotiler -o ./out --3tz ./input.las
@@ -205,7 +140,12 @@ gotiler -o ./out --3tz ./input.las
 
 ### Per-Point Attributes
 
-Per-point attributes are optional scalar values attached to each point alongside its position and color. Only `intensity` and `classification` are exported by default. To explicitly specify the attributes to export use the `--attributes` flag, which accepts **any** attribute exposed by the input files, matched case-insensitively.
+Per-point attributes are scalar values stored with each point next to its position and color. By default only `intensity` and `classification` are exported. `--attributes` takes a comma-separated list of any attributes the input files expose, matched case-insensitively, or `none`:
+
+```bash
+gotiler -o ./out --attributes intensity,classification,gps_time,my_custom_field ./input.las
+gotiler -o ./out --attributes none ./input.las
+```
 
 Commonly available attributes for LAS/LAZ inputs:
 
@@ -222,37 +162,22 @@ Commonly available attributes for LAS/LAZ inputs:
 | `classification_flags`, `synthetic`, `key_point`, `withheld`, `overlap` | `uint8` / `bool` | Classification flag bits | No |
 | `scan_direction_flag`, `edge_of_flight_line`, `scanner_channel`, `nir`, … | various | Other standard LAS point record fields | No |
 
-In addition, any **extra-byte attribute** declared in the LAS file (e.g. custom sensor fields) can be requested by its declared name; scaled extra bytes are exported as `float64` physical values (`raw*scale+offset`). Common vendor spellings of the same quantity are matched automatically: requesting `incidence_angle` also matches OPALS `_IncidenceAngle` or GeoCue/LP360 `True View Incidence Angle`, and `pulse_width` / `echo_width` match the ASPRS, RIEGL, OPALS (`EchoWidth`) and Terrasolid (`Echo length`) spellings. `Amplitude` and `Reflectance` (RIEGL, OPALS, Terrasolid) match their names directly.
+Any **extra-byte attribute** declared in a LAS file can also be requested by name; scaled extra bytes are exported as `float64` physical values (`raw*scale+offset`). Common vendor spellings are matched automatically: `incidence_angle` also finds OPALS `_IncidenceAngle` and GeoCue/LP360 `True View Incidence Angle`, and `pulse_width`/`echo_width` find the ASPRS, RIEGL, OPALS (`EchoWidth`) and Terrasolid (`Echo length`) fields. RIEGL, OPALS and Terrasolid `Amplitude` and `Reflectance` match by name.
 
 Notes:
 
-- Attributes requested but not found in the source (or missing from some points) are skipped silently.
-- Attributes whose data type cannot be represented by the chosen tileset version are omitted from that output: 64-bit integers are not representable in either format, and 3D Tiles 1.1 (`.glb`) stores `float64` attributes (e.g. `gps_time`) as lossy `float32` and drops 32-bit integers. 3D Tiles 1.0 (`.pnts`) preserves `float64` exactly.
-- Attribute names appear uppercased in the output tiles (e.g. `INTENSITY`, `GPS_TIME`).
-- The dataset-global minimum and maximum of every exported attribute are published in `tileset.json`; see [Tileset Attribute Ranges](#tileset-attribute-ranges).
-
-Pass `none` to suppress all attributes:
-
-```bash
-gotiler -o ./out --attributes none ./input.las
-```
-
-Pass a comma-separated list to choose which ones to include:
-
-```bash
-gotiler -o ./out --attributes intensity,classification,gps_time,my_custom_field ./input.las
-```
+- Requested attributes missing from the source, or from some points, are skipped silently.
+- Types a tileset version can't store are dropped from that output: neither format stores 64-bit integers, and 3D Tiles 1.1 also drops 32-bit integers and stores `float64` values (e.g. `gps_time`) as `float32`. 3D Tiles 1.0 keeps `float64` exact.
+- Attribute names are uppercased in the tiles (`INTENSITY`, `GPS_TIME`).
 
 ### Tileset Attribute Ranges
 
-For every exported attribute, the dataset-global minimum and maximum values are
-published in `tileset.json`, so viewers can normalize values for shaders and
-color gradients without scanning any tile content. How they are exposed depends
-on the tileset version.
+The dataset-wide minimum and maximum of every exported attribute are written to `tileset.json`, so viewers can normalize values for shaders and color ramps without reading any tile. 3D Tiles 1.1 uses the tileset metadata mechanism, with `MIN_`/`MAX_`-prefixed properties; 3D Tiles 1.0 uses the top-level `properties` dictionary.
 
-**3D Tiles 1.1** uses the core tileset metadata mechanism: a metadata `schema`
-plus a tileset `metadata` entity with `MIN_`/`MAX_`-prefixed properties, one
-pair per exported attribute:
+<details>
+<summary>Examples and details</summary>
+
+**3D Tiles 1.1**: a metadata `schema` plus a tileset `metadata` entity, with one pair of properties per exported attribute:
 
 ```json
 {
@@ -275,8 +200,7 @@ pair per exported attribute:
 }
 ```
 
-**3D Tiles 1.0** uses the top-level `properties` dictionary, keyed by the
-per-point property name:
+**3D Tiles 1.0**: the top-level `properties` dictionary, keyed by the per-point property name:
 
 ```json
 {
@@ -287,41 +211,25 @@ per-point property name:
 }
 ```
 
-CesiumJS exposes it as `tileset.properties` and uses it automatically to
-resolve `${MINIMUM}`-style bounds in declarative styling; in JavaScript read
-`tileset.properties.INTENSITY.minimum` / `.maximum`.
+CesiumJS exposes it as `tileset.properties` and uses it to resolve `${MINIMUM}`-style bounds in declarative styling; in JavaScript, read `tileset.properties.INTENSITY.minimum` and `.maximum`.
 
-Notes:
+- Ranges are written for every attribute selected with `--attributes` and found in the data, including attributes whose per-point values the tile format can't carry (e.g. 64-bit integers): the metadata is then their only trace.
+- 3D Tiles 1.1 stores per-point `float64` values as `float32`, while the metadata keeps full `float64` precision: clamp when normalizing, as rounded values can fall just outside the range.
 
-- Ranges are emitted for every attribute selected with `--attributes` that was
-  observed in the data, including attributes whose per-point values the tile
-  format cannot carry (e.g. 64-bit integers): the metadata is then the only
-  surviving trace of the attribute.
-- 3D Tiles 1.1 stores per-point `float64` values (e.g. `gps_time`) as lossy
-  `float32`, while the metadata keeps full `float64` precision: clamp when
-  normalizing, as rounded per-point values can fall epsilon-outside the range.
+</details>
 
 ### Colorizing Points
 
-Use `--colorize` to overwrite point RGB colors from a numeric attribute or from
-the local point coordinates `x`, `y`, or `z`:
+`--colorize attribute:gradient[:modifier...]` replaces point colors using a numeric attribute or a local coordinate (`x`, `y` or `z`):
 
 ```bash
 gotiler -o ./out --colorize z:viridis ./input.las
-```
-
-The format is `attribute:gradient[:modifier...]`. No bounds are needed: the
-gradient is stretched between the 2nd and 98th percentile of the values found
-in the data, so outliers and skewed distributions (typical for intensity or
-amplitude) do not wash out the ramp. Gradients encoding absolute scales, like
-`las-classification`, are applied as is instead of being rescaled. For LAS
-classification colors, use:
-
-```bash
 gotiler -o ./out --colorize classification:las-classification ./input.las
 ```
 
-Optional modifiers tweak how the gradient is rendered and can be combined:
+No bounds are needed: the gradient spans the 2nd to 98th percentile of the values found in the data, so outliers and skewed distributions (typical for intensity or amplitude) don't wash it out. Gradients with an absolute scale, like `las-classification`, are applied as is.
+
+Modifiers can be combined:
 
 | Modifier | Effect |
 |----------|--------|
@@ -336,9 +244,10 @@ gotiler -o ./out --colorize intensity:turbo:reverse:steps=8:stretch=5,95 ./input
 
 ### Color Ramps
 
-All ramps derive from authoritative, freely licensed sources (matplotlib, seaborn, cmocean, the
-Scientific Colour Maps by Fabio Crameri, ColorBrewer); see
-[THIRD-PARTY-LICENSES.md](THIRD-PARTY-LICENSES.md) for attributions.
+36 ramps from freely licensed sources (matplotlib, seaborn, cmocean, Fabio Crameri's Scientific Colour Maps, ColorBrewer; see [THIRD-PARTY-LICENSES.md](THIRD-PARTY-LICENSES.md) for attributions). Good starting points: `viridis` for elevation, `turbo` for intensity, `rdbu` with `stretch=minmax` for change detection, `las-classification` for class codes.
+
+<details>
+<summary>All ramps</summary>
 
 **Perceptually uniform** (best default choices; embedded as canonical 256-entry lookup tables):
 
@@ -374,8 +283,7 @@ Scientific Colour Maps by Fabio Crameri, ColorBrewer); see
 | `ylgnbu` | ColorBrewer Yellow-Green-Blue; density distributions and drainage. |
 | `blues` | ColorBrewer single-hue blue; water depth, subtle underlays. |
 
-**Diverging change detection** (pair with `stretch=minmax` or symmetric data so the
-midpoint lands on your baseline):
+**Diverging change detection** (pair with `stretch=minmax` or symmetric data so the midpoint lands on your baseline):
 
 | Ramp | Best for |
 |---|---|
@@ -399,110 +307,67 @@ midpoint lands on your baseline):
 | `set2` | Pastel palette that keeps overlaid labels legible. |
 | `accent` | Makes selected categories pop against neutral basemaps. |
 
-Categorical ramps map equal-width value bands to discrete colors: combine them with
-`stretch=minmax` (or data with a known range) so category codes land on stable bands.
-`las-classification` needs nothing extra — it is pinned to the absolute 0–255 class range.
+Categorical ramps map equal-width value bands to discrete colors: combine them with `stretch=minmax` (or data with a known range) so category codes land on stable bands. `las-classification` needs nothing extra, as it is pinned to the absolute 0–255 class range.
+
+</details>
 
 ### GeoTIFF Colorization
 
-Color points from an RGB/RGBA GeoTIFF orthophoto instead of a gradient. The orthophoto is sampled
-at each point's location, reprojecting on the fly when the CRSs differ:
+`--geotiff-colorize` colors points from an RGB/RGBA GeoTIFF orthophoto, sampled at each point's location and reprojected on the fly when the CRSs differ. Points outside the orthophoto keep their original colors.
 
 ```bash
 gotiler -o ./out --geotiff-colorize ./ortho.tif ./input.las
 ```
 
-Points falling outside the orthophoto keep their original colors.
-
 ### Placing Ungeoreferenced Point Clouds
 
-Input files without a CRS normally fail. Pass `--crs local` to accept them:
-the point coordinates are treated as a local Z-up cartesian system in meters
-and placed on the WGS84 ellipsoid. By default the model origin `(0,0,0)` lands
-on the ellipsoid surface at longitude 0, latitude 0, height 0, axes aligned
-east-north-up. Use the placement flags to position and orient the model:
+Input files without a CRS normally fail. With `--crs local`, their coordinates are treated as a local Z-up cartesian system in meters and placed on the WGS84 ellipsoid, by default with the origin at longitude 0, latitude 0, height 0 and the axes aligned east-north-up. These flags, accepted only with `--crs local`, move and orient the model:
+
+| Flag | Default | Effect |
+|---|---:|---|
+| `--longitude`, `--latitude` | `0` | Position of the model origin, in EPSG:4326 degrees. |
+| `--height` | `0` | Height of the origin in meters above the WGS84 ellipsoid. |
+| `--heading` | `0` | Rotation in degrees from local north, positive eastward. |
+| `--pitch` | `0` | Rotation in degrees from the local east-north plane, positive up. |
+| `--roll` | `0` | Rotation in degrees about the local east axis. |
+| `--scale`, `-s` | `1` | Uniform scale; input units are assumed to be meters. |
+| `--input-up-axis` | `z` | Axis treated as up: `x`, `y` or `z`. `y` is common for glTF/CAD-derived data. |
 
 ```bash
 gotiler -o ./out --crs local \
   --longitude 12.492 --latitude 41.890 --height 76 \
-  --heading 45 --scale 1 --input-up-axis y ./scan.las
+  --heading 45 --input-up-axis y ./scan.las
 ```
 
-Heading, pitch and roll follow the CesiumJS convention: heading rotates from
-local north (positive eastward), pitch tilts from the east-north plane
-(positive up), roll rotates about the local east axis. `--input-up-axis y` is
-the common choice for glTF/CAD-derived data. Notes:
+Heading, pitch and roll follow the CesiumJS convention. The tileset root transform carries the placement, so viewers need nothing special. `--geotiff-colorize` works too, as long as the placement puts the cloud at its true geographic location.
 
-- The placement flags require `--crs local` and are rejected otherwise.
-- Input units are assumed to be meters (after the optional `--scale`).
-- The tileset root transform carries the placement, so viewers need nothing special.
-- `--geotiff-colorize` works with `--crs local` too, provided the placement positions the cloud at its true geographic location: points falling outside the orthophoto keep their original colors.
-
-### A note on vertical coordinate conversion
-
-If the LAS file contains CRS metadata, gotiler attempts to use it automatically. If metadata is missing, incomplete or incorrect, pass a CRS manually specifying an EPSG code, a composite EPSG code:
+### More Examples
 
 ```bash
-gotiler -o ./out -c EPSG:32633+3855 ./input.las
-```
-
-Vertical datum conversions may require additional PROJ grid files in `share/`.
-
-### ℹ️ Usage examples
-
-### Example 1 — Single file, auto-detect CRS
-
-```bash
-gotiler -o ./out ./input.las
-```
-
-### Example 2 — Folder with custom CRS, output version 3D Tiles 1.0
-
-```bash
+# Folder with a compound CRS (vertical datum included), 3D Tiles 1.0 output
 gotiler -o ./out -c EPSG:32633+3855 --version 1.0 ./las_folder
-```
 
-### Example 3 — Folder merge, REPLACE refine mode, 8-bit colors
-
-```bash
+# Folder merged into one tileset, REPLACE refinement, 8-bit colors
 gotiler -o ./out -c EPSG:28355 --join --refine-mode replace --8-bit ./las_folder
-```
 
-### Example 4 — Elevation colorized with a stepped batlow ramp
-
-```bash
-gotiler -o ./out --colorize z:batlow:steps=12 ./input.las
-```
-
-### Example 5 — E57 scan, subsampled to 50%, packaged as a single 3tz archive
-
-```bash
-gotiler -o ./out --crs EPSG:32633 --subsample 50 --3tz ./scan.e57
-```
-
-### Example 6 — Folder merge with orthophoto colorization and uncompressed output
-
-```bash
+# Folder merged and colorized from an orthophoto, uncompressed output
 gotiler -o ./out --join --geotiff-colorize ./ortho.tif --compression none ./las_folder
-```
 
-### Example 7 — Change-detection coloring of a difference attribute over the full range
-
-```bash
+# Change detection: a difference attribute on a diverging ramp over its full range
 gotiler -o ./out --colorize dz:rdbu:stretch=minmax ./diff.las
 ```
 
 ## 📚 Using GoTiler as a Go library
 
-The tiling engine, readers, encoders and plugins are importable Go packages of the
-`github.com/mfbonfigli/gotiler/v3` module. See [LIBRARY.md](LIBRARY.md) for the API
-and examples, and [DEVELOPMENT.md](DEVELOPMENT.md) for building from source.
+The tiling engine, readers, encoders and plugins are importable Go packages of the `github.com/mfbonfigli/gotiler/v3` module. See [LIBRARY.md](LIBRARY.md) for the API and examples, and [DEVELOPMENT.md](DEVELOPMENT.md) for building from source.
 
 ## License
 
-GoTiler is distributed under the GNU AGPLv3. See [LICENSE.md](LICENSE.md). For commercial licensing options see [Commercial Licensing](#-commercial-licensing).
+GoTiler is distributed under the GNU AGPLv3, see [LICENSE.md](LICENSE.md). The executables include third-party code and data: see [THIRD-PARTY-LICENSES.md](THIRD-PARTY-LICENSES.md) for their licenses. Each release archive ships the copy generated for its platform.
 
-The compiled executables contain code and data from third parties: please consult [THIRD-PARTY-LICENSES.md](THIRD-PARTY-LICENSES.md) for their licenses. Each release archive ships the copy generated for its platform.
+## 💼 Commercial Licensing
+
+If the AGPLv3 terms don't fit your use case, for example to embed the engine in proprietary software or services, commercial licenses are available: please get in touch with the maintainer through [GitHub](https://github.com/mfbonfigli).
 
 ## Acknowledgments
 
