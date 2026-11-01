@@ -4,3 +4,5 @@
 
 # Binary test vectors: never apply line ending conversion.
 *.bin binary
+*.las binary
+*.laz binary
