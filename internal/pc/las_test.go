@@ -2,10 +2,12 @@ package pc
 
 import (
 	"bytes"
+	"embed"
 	"encoding/binary"
 	"math"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/mfbonfigli/gotiler/v3/tiler/model"
@@ -403,6 +405,91 @@ func TestGoLasReaderExtraBytesValues(t *testing.T) {
 	}
 	if v, err := view.Int8(view.Index("signal_deviation")); err != nil || v != -7 {
 		t.Errorf("signal_deviation: got (%v, %v), want -7", v, err)
+	}
+}
+
+//go:embed testdata/laz14
+var testdataLaz14 embed.FS
+
+// embeddedLaz14Pair materializes the named LAS 1.4 fixture (the .laz file and
+// its uncompressed .las twin) into a temp dir and returns both paths.
+func embeddedLaz14Pair(t *testing.T, base string) (lazFile, lasFile string) {
+	t.Helper()
+	dir := t.TempDir()
+	for _, ext := range []string{".laz", ".las"} {
+		data, err := testdataLaz14.ReadFile("testdata/laz14/" + base + ext)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, base+ext), data, 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return filepath.Join(dir, base+".laz"), filepath.Join(dir, base+".las")
+}
+
+// TestGoLasReaderLaz14MultichannelMatchesUncompressed decodes LAS 1.4 LAZ
+// files whose points span several scanner channels and checks every point
+// against the uncompressed twin of the same file. The fixtures come from
+// golaz's LASzip C++ oracle set: pf7 is compressed with LASzip v3 layered
+// items, pf8 with v4. Regression test for gotiler#75: golaz v0.1.2 switched
+// the RGB / extra-bytes decoding context on every point of a v3 stream, so
+// colours came out wrong or decoding failed with "renorm: getByte: EOF".
+func TestGoLasReaderLaz14MultichannelMatchesUncompressed(t *testing.T) {
+	attrs := model.NewAttributes(model.AttrIntensity, model.AttrClassification, model.AttrGpsTime,
+		model.AttrNir, model.AttrScannerChannel, "GridID", "Confidence")
+	for _, base := range []string{"las14_pf7_v3_multichannel_1000pts", "las14_pf8_v4_multichannel_1000pts"} {
+		t.Run(base, func(t *testing.T) {
+			lazFile, lasFile := embeddedLaz14Pair(t, base)
+			lz, err := NewGoLasReader(lazFile, "EPSG:32633", false, attrs)
+			if err != nil {
+				t.Fatalf("open .laz: %v", err)
+			}
+			defer lz.Close()
+			ls, err := NewGoLasReader(lasFile, "EPSG:32633", false, attrs)
+			if err != nil {
+				t.Fatalf("open .las: %v", err)
+			}
+			defer ls.Close()
+
+			n := ls.NumberOfPoints()
+			if n == 0 || lz.NumberOfPoints() != n {
+				t.Fatalf("point counts: .laz %d, .las %d", lz.NumberOfPoints(), n)
+			}
+			schema := lz.AttributeSchema()
+			if !reflect.DeepEqual(schema, ls.AttributeSchema()) {
+				t.Fatalf("schemas differ: .laz %v, .las %v", schema, ls.AttributeSchema())
+			}
+			entries, _, err := model.AttributeSchemaLayout(schema)
+			if err != nil {
+				t.Fatalf("schema layout: %v", err)
+			}
+			channels := map[uint8]bool{}
+			for i := 0; i < n; i++ {
+				got, err := lz.GetNext()
+				if err != nil {
+					t.Fatalf("point %d: read .laz: %v", i, err)
+				}
+				want, err := ls.GetNext()
+				if err != nil {
+					t.Fatalf("point %d: read .las: %v", i, err)
+				}
+				if got.Vector != want.Vector || got.R != want.R || got.G != want.G || got.B != want.B ||
+					!bytes.Equal(got.Attributes, want.Attributes) {
+					t.Fatalf("point %d: .laz decodes to %+v, uncompressed twin has %+v", i, got, want)
+				}
+				view := model.NewAttributeView(entries, want.Attributes)
+				ch, err := view.Uint8(view.Index(model.AttrScannerChannel))
+				if err != nil {
+					t.Fatalf("point %d: scanner channel: %v", i, err)
+				}
+				channels[ch] = true
+			}
+			// Without channel switches the regression would go unnoticed.
+			if len(channels) < 2 {
+				t.Fatalf("fixture should span several scanner channels, got %v", channels)
+			}
+		})
 	}
 }
 

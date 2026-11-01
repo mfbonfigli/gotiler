@@ -419,7 +419,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---
 
-## github.com/mfbonfigli/golaz v0.1.2
+## github.com/mfbonfigli/golaz v0.2.2
 
 LICENSE:
 

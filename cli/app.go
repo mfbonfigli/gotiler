@@ -98,7 +98,7 @@ func flagUsageWidth() int {
 	return width
 }
 
-const DefaultVersion = "3.0.0"
+const DefaultVersion = "3.0.1"
 
 // threeTZFilename is the name of the archive written inside each tileset's
 // output folder when --3tz is active.
