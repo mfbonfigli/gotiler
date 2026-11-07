@@ -107,6 +107,18 @@ func (d *vertexDecoder) next() ([]float64, error) {
 	return d.values, nil
 }
 
+// binaryDataSize returns the byte size of the vertex data when every record
+// has the same size, which holds for binary files without list properties.
+func (d *vertexDecoder) binaryDataSize() (int64, bool) {
+	if d.format == formatASCII || d.hasListProperties {
+		return 0, false
+	}
+	if d.recordSize > 0 && d.count > math.MaxInt64/d.recordSize {
+		return math.MaxInt64, true
+	}
+	return int64(d.count) * int64(d.recordSize), true
+}
+
 // restart rewinds the decoder to the first vertex. r must be positioned at
 // vertexDataOffset.
 func (d *vertexDecoder) restart(r *bufio.Reader) {
