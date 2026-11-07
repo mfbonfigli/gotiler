@@ -18,6 +18,11 @@ import (
 
 const defaultTilesetFile = "tileset.json"
 
+var (
+	errNotMovable       = errors.New("the tileset cannot be moved")
+	errInvalidTransform = errors.New("invalid transform")
+)
+
 var identityTransform = [16]float64{
 	1, 0, 0, 0,
 	0, 1, 0, 0,
@@ -123,7 +128,7 @@ func (t *tilesetFile) saveRootTransform(transform [16]float64) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if t.readOnlyReason != "" {
-		return fmt.Errorf("the tileset cannot be moved: %s", t.readOnlyReason)
+		return fmt.Errorf("%w: %s", errNotMovable, t.readOnlyReason)
 	}
 	if err := checkRigidChange(t.transform, transform); err != nil {
 		return err
@@ -335,11 +340,11 @@ func isInvertibleAffine(m [16]float64) bool {
 // scale editable.
 func checkRigidChange(current, next [16]float64) error {
 	if !isAffine(next) {
-		return errors.New("the transform must hold finite numbers and end with the row 0 0 0 1")
+		return fmt.Errorf("%w: it must hold finite numbers and end with the row 0 0 0 1", errInvalidTransform)
 	}
 	change := linearPart(next).mul(linearPart(current).inverse())
 	if !change.isRotation() {
-		return errors.New("the transform must only move and rotate the tileset, not scale, skew or mirror it")
+		return fmt.Errorf("%w: it must only move and rotate the tileset, not scale, skew or mirror it", errInvalidTransform)
 	}
 	return nil
 }
