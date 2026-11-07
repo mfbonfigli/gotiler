@@ -1,6 +1,7 @@
 package viewer
 
 import (
+	"cmp"
 	"context"
 	"crypto/rand"
 	"crypto/subtle"
@@ -9,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"net"
 	"net/http"
@@ -25,7 +27,7 @@ import (
 var webFiles embed.FS
 
 const (
-	defaultShutdownGrace = 10 * time.Second
+	defaultShutdownGrace = 3 * time.Second
 	maxSaveRequestBytes  = 64 * 1024
 )
 
@@ -48,12 +50,16 @@ type Options struct {
 	// IonToken is an optional Cesium ion access token. With it the page uses
 	// Cesium World Imagery and World Terrain instead of the default imagery.
 	IonToken string
+	// Output receives status messages, such as the countdown to stopping
+	// after the page is closed. Nil discards them.
+	Output io.Writer
 }
 
 // Server serves the viewer page for one tileset on 127.0.0.1.
 type Server struct {
 	tileset    *tilesetFile
 	ionToken   string
+	output     io.Writer
 	token      string
 	listener   net.Listener
 	httpServer *http.Server
@@ -88,6 +94,7 @@ func newServer(tilesetPath string, opts Options, assets fs.FS) (*Server, error) 
 	s := &Server{
 		tileset:  tileset,
 		ionToken: opts.IonToken,
+		output:   cmp.Or[io.Writer](opts.Output, io.Discard),
 		token:    token,
 		listener: listener,
 		geocoder: newGeocoder(),
@@ -270,8 +277,14 @@ func (s *Server) handleGeocode(w http.ResponseWriter, r *http.Request) {
 // handleEvents holds a server-sent events stream open for as long as the page
 // is open, which is how the server knows when the last page has closed.
 func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
-	s.pages.pageOpened()
-	defer s.pages.pageClosed()
+	if s.pages.pageOpened() {
+		fmt.Fprintln(s.output, "The viewer page reopened.")
+	}
+	defer func() {
+		if s.pages.pageClosed() && !s.isStopping() {
+			fmt.Fprintf(s.output, "The viewer page was closed: stopping in %s.\n", describeDuration(s.pages.grace))
+		}
+	}()
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, ": connected\n\n")
@@ -281,6 +294,27 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	select {
 	case <-r.Context().Done():
 	case <-s.stopping:
+	}
+}
+
+func (s *Server) isStopping() bool {
+	select {
+	case <-s.stopping:
+		return true
+	default:
+		return false
+	}
+}
+
+// describeDuration spells whole seconds out, as in "3 seconds".
+func describeDuration(d time.Duration) string {
+	switch {
+	case d == time.Second:
+		return "1 second"
+	case d%time.Second == 0:
+		return fmt.Sprintf("%d seconds", d/time.Second)
+	default:
+		return d.String()
 	}
 }
 

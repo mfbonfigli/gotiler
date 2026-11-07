@@ -44,6 +44,18 @@ body {
   color: var(--error);
 }
 
+#toast {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 24px);
+  padding: 10px 16px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--panel);
+}
+
 .is-hidden {
   display: none !important;
 }

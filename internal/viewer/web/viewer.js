@@ -12,16 +12,9 @@ import {
   createWorldImageryAsync,
   createWorldTerrainAsync,
 } from 'cesium';
-import { api, token } from './api.js';
+import { api } from './api.js';
+import { setStatus } from './notices.js';
 import { mountPlacementPanel } from './placement.js';
-
-const statusBox = document.getElementById('status');
-
-function setStatus(message, { error = false } = {}) {
-  statusBox.textContent = message;
-  statusBox.classList.toggle('is-error', error);
-  statusBox.classList.toggle('is-hidden', !message);
-}
 
 async function createWidget(config) {
   const widget = new CesiumWidget(document.getElementById('cesium-host'), {
@@ -56,19 +49,6 @@ function frameCamera(widget, tileset) {
   widget.camera.lookAtTransform(Matrix4.IDENTITY);
 }
 
-/**
- * Keeps an events stream open while the page is open: the server stops
- * shortly after the last page closes.
- */
-function connectToServer() {
-  const events = new EventSource(`/api/events?token=${encodeURIComponent(token)}`);
-  events.onerror = () => {
-    if (events.readyState !== EventSource.OPEN) {
-      setStatus('Lost the connection to gotiler: the viewer has stopped.', { error: true });
-    }
-  };
-}
-
 async function start() {
   let config;
   try {
@@ -77,7 +57,6 @@ async function start() {
     setStatus(`Cannot reach gotiler (${error.message}). Open the full URL printed by gotiler, which includes an access token.`, { error: true });
     return;
   }
-  connectToServer();
   try {
     const widget = await createWidget(config);
     setStatus('Loading the tileset…');

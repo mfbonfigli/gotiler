@@ -66,7 +66,7 @@ gotiler -o ./out ./las_folder
 gotiler -o ./out --join --3tz ./las_folder
 ```
 
-Folders are not scanned recursively: files in subfolders are ignored. `gotiler version` prints the application version and `gotiler --help` lists every flag.
+Folders are not scanned recursively: files in subfolders are ignored. `gotiler version` prints the application version, `gotiler view` shows a tileset in the browser (see [Viewing and Positioning Tilesets](#viewing-and-positioning-tilesets)) and `gotiler --help` lists every flag.
 
 ## 🛠️ Usage
 
@@ -93,6 +93,7 @@ Folders are not scanned recursively: files in subfolders are ignored. `gotiler v
 | `--3tz` | `false` | Write each tileset as a single `.3tz` archive, see [3TZ Archives](#3tz-archives). |
 | `--join`, `-j` | `false` | Merge all files of an input folder into one tileset. |
 | `--plain` | `false` | Print plain progress messages instead of progress bars. |
+| `--preview` | `false` | After tiling, open the tileset in the browser viewer, see [Viewing and Positioning Tilesets](#viewing-and-positioning-tilesets). `--port` and `--ion-token` configure the viewer. |
 | `--longitude`, `--latitude`, `--height`, `--heading`, `--pitch`, `--roll`, `--scale`/`-s`, `--input-up-axis` | | Only with `--crs local`: place the model on the globe, see [Placing Ungeoreferenced Point Clouds](#placing-ungeoreferenced-point-clouds). |
 | `--help`, `-h` | | Show help. |
 
@@ -351,6 +352,35 @@ gotiler -o ./out --crs local \
 ```
 
 Heading, pitch and roll follow the CesiumJS convention. The tileset root transform carries the placement, so viewers need nothing special. `--geotiff-colorize` works too, as long as the placement puts the cloud at its true geographic location.
+
+To find the right position interactively, tile with `--preview` and move the result in the [viewer](#viewing-and-positioning-tilesets).
+
+### Viewing and Positioning Tilesets
+
+`gotiler view` opens a tileset in a local web viewer that shows it on a CesiumJS globe and lets you move it into place. Pass the `tileset.json`, or the folder that holds it:
+
+```bash
+gotiler view ./out
+```
+
+gotiler prints the viewer's address, which carries a random access token; open it in a browser. Add `--preview` to a tiling command to open the viewer on the result as soon as tiling ends:
+
+```bash
+gotiler -o ./out --crs local --input-up-axis y --preview ./model.ply
+```
+
+The viewer only listens on `127.0.0.1` and stops a few seconds after its page is closed, or with Ctrl+C. Its position panel moves the tileset:
+
+* search an address, or click **Pick position** and then the globe, to move the cloud's center there
+* fine-tune it with offsets along the local east, north and up axes (X, Y, Z, in meters) and rotations about them (RX, RY, RZ, in degrees)
+* **Save position** writes the new root transform into `tileset.json`, keeping the original as `tileset.json.bak`; the tiles themselves are not rewritten
+
+| Flag | Default | Description |
+|---|---:|---|
+| `--port` | `0` | Local port of the viewer; `0` picks a free one. |
+| `--ion-token` | | Cesium ion access token: shows Cesium World Imagery and World Terrain instead of the default VersaTiles satellite imagery, so picked positions follow the terrain. Also read from `CESIUM_ION_TOKEN`. |
+
+The viewer page loads CesiumJS and the map imagery from the internet, and address search uses [Nominatim](https://nominatim.org/). Tilesets using `region` bounding volumes are shown but cannot be moved, since the root transform does not apply to them.
 
 ### More Examples
 

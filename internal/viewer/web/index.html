@@ -14,11 +14,13 @@
     </script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Widgets/widgets.css" />
     <link rel="stylesheet" href="viewer.css" />
+    <script type="module" src="events.js" async></script>
     <script type="module" src="viewer.js"></script>
   </head>
   <body>
     <div id="cesium-host"></div>
     <div id="status">Loading the viewer&hellip;</div>
+    <div id="toast" class="is-hidden" role="status"></div>
     <aside id="placement" class="is-hidden">
       <h2>Position</h2>
       <form id="search-form" class="search">

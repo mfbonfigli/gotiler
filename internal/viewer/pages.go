@@ -23,23 +23,31 @@ func newPageTracker(grace time.Duration) *pageTracker {
 	return &pageTracker{grace: grace, done: make(chan struct{})}
 }
 
-func (p *pageTracker) pageOpened() {
+// pageOpened records an open page and reports whether it canceled the
+// countdown started by the last page closing.
+func (p *pageTracker) pageOpened() (canceledCountdown bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.open++
-	if p.timer != nil {
-		p.timer.Stop()
-		p.timer = nil
+	if p.timer == nil {
+		return false
 	}
+	p.timer.Stop()
+	p.timer = nil
+	return true
 }
 
-func (p *pageTracker) pageClosed() {
+// pageClosed records a closed page and reports whether it was the last one,
+// which starts the countdown to stopping.
+func (p *pageTracker) pageClosed() (lastPage bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.open--
-	if p.open == 0 {
-		p.timer = time.AfterFunc(p.grace, p.signalIfStillClosed)
+	if p.open > 0 {
+		return false
 	}
+	p.timer = time.AfterFunc(p.grace, p.signalIfStillClosed)
+	return true
 }
 
 func (p *pageTracker) signalIfStillClosed() {

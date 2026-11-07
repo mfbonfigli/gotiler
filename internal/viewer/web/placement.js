@@ -23,6 +23,7 @@ import {
   Transforms,
 } from 'cesium';
 import { api } from './api.js';
+import { showToast } from './notices.js';
 
 // Below this distance from the Earth's center a tileset has no geographic
 // position, so its pivot frame is a plain translation.
@@ -218,7 +219,8 @@ async function save() {
     const tileset = await reloadTileset();
     pivot = pivotFrame(tileset);
     state = initialState();
-    setMessage('Position saved.');
+    setMessage('');
+    showToast("Position saved. You can close this window when you're done.");
   } catch (error) {
     setMessage(`Saving failed: ${error.message}`, { error: true });
   } finally {
