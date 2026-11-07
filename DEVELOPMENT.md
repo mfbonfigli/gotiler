@@ -6,7 +6,7 @@ This repository holds the whole project as a single Go module, `github.com/mfbon
 |------|---------|
 | `cmd/`, `cli/` | The `gotiler` command line application |
 | `tiler/`, `internal/`, `version/` | The tiling engine and its public API, see [LIBRARY.md](LIBRARY.md) |
-| `plugins/` | Optional engine features: compression, E57, GeoTIFF colorization, color ramps, 3TZ, S3, subsampling |
+| `plugins/` | Optional engine features: compression, E57 and PLY input, GeoTIFF colorization, color ramps, 3TZ, S3, subsampling |
 | `scripts/` | Build, test, benchmark and license generation scripts |
 
 ## Reproducible Docker Builds

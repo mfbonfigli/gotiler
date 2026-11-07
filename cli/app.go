@@ -22,6 +22,9 @@ import (
 	_ "github.com/mfbonfigli/gotiler/v3/plugins/e57"
 	geotiffcolorizer "github.com/mfbonfigli/gotiler/v3/plugins/geotiff-colorizer"
 
+	// registers the .ply reader with the point cloud reader registry
+	_ "github.com/mfbonfigli/gotiler/v3/plugins/ply"
+
 	// registers the extended color ramp library with the colorizer registry
 	_ "github.com/mfbonfigli/gotiler/v3/plugins/ramps"
 	"github.com/mfbonfigli/gotiler/v3/plugins/subsampler"

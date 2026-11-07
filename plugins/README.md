@@ -8,6 +8,7 @@ mutator and writer interfaces:
 | `compression` | Compressed GLB encoder (`KHR_mesh_quantization` + `EXT_meshopt_compression`, or `KHR_meshopt_compression`) |
 | `e57` | `.e57` point-cloud reader |
 | `geotiff-colorizer` | Colors points from an RGB/RGBA GeoTIFF orthophoto |
+| `ply` | `.ply` point-cloud reader |
 | `ramps` | Extended library of colorizer gradients |
 | `s3upload` | S3-backed writer provider |
 | `subsampler` | Random point subsampling mutator |
