@@ -19,5 +19,31 @@
   <body>
     <div id="cesium-host"></div>
     <div id="status">Loading the viewer&hellip;</div>
+    <aside id="placement" class="is-hidden">
+      <h2>Position</h2>
+      <form id="search-form" class="search">
+        <input id="search-query" type="search" placeholder="Search an address" />
+        <button type="submit">Search</button>
+      </form>
+      <ul id="search-results"></ul>
+      <div class="fields">
+        <label>X east (m)<input type="number" step="0.1" data-translation="x" /></label>
+        <label>Y north (m)<input type="number" step="0.1" data-translation="y" /></label>
+        <label>Z up (m)<input type="number" step="0.1" data-translation="z" /></label>
+        <label>RX (&deg;)<input type="number" step="1" data-rotation="x" /></label>
+        <label>RY (&deg;)<input type="number" step="1" data-rotation="y" /></label>
+        <label>RZ (&deg;)<input type="number" step="1" data-rotation="z" /></label>
+      </div>
+      <div class="actions">
+        <button id="pick" type="button">Pick position</button>
+        <button id="reset" type="button">Reset</button>
+        <button id="save" type="button" class="primary">Save position</button>
+      </div>
+      <p id="placement-message"></p>
+      <p class="attribution">
+        Address search by <a href="https://nominatim.org/" target="_blank" rel="noreferrer">Nominatim</a>, data &copy;
+        <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>.
+      </p>
+    </aside>
   </body>
 </html>

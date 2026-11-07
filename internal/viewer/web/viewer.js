@@ -12,26 +12,15 @@ import {
   createWorldImageryAsync,
   createWorldTerrainAsync,
 } from 'cesium';
+import { api, token } from './api.js';
+import { mountPlacementPanel } from './placement.js';
 
-const token = new URLSearchParams(window.location.search).get('token') ?? '';
 const statusBox = document.getElementById('status');
 
 function setStatus(message, { error = false } = {}) {
   statusBox.textContent = message;
   statusBox.classList.toggle('is-error', error);
   statusBox.classList.toggle('is-hidden', !message);
-}
-
-/** Calls a viewer API, adding the access token from the page URL. */
-export async function api(path, options = {}) {
-  const url = new URL(path, window.location.origin);
-  url.searchParams.set('token', token);
-  const response = await fetch(url, options);
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
-    throw new Error(body.error ?? `${response.status} ${response.statusText}`);
-  }
-  return response.status === 204 ? null : response.json();
 }
 
 async function createWidget(config) {
@@ -58,16 +47,13 @@ async function createWidget(config) {
   return widget;
 }
 
-async function loadTileset(widget, url) {
-  const tileset = await Cesium3DTileset.fromUrl(url);
-  widget.scene.primitives.add(tileset);
+function frameCamera(widget, tileset) {
   const sphere = tileset.boundingSphere;
   widget.camera.viewBoundingSphere(
     sphere,
     new HeadingPitchRange(0, CesiumMath.toRadians(-35), Math.max(sphere.radius * 2.5, 200)),
   );
   widget.camera.lookAtTransform(Matrix4.IDENTITY);
-  return tileset;
 }
 
 /**
@@ -95,8 +81,23 @@ async function start() {
   try {
     const widget = await createWidget(config);
     setStatus('Loading the tileset…');
-    await loadTileset(widget, config.tilesetUrl);
-    setStatus(config.editable ? '' : `View only: ${config.readOnlyReason}.`);
+    let tileset = widget.scene.primitives.add(await Cesium3DTileset.fromUrl(config.tilesetUrl));
+    frameCamera(widget, tileset);
+    if (!config.editable) {
+      setStatus(`View only: ${config.readOnlyReason}.`);
+      return;
+    }
+    setStatus('');
+    mountPlacementPanel({
+      widget,
+      getTileset: () => tileset,
+      async reloadTileset() {
+        const reloaded = await Cesium3DTileset.fromUrl(config.tilesetUrl);
+        widget.scene.primitives.remove(tileset);
+        tileset = widget.scene.primitives.add(reloaded);
+        return tileset;
+      },
+    });
   } catch (error) {
     setStatus(`The tileset could not be shown: ${error.message ?? error}`, { error: true });
   }

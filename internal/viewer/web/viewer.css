@@ -47,3 +47,113 @@ body {
 .is-hidden {
   display: none !important;
 }
+
+#placement {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 300px;
+  max-width: calc(100% - 24px);
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  padding: 12px;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  background: var(--panel);
+}
+
+#placement h2 {
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+
+#placement input,
+#placement button {
+  font: inherit;
+  color: var(--text);
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 5px 8px;
+}
+
+#placement button {
+  cursor: pointer;
+}
+
+#placement button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+#placement button.primary,
+#placement button.is-active {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.search {
+  display: flex;
+  gap: 6px;
+}
+
+.search input {
+  flex: 1;
+  min-width: 0;
+}
+
+#search-results {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+#search-results button {
+  width: 100%;
+  margin-top: 4px;
+  text-align: left;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.fields input {
+  width: 100%;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+#placement-message {
+  min-height: 1em;
+  margin: 10px 0 0;
+}
+
+#placement-message.is-error {
+  color: var(--error);
+}
+
+.attribution {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.attribution a {
+  color: var(--muted);
+}
