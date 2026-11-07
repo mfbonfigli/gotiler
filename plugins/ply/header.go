@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -99,6 +100,12 @@ type header struct {
 	// dataOffset is the byte length of the header: element data starts at
 	// this offset in the file.
 	dataOffset int64
+}
+
+// elementIndex returns the position of the named element, or -1 if the header
+// does not declare it.
+func (h header) elementIndex(name string) int {
+	return slices.IndexFunc(h.elements, func(e element) bool { return e.name == name })
 }
 
 // readHeader parses a PLY header and leaves r positioned at the first byte of
