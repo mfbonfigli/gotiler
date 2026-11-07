@@ -29,7 +29,13 @@ const (
 	maxSaveRequestBytes  = 64 * 1024
 )
 
-var tileContentTypes = map[string]string{
+// contentTypes overrides the operating system's MIME table, which on Windows
+// comes from the registry and can map .js to text/plain: browsers refuse to
+// run module scripts served with such a type.
+var contentTypes = map[string]string{
+	".html": "text/html; charset=utf-8",
+	".js":   "text/javascript; charset=utf-8",
+	".css":  "text/css; charset=utf-8",
 	".json": "application/json",
 	".glb":  "model/gltf-binary",
 	".pnts": "application/octet-stream",
@@ -135,7 +141,7 @@ func (s *Server) Serve(ctx context.Context) error {
 
 func (s *Server) routes(assets fs.FS) http.Handler {
 	mux := http.NewServeMux()
-	mux.Handle("GET /", http.FileServerFS(assets))
+	mux.Handle("GET /", withContentType(http.FileServerFS(assets)))
 	mux.Handle("GET /tileset/", http.StripPrefix("/tileset", tileFileServer(filepath.Dir(s.tileset.path))))
 	mux.HandleFunc("GET /api/config", s.requireToken(s.handleConfig))
 	mux.HandleFunc("POST /api/save", s.requireToken(s.handleSave))
@@ -176,13 +182,25 @@ func (s *Server) requireToken(next http.HandlerFunc) http.HandlerFunc {
 // tileFileServer serves the files of the tileset folder, without directory
 // listings.
 func tileFileServer(dir string) http.Handler {
-	files := http.FileServer(http.Dir(dir))
+	files := withContentType(http.FileServer(http.Dir(dir)))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, "/") {
 			http.NotFound(w, r)
 			return
 		}
-		if contentType, ok := tileContentTypes[strings.ToLower(path.Ext(r.URL.Path))]; ok {
+		files.ServeHTTP(w, r)
+	})
+}
+
+// withContentType sets the Content-Type of the files listed in contentTypes,
+// treating a folder path as its index.html.
+func withContentType(files http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		name := r.URL.Path
+		if strings.HasSuffix(name, "/") {
+			name += "index.html"
+		}
+		if contentType, ok := contentTypes[strings.ToLower(path.Ext(name))]; ok {
 			w.Header().Set("Content-Type", contentType)
 		}
 		files.ServeHTTP(w, r)

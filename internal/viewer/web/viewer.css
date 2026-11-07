@@ -1,0 +1,49 @@
+:root {
+  --panel: rgba(18, 24, 34, 0.88);
+  --panel-border: rgba(94, 159, 214, 0.35);
+  --text: #e8eef6;
+  --muted: #9db4ca;
+  --accent: #3f8cff;
+  --error: #ff8a80;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #10151e;
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+}
+
+#cesium-host {
+  width: 100%;
+  height: 100%;
+}
+
+#status {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 24px);
+  padding: 8px 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  background: var(--panel);
+}
+
+#status.is-error {
+  color: var(--error);
+}
+
+.is-hidden {
+  display: none !important;
+}
