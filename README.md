@@ -4,7 +4,7 @@
   <img src="gotiler-cli-banner.png" alt="Gotiler Repository Banner" width="100%">
 </p>
 
-**GoTiler CLI** (formerly *gocesiumtiler*) converts **LAS, LAZ and E57** point clouds into streaming-ready **OGC 3D Tiles 1.0 and 1.1**, ready for **CesiumJS** and other 3D Tiles viewers.
+**GoTiler CLI** (formerly *gocesiumtiler*) converts **LAS, LAZ, E57 and PLY** point clouds into streaming-ready **OGC 3D Tiles 1.0 and 1.1**, ready for **CesiumJS** and other 3D Tiles viewers.
 
 Its out-of-core high-performance engine can tile over **4 million points per second** on modern hardware with NVMe storage while using little memory, so clouds of hundreds of millions of points take seconds rather than minutes.
 
@@ -12,7 +12,7 @@ Its out-of-core high-performance engine can tile over **4 million points per sec
 
 * **Fast and out-of-core:** uses every CPU core and fast NVMe drives, and tiles billion-point clouds without running out of RAM.
 * **Compressed tiles by default:** 3D Tiles 1.1 output uses `EXT_meshopt_compression` and `KHR_mesh_quantization` (or the newer `KHR_meshopt_compression`), cutting tileset size by 70% or more.
-* **LAS, LAZ and E57 input:** every LAS/LAZ version (1.0–1.4) and point format, plus E57 scans (experimental).
+* **LAS, LAZ, E57 and PLY input:** every LAS/LAZ version (1.0–1.4) and point format, E57 scans (experimental) and ASCII or binary PLY point clouds.
 * **Automatic reprojection:** reads the CRS from LAS GeoTIFF or WKT metadata and transforms coordinates with the embedded PROJ library. Ungeoreferenced clouds can be placed on the globe by hand.
 * **3D Tiles 1.0 and 1.1:** `.pnts` or glTF (`.glb`) tiles, optionally packed into a single `.3tz` archive.
 * **Uniform tiles, one setting:** set `--points-per-tile` and the cloud is split into tiles of about that size. Geometric error and `ADD`/`REPLACE` refinement can be tuned.
@@ -53,7 +53,7 @@ While processing, gotiler keeps temporary working files in a `tmp` folder inside
 
 ## ⚡ Quick Start
 
-Tile a LAS, LAZ or E57 file into `./out`:
+Tile a LAS, LAZ, E57 or PLY file into `./out`:
 
 ```bash
 gotiler -o ./out ./input.las
@@ -75,7 +75,7 @@ Folders are not scanned recursively: files in subfolders are ignored. `gotiler v
 | Flag | Default | Description |
 |---|---:|---|
 | `--out`, `-o` | *required* | Output folder for the generated tilesets. |
-| `--crs`, `-c` | autodetect | Input CRS: an EPSG code such as `EPSG:4326` (bare numbers work too), a compound code with a vertical datum such as `EPSG:32633+3855`, a Proj4 string or WKT. Autodetected from LAS/LAZ metadata when omitted; required for E57. `local` accepts ungeoreferenced input, see [Placing Ungeoreferenced Point Clouds](#placing-ungeoreferenced-point-clouds). |
+| `--crs`, `-c` | autodetect | Input CRS: an EPSG code such as `EPSG:4326` (bare numbers work too), a compound code with a vertical datum such as `EPSG:32633+3855`, a Proj4 string or WKT. Autodetected from LAS/LAZ metadata when omitted; required for E57 and PLY. `local` accepts ungeoreferenced input, see [Placing Ungeoreferenced Point Clouds](#placing-ungeoreferenced-point-clouds). |
 | `--z-offset`, `-z` | `0` | Vertical offset in meters. |
 | `--points-per-tile`, `-p` | `50000` | Target points per tile, from 5,000 to 5,000,000. |
 | `--refine-mode`, `-r` | `add` | Tile refinement: `add` or `replace`, see [Refine Mode](#refine-mode). |
@@ -121,6 +121,17 @@ gotiler -o ./out --crs EPSG:32633 ./scan.e57
 ```
 
 Standard E57 fields (intensity, timestamp, normals, invalid flags, row/column indices, …) and any extension field declared in the scan prototypes can be exported with `--attributes`.
+
+### PLY Input
+
+`.ply` point clouds are read in ASCII and binary (little- and big-endian) encoding. gotiler tiles the vertices and ignores faces and other elements, so a mesh is tiled as its vertices. PLY files carry no CRS: pass one with `--crs`, or use `--crs local` and the [placement flags](#placing-ungeoreferenced-point-clouds) for clouds in a local frame. Photogrammetry and graphics tools often write Y-up clouds, which `--input-up-axis y` turns upright:
+
+```bash
+gotiler -o ./out --crs EPSG:32633 ./cloud.ply
+gotiler -o ./out --crs local --latitude 41.89 --longitude 12.49 --input-up-axis y ./model.ply
+```
+
+Colors come from the `red`/`green`/`blue` properties, or `diffuse_red`/`diffuse_green`/`diffuse_blue`, scaled to 8 bits according to their type. Any other vertex property can be exported with `--attributes`, keeping its PLY type. CloudCompare's `scalar_` prefix is optional (`intensity` finds `scalar_Intensity`), and normals can be requested as `nx` or `normal_x`. Vertices with non-finite coordinates are skipped. Gaussian splat PLY files are recognized but not supported yet.
 
 ### Subsampling
 

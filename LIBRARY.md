@@ -10,7 +10,7 @@ point clouds and converts them into OGC 3D Tiles 1.0 or 1.1.
 - 🚀 Supports the newest **OGC 3D Tiles 1.1** format (.glb), optionally compressed, in addition to the legacy 3D Tiles 1.0 (.pnts).
 - 🎛️ **Customizable**: choose between Refine mode Add or Replace, define the expected tile size, choose the attributes you want to export and more.
 - 🔍 Extract **CRS metadata directly from LAS/LAZ VLRs**, or pass in a EPSG code, Proj4 or WKT string.
-- 🧩 **Pluggable**: readers, encoders, mutators and writers are registries and interfaces, with ready-made plugins for E57 input, meshopt compression, subsampling, orthophoto colorization, 3TZ archives and S3 uploads.
+- 🧩 **Pluggable**: readers, encoders, mutators and writers are registries and interfaces, with ready-made plugins for E57 and PLY input, meshopt compression, subsampling, orthophoto colorization, 3TZ archives and S3 uploads.
 
 The library is released under the GNU AGPLv3 like the rest of the repository; see the [README](README.md#-commercial-licensing) for commercial licensing options. The engine requires
 CGO and PROJ: see [DEVELOPMENT.md](DEVELOPMENT.md) for the build setup.
@@ -111,9 +111,10 @@ the output subfolder name.
 
 ## Input And CRS Notes
 
-Built-in input readers are `.las` and `.laz`; importing the `plugins/e57` package registers the
-`.e57` reader too. LAS and LAZ inputs can autodetect CRS from supported GeoTIFF or WKT metadata
-when `sourceCRS` is empty.
+Built-in input readers are `.las` and `.laz`; importing the `plugins/e57` and `plugins/ply`
+packages registers the `.e57` and `.ply` readers too. LAS and LAZ inputs can autodetect CRS from
+supported GeoTIFF or WKT metadata when `sourceCRS` is empty; E57 and PLY files carry no CRS, so
+they need a `sourceCRS` or a placement.
 
 All points are converted to EPSG:4978 internally and stored in a local Z-up
 coordinate frame before writing 3D Tiles.
@@ -401,6 +402,7 @@ package is imported, so import them for side effects when you don't reference th
 import (
 	_ "github.com/mfbonfigli/gotiler/v3/plugins/compression" // "glb-compressed" encoder
 	_ "github.com/mfbonfigli/gotiler/v3/plugins/e57"         // .e57 reader
+	_ "github.com/mfbonfigli/gotiler/v3/plugins/ply"         // .ply reader
 	_ "github.com/mfbonfigli/gotiler/v3/plugins/ramps"       // extended color ramps
 )
 ```
@@ -409,6 +411,7 @@ import (
 |---------|---------|
 | `plugins/compression` | Registers the compressed GLB encoder (`KHR_mesh_quantization` + `EXT_meshopt_compression`), with generic per-point attribute support |
 | `plugins/e57` | Registers the `.e57` point-cloud reader. Exposes the standard E57 fields (intensity, timestamp, normals, invalid flags, row/column indices, ...) and any extension field declared in the scan prototypes as requestable per-point attributes |
+| `plugins/ply` | Registers the `.ply` point-cloud reader for ASCII and binary files. Tiles the vertex element, reading colors from `red`/`green`/`blue` (or `diffuse_*`) and exposing every other vertex property, with its PLY type, as a requestable per-point attribute. `ply.NewReader` opens a file directly |
 | `plugins/ramps` | Registers an extended library of 27 colorizer gradients: topographic (`terrain`, `gist-earth`, `batlow`, `oleron`, `nuuk`, `topo`), sequential (`cubehelix`, `mako`, `rocket`, `haline`, `amp`, `ylgnbu`, `blues`, `viridis-pastel`), diverging (`rdbu`, `brbg`, `spectral`, `piyg`, `coolwarm`, `seismic`, `balance`, `roma`, `berlin`), and categorical (`dark2`, `paired`, `set2`, `accent`) |
 | `plugins/geotiff-colorizer` | A mutator that colors points from an RGB/RGBA GeoTIFF orthophoto, reprojecting on the fly; includes a pure-Go GeoTIFF reader |
 | `plugins/subsampler` | A mutator that randomly subsamples the cloud |

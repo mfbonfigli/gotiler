@@ -810,7 +810,7 @@ func TestColorizeModifiersAccepted(t *testing.T) {
 
 func TestFolderJoinIncludesRegisteredFormats(t *testing.T) {
 	tmp := t.TempDir()
-	for _, name := range []string{"a.las", "b.laz", "c.e57", "d.xyz"} {
+	for _, name := range []string{"a.las", "b.laz", "c.e57", "d.xyz", "e.ply"} {
 		if err := touchFile(filepath.Join(tmp, name)); err != nil {
 			t.Fatal(err)
 		}
@@ -822,11 +822,12 @@ func TestFolderJoinIncludesRegisteredFormats(t *testing.T) {
 	if err := app.Run(context.Background(), []string{"gotiler", "-out", ".\\abc", "--plain", "-crs", "4979", "--join", tmp}); err != nil {
 		t.Fatal(err)
 	}
-	// e57 is registered by the plugins/e57 reader; unknown formats are skipped
+	// e57 and ply are registered by their plugin readers; unknown formats are skipped
 	expected := []string{
 		filepath.Join(tmp, "a.las"),
 		filepath.Join(tmp, "b.laz"),
 		filepath.Join(tmp, "c.e57"),
+		filepath.Join(tmp, "e.ply"),
 	}
 	if actual := mockTiler.InputFiles; !reflect.DeepEqual(actual, expected) {
 		t.Errorf("expected tiler to be called with %v but got %v", expected, actual)
