@@ -115,7 +115,7 @@ gotiler -o ./out --meshopt-khr ./input.las
 
 ### E57 Input
 
-`.e57` scans from terrestrial laser scanners are read natively (experimental). gotiler doesn't read a CRS from E57 files, so pass one with `--crs`, or use `--crs local` and the [placement flags](#placing-ungeoreferenced-point-clouds) for scans in a local frame:
+`.e57` scans from terrestrial laser scanners are read natively (experimental). gotiler doesn't read a CRS from E57 files, so pass one with `--crs`, or use `--crs local` and the [placement flags](#placement-flags) for scans in a local frame:
 
 ```bash
 gotiler -o ./out --crs EPSG:32633 ./scan.e57
@@ -125,7 +125,7 @@ Standard E57 fields (intensity, timestamp, normals, invalid flags, row/column in
 
 ### PLY Input
 
-`.ply` point clouds are read in ASCII and binary (little- and big-endian) encoding. gotiler tiles the vertices and ignores faces and other elements, so a mesh is tiled as its vertices. PLY files carry no CRS: pass one with `--crs`, or use `--crs local` and the [placement flags](#placing-ungeoreferenced-point-clouds) for clouds in a local frame. Photogrammetry and graphics tools often write Y-up clouds, which `--input-up-axis y` turns upright:
+`.ply` point clouds are read in ASCII and binary (little- and big-endian) encoding. gotiler tiles the vertices and ignores faces and other elements, so a mesh is tiled as its vertices. PLY files carry no CRS: pass one with `--crs`, or use `--crs local` and the [placement flags](#placement-flags) for clouds in a local frame. Photogrammetry and graphics tools often write Y-up clouds, which `--input-up-axis y` turns upright:
 
 ```bash
 gotiler -o ./out --crs EPSG:32633 ./cloud.ply
@@ -333,7 +333,18 @@ gotiler -o ./out --geotiff-colorize ./ortho.tif ./input.las
 
 ### Placing Ungeoreferenced Point Clouds
 
-Input files without a CRS normally fail. With `--crs local`, their coordinates are treated as a local Z-up cartesian system in meters and placed on the WGS84 ellipsoid, by default with the origin at longitude 0, latitude 0, height 0 and the axes aligned east-north-up. These flags, accepted only with `--crs local`, move and orient the model:
+Input files without a CRS normally fail. With `--crs local`, their coordinates are treated as a local Z-up cartesian system in meters and placed on the WGS84 ellipsoid, by default with the origin at longitude 0, latitude 0, height 0 and the axes aligned east-north-up. `--input-up-axis` (`x`, `y` or `z`, default `z`) sets the input axis treated as up; `y` is common for glTF, CAD and photogrammetry data.
+
+There are two ways to put the model in place:
+
+1. **Placement flags:** pass the longitude, latitude, height, heading, pitch, roll and scale on the command line. This suits models whose placement is known, and scripts or pipelines that run gotiler unattended.
+2. **The browser viewer:** add `--preview`, and once tiling ends, move the model into place with the edit tools of the viewer page that opens in the browser.
+
+The two approaches also combine: placement flags can put the model roughly in place and the viewer can refine it. To adjust the position again later, run `gotiler view ./out` and click **Edit position**.
+
+#### Placement Flags
+
+These flags are accepted only with `--crs local`:
 
 | Flag | Default | Effect |
 |---|---:|---|
@@ -343,7 +354,6 @@ Input files without a CRS normally fail. With `--crs local`, their coordinates a
 | `--pitch` | `0` | Rotation in degrees from the local east-north plane, positive up. |
 | `--roll` | `0` | Rotation in degrees about the local east axis. |
 | `--scale`, `-s` | `1` | Uniform scale; input units are assumed to be meters. |
-| `--input-up-axis` | `z` | Axis treated as up: `x`, `y` or `z`. `y` is common for glTF/CAD-derived data. |
 
 ```bash
 gotiler -o ./out --crs local \
@@ -351,9 +361,21 @@ gotiler -o ./out --crs local \
   --heading 45 --input-up-axis y ./scan.las
 ```
 
-Heading, pitch and roll follow the CesiumJS convention. The tileset root transform carries the placement, so viewers need nothing special. `--geotiff-colorize` works too, as long as the placement puts the cloud at its true geographic location.
+Heading, pitch and roll follow the CesiumJS convention.
 
-To find the right position interactively, tile with `--preview` and move the result in the [viewer](#viewing-and-positioning-tilesets).
+#### Placing in the Viewer
+
+```bash
+gotiler -o ./out --crs local --input-up-axis y --preview ./model.ply
+```
+
+When tiling ends, gotiler opens the [viewer](#viewing-and-positioning-tilesets) in the browser with its position panel and gizmo already shown:
+
+1. Search an address, or click **Pick position** and then the globe, to move the model's center there.
+2. Fine-tune the position and orientation by dragging the gizmo's arrows and rings, or by typing offsets and rotations in the panel.
+3. Click **Save position**, which writes the new root transform into `./out/tileset.json`, then close the page.
+
+The viewer moves and rotates the model but cannot scale it, so pass `--scale` when tiling if the input is not in meters.
 
 ### Viewing and Positioning Tilesets
 
