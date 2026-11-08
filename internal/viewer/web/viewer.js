@@ -15,6 +15,7 @@ import {
 import { api } from './api.js';
 import { setStatus } from './notices.js';
 import { mountPlacementPanel, showUnmovable } from './placement.js';
+import { applyPointSize, mountPointSizeControl } from './pointsize.js';
 
 async function createWidget(config) {
   const widget = new CesiumWidget(document.getElementById('cesium-host'), {
@@ -61,7 +62,9 @@ async function start() {
     const widget = await createWidget(config);
     setStatus('Loading the tileset…');
     let tileset = widget.scene.primitives.add(await Cesium3DTileset.fromUrl(config.tilesetUrl));
+    applyPointSize(tileset);
     frameCamera(widget, tileset);
+    mountPointSizeControl(widget);
     setStatus('');
     if (!config.editable) {
       showUnmovable(config.readOnlyReason);
@@ -73,6 +76,7 @@ async function start() {
       getTileset: () => tileset,
       async reloadTileset() {
         const reloaded = await Cesium3DTileset.fromUrl(config.tilesetUrl);
+        applyPointSize(reloaded);
         widget.scene.primitives.remove(tileset);
         tileset = widget.scene.primitives.add(reloaded);
         return tileset;

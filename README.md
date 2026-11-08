@@ -391,7 +391,7 @@ gotiler opens the viewer in the default browser and prints its address, which ca
 gotiler -o ./out --crs local --input-up-axis y --preview ./model.ply
 ```
 
-The viewer only listens on `127.0.0.1` and stops when its page is closed, or with Ctrl+C; reloading the page keeps it running.
+The viewer only listens on `127.0.0.1` and stops when its page is closed, or with Ctrl+C; reloading the page keeps it running. Points are drawn 3 pixels wide; the **−** and **+** buttons in the top-left corner change their size from 1 to 14 pixels.
 
 `gotiler view` opens as a plain viewer: click **Edit position** to show the position panel and the gizmo, and **Done** to hide them again, discarding unsaved changes. `--preview` opens with them already shown. The position panel moves the tileset:
 

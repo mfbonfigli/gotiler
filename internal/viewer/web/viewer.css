@@ -88,7 +88,8 @@ body {
 
 #placement input,
 #placement button,
-#edit-position {
+#edit-position,
+#point-size button {
   font: inherit;
   color: var(--text);
   border: 1px solid var(--panel-border);
@@ -98,12 +99,14 @@ body {
 }
 
 #placement button,
-#edit-position {
+#edit-position,
+#point-size button {
   cursor: pointer;
 }
 
 #placement button:disabled,
-#edit-position[aria-disabled='true'] {
+#edit-position[aria-disabled='true'],
+#point-size button:disabled {
   cursor: default;
   opacity: 0.5;
 }
@@ -115,6 +118,29 @@ body {
   padding: 8px 14px;
   border-radius: 6px;
   background: var(--panel);
+}
+
+#point-size {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  background: var(--panel);
+}
+
+#point-size button {
+  width: 28px;
+  padding: 3px 0;
+}
+
+#point-size-value {
+  min-width: 40px;
+  text-align: center;
 }
 
 #placement button.primary,
