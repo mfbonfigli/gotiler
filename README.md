@@ -66,7 +66,7 @@ gotiler -o ./out ./las_folder
 gotiler -o ./out --join --3tz ./las_folder
 ```
 
-Folders are not scanned recursively: files in subfolders are ignored. `gotiler version` prints the application version and `gotiler --help` lists every flag.
+Folders are not scanned recursively: files in subfolders are ignored. `gotiler version` prints the application version, `gotiler view` shows a tileset in the browser (see [Viewing and Positioning Tilesets](#viewing-and-positioning-tilesets)) and `gotiler --help` lists every flag.
 
 ## 🛠️ Usage
 
@@ -93,6 +93,7 @@ Folders are not scanned recursively: files in subfolders are ignored. `gotiler v
 | `--3tz` | `false` | Write each tileset as a single `.3tz` archive, see [3TZ Archives](#3tz-archives). |
 | `--join`, `-j` | `false` | Merge all files of an input folder into one tileset. |
 | `--plain` | `false` | Print plain progress messages instead of progress bars. |
+| `--preview` | `false` | After tiling, open the tileset in the browser viewer, see [Viewing and Positioning Tilesets](#viewing-and-positioning-tilesets). `--port` and the `CESIUM_ION_TOKEN` environment variable configure the viewer. |
 | `--longitude`, `--latitude`, `--height`, `--heading`, `--pitch`, `--roll`, `--scale`/`-s`, `--input-up-axis` | | Only with `--crs local`: place the model on the globe, see [Placing Ungeoreferenced Point Clouds](#placing-ungeoreferenced-point-clouds). |
 | `--help`, `-h` | | Show help. |
 
@@ -114,7 +115,7 @@ gotiler -o ./out --meshopt-khr ./input.las
 
 ### E57 Input
 
-`.e57` scans from terrestrial laser scanners are read natively (experimental). gotiler doesn't read a CRS from E57 files, so pass one with `--crs`, or use `--crs local` and the [placement flags](#placing-ungeoreferenced-point-clouds) for scans in a local frame:
+`.e57` scans from terrestrial laser scanners are read natively (experimental). gotiler doesn't read a CRS from E57 files, so pass one with `--crs`, or use `--crs local` and the [placement flags](#placement-flags) for scans in a local frame:
 
 ```bash
 gotiler -o ./out --crs EPSG:32633 ./scan.e57
@@ -124,7 +125,7 @@ Standard E57 fields (intensity, timestamp, normals, invalid flags, row/column in
 
 ### PLY Input
 
-`.ply` point clouds are read in ASCII and binary (little- and big-endian) encoding. gotiler tiles the vertices and ignores faces and other elements, so a mesh is tiled as its vertices. PLY files carry no CRS: pass one with `--crs`, or use `--crs local` and the [placement flags](#placing-ungeoreferenced-point-clouds) for clouds in a local frame. Photogrammetry and graphics tools often write Y-up clouds, which `--input-up-axis y` turns upright:
+`.ply` point clouds are read in ASCII and binary (little- and big-endian) encoding. gotiler tiles the vertices and ignores faces and other elements, so a mesh is tiled as its vertices. PLY files carry no CRS: pass one with `--crs`, or use `--crs local` and the [placement flags](#placement-flags) for clouds in a local frame. Photogrammetry and graphics tools often write Y-up clouds, which `--input-up-axis y` turns upright:
 
 ```bash
 gotiler -o ./out --crs EPSG:32633 ./cloud.ply
@@ -332,7 +333,18 @@ gotiler -o ./out --geotiff-colorize ./ortho.tif ./input.las
 
 ### Placing Ungeoreferenced Point Clouds
 
-Input files without a CRS normally fail. With `--crs local`, their coordinates are treated as a local Z-up cartesian system in meters and placed on the WGS84 ellipsoid, by default with the origin at longitude 0, latitude 0, height 0 and the axes aligned east-north-up. These flags, accepted only with `--crs local`, move and orient the model:
+Input files without a CRS normally fail. With `--crs local`, their coordinates are treated as a local Z-up cartesian system in meters and placed on the WGS84 ellipsoid, by default with the origin at longitude 0, latitude 0, height 0 and the axes aligned east-north-up. `--input-up-axis` (`x`, `y` or `z`, default `z`) sets the input axis treated as up; `y` is common for glTF, CAD and photogrammetry data.
+
+There are two ways to put the model in place:
+
+1. **Placement flags:** pass the longitude, latitude, height, heading, pitch, roll and scale on the command line. This suits models whose placement is known, and scripts or pipelines that run gotiler unattended.
+2. **The browser viewer:** add `--preview`, and once tiling ends, move the model into place with the edit tools of the viewer page that opens in the browser.
+
+The two approaches also combine: placement flags can put the model roughly in place and the viewer can refine it. To adjust the position again later, run `gotiler view ./out` and click **Edit position**.
+
+#### Placement Flags
+
+These flags are accepted only with `--crs local`:
 
 | Flag | Default | Effect |
 |---|---:|---|
@@ -342,7 +354,6 @@ Input files without a CRS normally fail. With `--crs local`, their coordinates a
 | `--pitch` | `0` | Rotation in degrees from the local east-north plane, positive up. |
 | `--roll` | `0` | Rotation in degrees about the local east axis. |
 | `--scale`, `-s` | `1` | Uniform scale; input units are assumed to be meters. |
-| `--input-up-axis` | `z` | Axis treated as up: `x`, `y` or `z`. `y` is common for glTF/CAD-derived data. |
 
 ```bash
 gotiler -o ./out --crs local \
@@ -350,7 +361,52 @@ gotiler -o ./out --crs local \
   --heading 45 --input-up-axis y ./scan.las
 ```
 
-Heading, pitch and roll follow the CesiumJS convention. The tileset root transform carries the placement, so viewers need nothing special. `--geotiff-colorize` works too, as long as the placement puts the cloud at its true geographic location.
+Heading, pitch and roll follow the CesiumJS convention.
+
+#### Placing in the Viewer
+
+```bash
+gotiler -o ./out --crs local --input-up-axis y --preview ./model.ply
+```
+
+When tiling ends, gotiler opens the [viewer](#viewing-and-positioning-tilesets) in the browser with its position panel and gizmo already shown:
+
+1. Search an address, or click **Pick position** and then the globe, to move the model's center there.
+2. Fine-tune the position and orientation by dragging the gizmo's arrows and rings, or by typing offsets and rotations in the panel.
+3. Click **Save position**, which writes the new root transform into `./out/tileset.json`, then close the page.
+
+The viewer moves and rotates the model but cannot scale it, so pass `--scale` when tiling if the input is not in meters.
+
+### Viewing and Positioning Tilesets
+
+`gotiler view` opens a tileset in a local web viewer that shows it on a CesiumJS globe and lets you move it into place. Pass the `tileset.json`, or the folder that holds it:
+
+```bash
+gotiler view ./out
+```
+
+gotiler opens the viewer in the default browser and prints its address, which carries a random access token, in case the browser cannot be opened. Add `--preview` to a tiling command to open the viewer on the result as soon as tiling ends:
+
+```bash
+gotiler -o ./out --crs local --input-up-axis y --preview ./model.ply
+```
+
+The viewer only listens on `127.0.0.1` and stops when its page is closed, or with Ctrl+C; reloading the page keeps it running. Points are drawn 3 pixels wide; the **−** and **+** buttons in the top-left corner change their size from 1 to 14 pixels.
+
+`gotiler view` opens as a plain viewer: click **Edit position** to show the position panel and the gizmo, and **Done** to hide them again, discarding unsaved changes. `--preview` opens with them already shown. The position panel moves the tileset:
+
+* search an address, or click **Pick position** and then the globe, to move the cloud's center there
+* drag the arrows of the gizmo drawn on the tileset to move it along its axes, or its rings to rotate it about them
+* fine-tune it with offsets along the local east, north and up axes (X, Y, Z, in meters) and rotations about them (RX, RY, RZ, in degrees)
+* **Save position** writes the new root transform into `tileset.json`, keeping the original as `tileset.json.bak`; the tiles themselves are not rewritten
+
+| Flag | Default | Description |
+|---|---:|---|
+| `--port` | `0` | Local port of the viewer; `0` picks a free one. |
+
+To show Cesium World Imagery and World Terrain instead of the default VersaTiles satellite imagery, so picked positions follow the terrain, set the `CESIUM_ION_TOKEN` environment variable to a [Cesium ion](https://ion.cesium.com/) access token. The viewer page needs the token to load the imagery, so use one limited to the `assets:read` scope.
+
+The viewer page loads CesiumJS and the map imagery from the internet, and address search uses [Nominatim](https://nominatim.org/). Tilesets using `region` bounding volumes are shown but cannot be moved, since the root transform does not apply to them.
 
 ### More Examples
 

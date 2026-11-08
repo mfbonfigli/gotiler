@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GoTiler Viewer</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='10' fill='%233f8cff'/%3E%3Ccircle cx='12' cy='12' r='4' fill='%23ffffff'/%3E%3C/svg%3E" />
+    <script>
+      // Cesium loads its workers and assets from this base URL.
+      window.CESIUM_BASE_URL = 'https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/';
+    </script>
+    <script type="importmap">
+      { "imports": { "cesium": "https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/index.js" } }
+    </script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Widgets/widgets.css" />
+    <link rel="stylesheet" href="viewer.css" />
+    <script type="module" src="events.js" async></script>
+    <script type="module" src="viewer.js"></script>
+  </head>
+  <body>
+    <div id="cesium-host"></div>
+    <div id="status">Loading the viewer&hellip;</div>
+    <div id="toast" class="is-hidden" role="status"></div>
+    <div id="point-size" class="is-hidden" role="group" aria-label="Point size">
+      <button id="point-size-smaller" type="button" title="Smaller points" aria-label="Smaller points">&minus;</button>
+      <span id="point-size-value"></span>
+      <button id="point-size-bigger" type="button" title="Bigger points" aria-label="Bigger points">+</button>
+    </div>
+    <button id="edit-position" type="button" class="is-hidden">Edit position</button>
+    <aside id="placement" class="is-hidden">
+      <div class="panel-header">
+        <h2>Position</h2>
+        <button id="done" type="button">Done</button>
+      </div>
+      <form id="search-form" class="search">
+        <input id="search-query" type="search" placeholder="Search an address" />
+        <button type="submit">Search</button>
+      </form>
+      <ul id="search-results"></ul>
+      <div class="fields">
+        <label>X east (m)<input type="number" step="0.1" data-translation="x" /></label>
+        <label>Y north (m)<input type="number" step="0.1" data-translation="y" /></label>
+        <label>Z up (m)<input type="number" step="0.1" data-translation="z" /></label>
+        <label>RX (&deg;)<input type="number" step="1" data-rotation="x" /></label>
+        <label>RY (&deg;)<input type="number" step="1" data-rotation="y" /></label>
+        <label>RZ (&deg;)<input type="number" step="1" data-rotation="z" /></label>
+      </div>
+      <div class="actions">
+        <button id="pick" type="button">Pick position</button>
+        <button id="reset" type="button">Reset</button>
+        <button id="save" type="button" class="primary">Save position</button>
+      </div>
+      <p id="placement-message"></p>
+      <p class="attribution">
+        Address search by <a href="https://nominatim.org/" target="_blank" rel="noreferrer">Nominatim</a>, data &copy;
+        <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>.
+      </p>
+    </aside>
+  </body>
+</html>

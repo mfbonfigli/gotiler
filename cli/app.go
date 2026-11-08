@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/mfbonfigli/gotiler/v3/internal/viewer"
 	"github.com/mfbonfigli/gotiler/v3/plugins/compression"
 
 	// registers the .e57 reader with the point cloud reader registry
@@ -215,6 +216,7 @@ func NewApp(opts Options) *cli.Command {
 				return nil
 			},
 		},
+		newViewCommand(),
 	}
 	var appFlags []cli.Flag
 	var appAction cli.ActionFunc
@@ -280,7 +282,12 @@ func getPointCloudFlags(c *cliOpts) []cli.Flag {
 		Usage:       "when the input is a folder, merge point cloud files into a single cloud. The files must have the same properties (CRS etc)",
 		Destination: &c.join,
 	}
-	return append(stdFlags, joinFlag)
+	previewFlag := &cli.BoolFlag{
+		Name:        "preview",
+		Usage:       "after tiling, open the tileset in the browser viewer to check it and move it into place. Needs a single tileset: a file input, or a folder with --join, without --3tz. --port and the " + ionTokenEnvVar + " environment variable configure the viewer.",
+		Destination: &c.preview,
+	}
+	return append(stdFlags, joinFlag, previewFlag, viewerPortFlag(&c.viewerPort))
 }
 
 func getFlags(c *cliOpts) []cli.Flag {
@@ -473,6 +480,8 @@ type cliOpts struct {
 	refineMode            string
 	eightBit              bool
 	join                  bool
+	preview               bool
+	viewerPort            int
 	version               string
 	plain                 bool
 	profile               string
@@ -774,6 +783,7 @@ func (c *cliOpts) printSummary(input, mode string) {
 		fmt.Fprintf(os.Stderr, "Subsample:  %s\n", c.subsampleSummary())
 		fmt.Fprintf(os.Stderr, "GeoTIFF:    %s\n", colorizeSummary(c.geoTIFFColorize))
 		fmt.Fprintf(os.Stderr, "3TZ:        %s\n", c.threeTZSummary())
+		fmt.Fprintf(os.Stderr, "Preview:    %s\n", capitalize(fmt.Sprintf("%v", c.preview)))
 		fmt.Fprintln(os.Stderr)
 		return
 	}
@@ -806,6 +816,7 @@ func (c *cliOpts) printSummary(input, mode string) {
 	fmt.Fprintln(os.Stderr, boxRow("• Subsample:            ", c.subsampleSummary()))
 	fmt.Fprintln(os.Stderr, boxRow("• GeoTIFF Colorize:     ", colorizeSummary(c.geoTIFFColorize)))
 	fmt.Fprintln(os.Stderr, boxRow("• 3TZ Archive:          ", c.threeTZSummary()))
+	fmt.Fprintln(os.Stderr, boxRow("• Viewer Preview:       ", capitalize(fmt.Sprintf("%v", c.preview))))
 	fmt.Fprintln(os.Stderr, boxFooter())
 	fmt.Fprintln(os.Stderr)
 }
@@ -1049,6 +1060,12 @@ func pointCloudCommand(provider TilerProvider, opts *cliOpts, inputPath string) 
 	if !info.IsDir() && opts.join {
 		return fmt.Errorf("--join can only be used when input is a folder")
 	}
+	if opts.preview && info.IsDir() && !opts.join {
+		return fmt.Errorf("--preview shows a single tileset: tile a single file, or a folder with --join")
+	}
+	if opts.preview && opts.threeTZ {
+		return fmt.Errorf("--preview cannot show .3tz archives: remove --3tz")
+	}
 
 	t, err := provider()
 	if err != nil {
@@ -1070,7 +1087,7 @@ func pointCloudCommand(provider TilerProvider, opts *cliOpts, inputPath string) 
 			if err := t.ProcessFiles([]string{inputPath}, opts.output, crs, tilerOpts, ctx); err != nil {
 				return err
 			}
-			return opts.packageTilesets(nil)
+			return opts.finishSingleTileset(ctx)
 		}
 		launch(opts, runnable)
 		return nil
@@ -1090,7 +1107,7 @@ func pointCloudCommand(provider TilerProvider, opts *cliOpts, inputPath string) 
 			if err := t.ProcessFiles(files, opts.output, crs, tilerOpts, ctx); err != nil {
 				return err
 			}
-			return opts.packageTilesets(nil)
+			return opts.finishSingleTileset(ctx)
 		}
 		if err := t.ProcessFolder(inputPath, opts.output, crs, tilerOpts, ctx); err != nil {
 			return err
@@ -1105,6 +1122,18 @@ func pointCloudCommand(provider TilerProvider, opts *cliOpts, inputPath string) 
 	}
 	launch(opts, runnable)
 	return nil
+}
+
+// finishSingleTileset packages the tileset written to the output folder when
+// --3tz is set, or opens it in the viewer when --preview is set.
+func (c *cliOpts) finishSingleTileset(ctx context.Context) error {
+	if err := c.packageTilesets(nil); err != nil {
+		return err
+	}
+	if !c.preview {
+		return nil
+	}
+	return serveViewer(ctx, filepath.Join(c.output, "tileset.json"), viewer.Options{Port: c.viewerPort, IonToken: os.Getenv(ionTokenEnvVar), StartEditing: true})
 }
 
 // packageTilesets archives the written tilesets into .3tz files when --3tz is
@@ -1211,6 +1240,7 @@ func launch(opts *cliOpts, function func(ctx context.Context) error) {
 		fmt.Fprintf(os.Stderr, "\nError: %v\n", runErr)
 		os.Exit(1)
 	}
+	printDonationMessage()
 }
 
 // setupProfiling starts the requested pprof profile.
@@ -1343,7 +1373,6 @@ func (p *cliProgress) handle(e tiler.ProgressEvent) {
 		fmt.Fprintln(os.Stderr)
 		elapsed := time.Duration(e.ElapsedMs) * time.Millisecond
 		fmt.Fprintf(os.Stderr, "\nCompleted in %s%s\n\n", elapsed.Round(time.Millisecond), formatThroughput(p.totalPts, elapsed))
-		printDonationMessage()
 		p.bar = nil
 	}
 }
@@ -1360,7 +1389,6 @@ func plainListener(e tiler.ProgressEvent) {
 	if e.Percent == 100 && e.Phase.Index == e.Phase.Total {
 		elapsed := time.Duration(e.ElapsedMs) * time.Millisecond
 		fmt.Fprintf(os.Stderr, "Completed in %s%s\n\n", elapsed.Round(time.Millisecond), formatThroughput(clProg.totalPts, elapsed))
-		printDonationMessage()
 	}
 }
 
