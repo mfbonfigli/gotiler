@@ -284,11 +284,10 @@ func getPointCloudFlags(c *cliOpts) []cli.Flag {
 	}
 	previewFlag := &cli.BoolFlag{
 		Name:        "preview",
-		Usage:       "after tiling, open the tileset in the browser viewer to check it and move it into place. Needs a single tileset: a file input, or a folder with --join, without --3tz. --port and --ion-token configure the viewer.",
+		Usage:       "after tiling, open the tileset in the browser viewer to check it and move it into place. Needs a single tileset: a file input, or a folder with --join, without --3tz. --port and the " + ionTokenEnvVar + " environment variable configure the viewer.",
 		Destination: &c.preview,
 	}
-	flags := append(stdFlags, joinFlag, previewFlag)
-	return append(flags, viewerFlags(&c.viewerPort, &c.ionToken)...)
+	return append(stdFlags, joinFlag, previewFlag, viewerPortFlag(&c.viewerPort))
 }
 
 func getFlags(c *cliOpts) []cli.Flag {
@@ -483,7 +482,6 @@ type cliOpts struct {
 	join                  bool
 	preview               bool
 	viewerPort            int
-	ionToken              string
 	version               string
 	plain                 bool
 	profile               string
@@ -1135,7 +1133,7 @@ func (c *cliOpts) finishSingleTileset(ctx context.Context) error {
 	if !c.preview {
 		return nil
 	}
-	return serveViewer(ctx, filepath.Join(c.output, "tileset.json"), viewer.Options{Port: c.viewerPort, IonToken: c.ionToken, StartEditing: true})
+	return serveViewer(ctx, filepath.Join(c.output, "tileset.json"), viewer.Options{Port: c.viewerPort, IonToken: os.Getenv(ionTokenEnvVar), StartEditing: true})
 }
 
 // packageTilesets archives the written tilesets into .3tz files when --3tz is

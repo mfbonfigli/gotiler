@@ -48,29 +48,27 @@ var openInBrowser = func(url string) error {
 	return cmd.Start()
 }
 
-func viewerFlags(port *int, ionToken *string) []cli.Flag {
-	return []cli.Flag{
-		&cli.IntFlag{
-			Name:        "port",
-			Usage:       "local port of the viewer. 0 (default) picks a free port.",
-			Destination: port,
-		},
-		&cli.StringFlag{
-			Name:        "ion-token",
-			Usage:       "Cesium ion access token: the viewer then shows Cesium World Imagery and World Terrain instead of the default satellite imagery. Also read from the CESIUM_ION_TOKEN environment variable.",
-			Sources:     cli.EnvVars("CESIUM_ION_TOKEN"),
-			Destination: ionToken,
-		},
+// ionTokenEnvVar names the environment variable holding the viewer's Cesium
+// ion access token. There is no flag for it, so the token does not end up in
+// shell histories or process listings.
+const ionTokenEnvVar = "CESIUM_ION_TOKEN"
+
+func viewerPortFlag(port *int) cli.Flag {
+	return &cli.IntFlag{
+		Name:        "port",
+		Usage:       "local port of the viewer. 0 (default) picks a free port.",
+		Destination: port,
 	}
 }
 
 func newViewCommand() *cli.Command {
 	var opts viewer.Options
 	return &cli.Command{
-		Name:      "view",
-		Usage:     "show a tileset on a 3D globe in the browser and move it into place",
-		ArgsUsage: "<tileset.json or the folder holding it>",
-		Flags:     viewerFlags(&opts.Port, &opts.IonToken),
+		Name:        "view",
+		Usage:       "show a tileset on a 3D globe in the browser and move it into place",
+		Description: "Set the " + ionTokenEnvVar + " environment variable to a Cesium ion access token to show Cesium World Imagery and World Terrain instead of the default satellite imagery.",
+		ArgsUsage:   "<tileset.json or the folder holding it>",
+		Flags:       []cli.Flag{viewerPortFlag(&opts.Port)},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() != 1 {
 				_ = cli.ShowSubcommandHelp(cmd)
@@ -78,6 +76,7 @@ func newViewCommand() *cli.Command {
 			}
 			ctx, stop := signal.NotifyContext(ctx, os.Interrupt)
 			defer stop()
+			opts.IonToken = os.Getenv(ionTokenEnvVar)
 			return serveViewer(ctx, cmd.Args().First(), opts)
 		},
 	}

@@ -39,12 +39,13 @@ func newMockApp() (*tiler.MockTiler, func(args ...string) error) {
 }
 
 func TestViewCommandServesTheGivenTileset(t *testing.T) {
+	t.Setenv("CESIUM_ION_TOKEN", "")
 	calls := fakeViewer(t, nil)
 	_, run := newMockApp()
-	if err := run("view", "--port", "9000", "--ion-token", "ion-abc", "out/tileset.json"); err != nil {
+	if err := run("view", "--port", "9000", "out/tileset.json"); err != nil {
 		t.Fatalf("view: %v", err)
 	}
-	want := viewerCall{"out/tileset.json", viewer.Options{Port: 9000, IonToken: "ion-abc"}}
+	want := viewerCall{"out/tileset.json", viewer.Options{Port: 9000}}
 	if len(*calls) != 1 || (*calls)[0] != want {
 		t.Errorf("viewer calls = %+v, want [%+v]", *calls, want)
 	}
@@ -59,6 +60,17 @@ func TestViewCommandReadsTheIonTokenFromTheEnvironment(t *testing.T) {
 	}
 	if len(*calls) != 1 || (*calls)[0].opts.IonToken != "ion-from-env" {
 		t.Errorf("viewer calls = %+v, want the token from CESIUM_ION_TOKEN", *calls)
+	}
+}
+
+func TestViewCommandHasNoIonTokenFlag(t *testing.T) {
+	calls := fakeViewer(t, nil)
+	_, run := newMockApp()
+	if err := run("view", "--ion-token", "ion-abc", "out"); err == nil {
+		t.Error("view accepted --ion-token, which would expose the token on the command line")
+	}
+	if len(*calls) != 0 {
+		t.Errorf("the viewer was started: %+v", *calls)
 	}
 }
 
@@ -84,13 +96,14 @@ func TestViewCommandReturnsViewerErrors(t *testing.T) {
 }
 
 func TestPreviewOpensTheTiledFileInTheViewerInEditMode(t *testing.T) {
+	t.Setenv("CESIUM_ION_TOKEN", "ion-abc")
 	calls := fakeViewer(t, nil)
 	input := filepath.Join(t.TempDir(), "cloud.las")
 	if err := touchFile(input); err != nil {
 		t.Fatal(err)
 	}
 	mockTiler, run := newMockApp()
-	if err := run("-o", "out", "--crs", "EPSG:32633", "--preview", "--port", "9001", "--ion-token", "ion-abc", input); err != nil {
+	if err := run("-o", "out", "--crs", "EPSG:32633", "--preview", "--port", "9001", input); err != nil {
 		t.Fatalf("tiling: %v", err)
 	}
 	if !mockTiler.ProcessFilesCalled {
@@ -103,6 +116,7 @@ func TestPreviewOpensTheTiledFileInTheViewerInEditMode(t *testing.T) {
 }
 
 func TestPreviewOpensAJoinedFolderInTheViewer(t *testing.T) {
+	t.Setenv("CESIUM_ION_TOKEN", "")
 	calls := fakeViewer(t, nil)
 	input := t.TempDir()
 	if err := touchFile(filepath.Join(input, "a.las")); err != nil {
@@ -112,8 +126,9 @@ func TestPreviewOpensAJoinedFolderInTheViewer(t *testing.T) {
 	if err := run("-o", "out", "--crs", "EPSG:32633", "--join", "--preview", input); err != nil {
 		t.Fatalf("tiling: %v", err)
 	}
-	if len(*calls) != 1 || (*calls)[0].tilesetPath != filepath.Join("out", "tileset.json") {
-		t.Errorf("viewer calls = %+v, want the joined tileset", *calls)
+	want := viewerCall{filepath.Join("out", "tileset.json"), viewer.Options{StartEditing: true}}
+	if len(*calls) != 1 || (*calls)[0] != want {
+		t.Errorf("viewer calls = %+v, want [%+v]", *calls, want)
 	}
 }
 

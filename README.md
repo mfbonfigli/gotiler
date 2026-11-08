@@ -93,7 +93,7 @@ Folders are not scanned recursively: files in subfolders are ignored. `gotiler v
 | `--3tz` | `false` | Write each tileset as a single `.3tz` archive, see [3TZ Archives](#3tz-archives). |
 | `--join`, `-j` | `false` | Merge all files of an input folder into one tileset. |
 | `--plain` | `false` | Print plain progress messages instead of progress bars. |
-| `--preview` | `false` | After tiling, open the tileset in the browser viewer, see [Viewing and Positioning Tilesets](#viewing-and-positioning-tilesets). `--port` and `--ion-token` configure the viewer. |
+| `--preview` | `false` | After tiling, open the tileset in the browser viewer, see [Viewing and Positioning Tilesets](#viewing-and-positioning-tilesets). `--port` and the `CESIUM_ION_TOKEN` environment variable configure the viewer. |
 | `--longitude`, `--latitude`, `--height`, `--heading`, `--pitch`, `--roll`, `--scale`/`-s`, `--input-up-axis` | | Only with `--crs local`: place the model on the globe, see [Placing Ungeoreferenced Point Clouds](#placing-ungeoreferenced-point-clouds). |
 | `--help`, `-h` | | Show help. |
 
@@ -403,7 +403,8 @@ The viewer only listens on `127.0.0.1` and stops when its page is closed, or wit
 | Flag | Default | Description |
 |---|---:|---|
 | `--port` | `0` | Local port of the viewer; `0` picks a free one. |
-| `--ion-token` | | Cesium ion access token: shows Cesium World Imagery and World Terrain instead of the default VersaTiles satellite imagery, so picked positions follow the terrain. Also read from `CESIUM_ION_TOKEN`. |
+
+To show Cesium World Imagery and World Terrain instead of the default VersaTiles satellite imagery, so picked positions follow the terrain, set the `CESIUM_ION_TOKEN` environment variable to a [Cesium ion](https://ion.cesium.com/) access token. The viewer page needs the token to load the imagery, so use one limited to the `assets:read` scope.
 
 The viewer page loads CesiumJS and the map imagery from the internet, and address search uses [Nominatim](https://nominatim.org/). Tilesets using `region` bounding volumes are shown but cannot be moved, since the root transform does not apply to them.
 
