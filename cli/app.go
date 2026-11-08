@@ -1242,6 +1242,7 @@ func launch(opts *cliOpts, function func(ctx context.Context) error) {
 		fmt.Fprintf(os.Stderr, "\nError: %v\n", runErr)
 		os.Exit(1)
 	}
+	printDonationMessage()
 }
 
 // setupProfiling starts the requested pprof profile.
@@ -1374,7 +1375,6 @@ func (p *cliProgress) handle(e tiler.ProgressEvent) {
 		fmt.Fprintln(os.Stderr)
 		elapsed := time.Duration(e.ElapsedMs) * time.Millisecond
 		fmt.Fprintf(os.Stderr, "\nCompleted in %s%s\n\n", elapsed.Round(time.Millisecond), formatThroughput(p.totalPts, elapsed))
-		printDonationMessage()
 		p.bar = nil
 	}
 }
@@ -1391,7 +1391,6 @@ func plainListener(e tiler.ProgressEvent) {
 	if e.Percent == 100 && e.Phase.Index == e.Phase.Total {
 		elapsed := time.Duration(e.ElapsedMs) * time.Millisecond
 		fmt.Fprintf(os.Stderr, "Completed in %s%s\n\n", elapsed.Round(time.Millisecond), formatThroughput(clProg.totalPts, elapsed))
-		printDonationMessage()
 	}
 }
 
