@@ -1,7 +1,6 @@
 package viewer
 
 import (
-	"cmp"
 	"context"
 	"crypto/rand"
 	"crypto/subtle"
@@ -10,7 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"net"
 	"net/http"
@@ -27,7 +25,9 @@ import (
 var webFiles embed.FS
 
 const (
-	defaultShutdownGrace = 3 * time.Second
+	// defaultShutdownGrace is how long the server waits after the last page
+	// closes before stopping: enough for a reloading page to reconnect.
+	defaultShutdownGrace = time.Second
 	maxSaveRequestBytes  = 64 * 1024
 )
 
@@ -53,9 +53,6 @@ type Options struct {
 	// StartEditing opens the page with the placement panel and gizmo shown,
 	// instead of as a plain viewer.
 	StartEditing bool
-	// Output receives status messages, such as the countdown to stopping
-	// after the page is closed. Nil discards them.
-	Output io.Writer
 }
 
 // Server serves the viewer page for one tileset on 127.0.0.1.
@@ -63,7 +60,6 @@ type Server struct {
 	tileset      *tilesetFile
 	ionToken     string
 	startEditing bool
-	output       io.Writer
 	token        string
 	listener     net.Listener
 	httpServer   *http.Server
@@ -99,7 +95,6 @@ func newServer(tilesetPath string, opts Options, assets fs.FS) (*Server, error) 
 		tileset:      tileset,
 		ionToken:     opts.IonToken,
 		startEditing: opts.StartEditing,
-		output:       cmp.Or[io.Writer](opts.Output, io.Discard),
 		token:        token,
 		listener:     listener,
 		geocoder:     newGeocoder(),
@@ -127,7 +122,7 @@ func (s *Server) URL() string {
 }
 
 // Serve handles requests until ctx is done or the last viewer page has been
-// closed for a few seconds, then shuts the server down.
+// closed for a second, then shuts the server down.
 func (s *Server) Serve(ctx context.Context) error {
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- s.httpServer.Serve(s.listener) }()
@@ -284,14 +279,8 @@ func (s *Server) handleGeocode(w http.ResponseWriter, r *http.Request) {
 // handleEvents holds a server-sent events stream open for as long as the page
 // is open, which is how the server knows when the last page has closed.
 func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
-	if s.pages.pageOpened() {
-		fmt.Fprintln(s.output, "The viewer page reopened.")
-	}
-	defer func() {
-		if s.pages.pageClosed() && !s.isStopping() {
-			fmt.Fprintf(s.output, "The viewer page was closed: stopping in %s.\n", describeDuration(s.pages.grace))
-		}
-	}()
+	s.pages.pageOpened()
+	defer s.pages.pageClosed()
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, ": connected\n\n")
@@ -301,27 +290,6 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	select {
 	case <-r.Context().Done():
 	case <-s.stopping:
-	}
-}
-
-func (s *Server) isStopping() bool {
-	select {
-	case <-s.stopping:
-		return true
-	default:
-		return false
-	}
-}
-
-// describeDuration spells whole seconds out, as in "3 seconds".
-func describeDuration(d time.Duration) string {
-	switch {
-	case d == time.Second:
-		return "1 second"
-	case d%time.Second == 0:
-		return fmt.Sprintf("%d seconds", d/time.Second)
-	default:
-		return d.String()
 	}
 }
 

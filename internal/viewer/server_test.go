@@ -2,7 +2,6 @@ package viewer
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -13,7 +12,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"sync"
 	"testing"
 	"testing/fstest"
 	"time"
@@ -368,75 +366,6 @@ func TestServeSurvivesAPageReload(t *testing.T) {
 	requireRunning(t, done, 500*time.Millisecond)
 	closePage()
 	requireStopped(t, done, 2*time.Second)
-}
-
-// syncBuffer is a bytes.Buffer safe for the concurrent writes of the
-// server's request handlers.
-type syncBuffer struct {
-	mu  sync.Mutex
-	buf bytes.Buffer
-}
-
-func (b *syncBuffer) Write(p []byte) (int, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.buf.Write(p)
-}
-
-func (b *syncBuffer) String() string {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.buf.String()
-}
-
-func TestServePrintsTheCountdownWhenThePageCloses(t *testing.T) {
-	var output syncBuffer
-	s := newTestServer(t, "tileset.json", sampleTileset(""), Options{Output: &output})
-	done := serveInBackground(context.Background(), s, 300*time.Millisecond)
-
-	closePage := openPage(t, s)
-	closePage()
-	deadline := time.Now().Add(time.Second)
-	for !strings.Contains(output.String(), "stopping in") && time.Now().Before(deadline) {
-		time.Sleep(5 * time.Millisecond)
-	}
-	closePage = openPage(t, s)
-	closePage()
-	requireStopped(t, done, 2*time.Second)
-
-	want := "The viewer page was closed: stopping in 300ms.\n" +
-		"The viewer page reopened.\n" +
-		"The viewer page was closed: stopping in 300ms.\n"
-	if output.String() != want {
-		t.Errorf("output = %q, want %q", output.String(), want)
-	}
-}
-
-func TestServePrintsNoCountdownWhenStoppedByTheContext(t *testing.T) {
-	var output syncBuffer
-	s := newTestServer(t, "tileset.json", sampleTileset(""), Options{Output: &output})
-	ctx, cancel := context.WithCancel(context.Background())
-	done := serveInBackground(ctx, s, time.Hour)
-	closePage := openPage(t, s)
-	defer closePage()
-
-	cancel()
-	requireStopped(t, done, 2*time.Second)
-	if output.String() != "" {
-		t.Errorf("output = %q, want nothing when stopped by the context", output.String())
-	}
-}
-
-func TestDescribeDuration(t *testing.T) {
-	for d, want := range map[time.Duration]string{
-		time.Second:             "1 second",
-		3 * time.Second:         "3 seconds",
-		1500 * time.Millisecond: "1.5s",
-	} {
-		if got := describeDuration(d); got != want {
-			t.Errorf("describeDuration(%v) = %q, want %q", d, got, want)
-		}
-	}
 }
 
 func TestServeStopsWhenTheContextEndsEvenWithOpenPages(t *testing.T) {

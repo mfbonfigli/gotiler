@@ -17,7 +17,6 @@ import (
 // browser, and blocks until the viewer stops. Tests replace it to avoid
 // starting a server.
 var serveViewer = func(ctx context.Context, tilesetPath string, opts viewer.Options) error {
-	opts.Output = os.Stderr
 	server, err := viewer.NewServer(tilesetPath, opts)
 	if err != nil {
 		return err

@@ -37,23 +37,6 @@ func TestPageTrackerSignalsAfterTheLastPageCloses(t *testing.T) {
 	}
 }
 
-func TestPageTrackerReportsTheLastPageClosingAndReopening(t *testing.T) {
-	p := newPageTracker(time.Hour)
-	if p.pageOpened() {
-		t.Error("opening the first page reported a canceled countdown")
-	}
-	p.pageOpened()
-	if p.pageClosed() {
-		t.Error("closing one of two pages was reported as the last page")
-	}
-	if !p.pageClosed() {
-		t.Error("closing the last page was not reported")
-	}
-	if !p.pageOpened() {
-		t.Error("reopening a page during the countdown was not reported")
-	}
-}
-
 func TestPageTrackerToleratesAReloadWithinTheGracePeriod(t *testing.T) {
 	p := newPageTracker(testGrace)
 	p.pageOpened()
