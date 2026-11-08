@@ -363,7 +363,7 @@ To find the right position interactively, tile with `--preview` and move the res
 gotiler view ./out
 ```
 
-gotiler prints the viewer's address, which carries a random access token; open it in a browser. Add `--preview` to a tiling command to open the viewer on the result as soon as tiling ends:
+gotiler opens the viewer in the default browser and prints its address, which carries a random access token, in case the browser cannot be opened. Add `--preview` to a tiling command to open the viewer on the result as soon as tiling ends:
 
 ```bash
 gotiler -o ./out --crs local --input-up-axis y --preview ./model.ply

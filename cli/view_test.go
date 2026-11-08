@@ -15,7 +15,6 @@ import (
 type viewerCall struct {
 	tilesetPath string
 	opts        viewer.Options
-	openBrowser bool
 }
 
 // fakeViewer replaces serveViewer for the test and records its calls.
@@ -23,8 +22,8 @@ func fakeViewer(t *testing.T, result error) *[]viewerCall {
 	t.Helper()
 	var calls []viewerCall
 	original := serveViewer
-	serveViewer = func(ctx context.Context, tilesetPath string, opts viewer.Options, openBrowser bool) error {
-		calls = append(calls, viewerCall{tilesetPath, opts, openBrowser})
+	serveViewer = func(ctx context.Context, tilesetPath string, opts viewer.Options) error {
+		calls = append(calls, viewerCall{tilesetPath, opts})
 		return result
 	}
 	t.Cleanup(func() { serveViewer = original })
@@ -45,7 +44,7 @@ func TestViewCommandServesTheGivenTileset(t *testing.T) {
 	if err := run("view", "--port", "9000", "--ion-token", "ion-abc", "out/tileset.json"); err != nil {
 		t.Fatalf("view: %v", err)
 	}
-	want := viewerCall{"out/tileset.json", viewer.Options{Port: 9000, IonToken: "ion-abc"}, false}
+	want := viewerCall{"out/tileset.json", viewer.Options{Port: 9000, IonToken: "ion-abc"}}
 	if len(*calls) != 1 || (*calls)[0] != want {
 		t.Errorf("viewer calls = %+v, want [%+v]", *calls, want)
 	}
@@ -97,7 +96,7 @@ func TestPreviewOpensTheTiledFileInTheViewer(t *testing.T) {
 	if !mockTiler.ProcessFilesCalled {
 		t.Fatal("the file was not tiled")
 	}
-	want := viewerCall{filepath.Join("out", "tileset.json"), viewer.Options{Port: 9001, IonToken: "ion-abc"}, true}
+	want := viewerCall{filepath.Join("out", "tileset.json"), viewer.Options{Port: 9001, IonToken: "ion-abc"}}
 	if len(*calls) != 1 || (*calls)[0] != want {
 		t.Errorf("viewer calls = %+v, want [%+v]", *calls, want)
 	}
@@ -161,17 +160,55 @@ func TestTilingWithoutPreviewDoesNotStartTheViewer(t *testing.T) {
 	}
 }
 
-func TestServeViewerRunsTheViewerUntilTheContextEnds(t *testing.T) {
+// fakeBrowser replaces openInBrowser for the test and records the opened URLs.
+func fakeBrowser(t *testing.T, result error) *[]string {
+	t.Helper()
+	var urls []string
+	original := openInBrowser
+	openInBrowser = func(url string) error {
+		urls = append(urls, url)
+		return result
+	}
+	t.Cleanup(func() { openInBrowser = original })
+	return &urls
+}
+
+func writeTestTileset(t *testing.T) string {
+	t.Helper()
 	tileset := filepath.Join(t.TempDir(), "tileset.json")
 	if err := os.WriteFile(tileset, []byte(`{"asset":{"version":"1.1"},"root":{"boundingVolume":{"box":[0,0,0,1,0,0,0,1,0,0,0,1]},"geometricError":1}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	return tileset
+}
+
+func TestServeViewerOpensTheViewerInTheBrowserUntilTheContextEnds(t *testing.T) {
+	urls := fakeBrowser(t, nil)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if err := serveViewer(ctx, tileset, viewer.Options{}, false); err != nil {
+	if err := serveViewer(ctx, writeTestTileset(t), viewer.Options{}); err != nil {
 		t.Errorf("serveViewer = %v, want nil once the context has ended", err)
 	}
-	if err := serveViewer(ctx, filepath.Join(t.TempDir(), "missing.json"), viewer.Options{}, false); err == nil {
+	if len(*urls) != 1 || !strings.HasPrefix((*urls)[0], "http://127.0.0.1:") || !strings.Contains((*urls)[0], "token=") {
+		t.Errorf("opened URLs = %v, want the viewer address with its token", *urls)
+	}
+}
+
+func TestServeViewerRunsEvenIfTheBrowserCannotBeOpened(t *testing.T) {
+	fakeBrowser(t, errors.New("no browser"))
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := serveViewer(ctx, writeTestTileset(t), viewer.Options{}); err != nil {
+		t.Errorf("serveViewer = %v, want nil when only the browser failed", err)
+	}
+}
+
+func TestServeViewerRejectsAMissingTilesetWithoutOpeningTheBrowser(t *testing.T) {
+	urls := fakeBrowser(t, nil)
+	if err := serveViewer(context.Background(), filepath.Join(t.TempDir(), "missing.json"), viewer.Options{}); err == nil {
 		t.Error("serveViewer accepted a missing tileset")
+	}
+	if len(*urls) != 0 {
+		t.Errorf("the browser was opened: %v", *urls)
 	}
 }

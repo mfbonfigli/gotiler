@@ -13,9 +13,10 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-// serveViewer shows a tileset in the browser viewer and blocks until the
-// viewer stops. Tests replace it to avoid starting a server.
-var serveViewer = func(ctx context.Context, tilesetPath string, opts viewer.Options, openBrowser bool) error {
+// serveViewer shows a tileset in the browser viewer, opening it in the default
+// browser, and blocks until the viewer stops. Tests replace it to avoid
+// starting a server.
+var serveViewer = func(ctx context.Context, tilesetPath string, opts viewer.Options) error {
 	opts.Output = os.Stderr
 	server, err := viewer.NewServer(tilesetPath, opts)
 	if err != nil {
@@ -23,10 +24,8 @@ var serveViewer = func(ctx context.Context, tilesetPath string, opts viewer.Opti
 	}
 	url := server.URL()
 	fmt.Fprintf(os.Stderr, "\nGoTiler viewer: %s\nThe viewer stops when its page is closed, or with Ctrl+C.\n", url)
-	if openBrowser {
-		if err := openInBrowser(url); err != nil {
-			fmt.Fprintf(os.Stderr, "Could not open the browser (%v): open the address above.\n", err)
-		}
+	if err := openInBrowser(url); err != nil {
+		fmt.Fprintf(os.Stderr, "Could not open the browser (%v): open the address above.\n", err)
 	}
 	if err := server.Serve(ctx); err != nil {
 		return err
@@ -35,7 +34,9 @@ var serveViewer = func(ctx context.Context, tilesetPath string, opts viewer.Opti
 	return nil
 }
 
-func openInBrowser(url string) error {
+// openInBrowser opens url in the default browser. Tests replace it to avoid
+// launching one.
+var openInBrowser = func(url string) error {
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "windows":
@@ -78,7 +79,7 @@ func newViewCommand() *cli.Command {
 			}
 			ctx, stop := signal.NotifyContext(ctx, os.Interrupt)
 			defer stop()
-			return serveViewer(ctx, cmd.Args().First(), opts, false)
+			return serveViewer(ctx, cmd.Args().First(), opts)
 		},
 	}
 }
