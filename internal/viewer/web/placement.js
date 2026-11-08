@@ -1,6 +1,6 @@
 // The placement panel: address search, offset and rotation fields, picking a
-// position on the globe, and saving the result as the tileset's new root
-// transform.
+// position on the globe, the move and rotate gizmo, and saving the result as
+// the tileset's new root transform.
 //
 // The tileset is moved around a pivot: the east-north-up frame at the center
 // of its bounding sphere. The edited position is the frame
@@ -8,7 +8,9 @@
 // where the target is a searched or picked location, or the pivot itself
 // until one is chosen. The preview applies desired * pivot^-1 as the
 // tileset's model matrix, and saving writes that same matrix times the
-// current root transform.
+// current root transform. The rotation matrix is the exact orientation; the
+// RX/RY/RZ fields add up the degrees applied about each axis, and editing
+// them rebuilds the matrix from those angles.
 
 import {
   BoundingSphere,
@@ -23,6 +25,7 @@ import {
   Transforms,
 } from 'cesium';
 import { api } from './api.js';
+import { Gizmo } from './gizmo.js';
 import { showToast } from './notices.js';
 
 // Below this distance from the Earth's center a tileset has no geographic
@@ -45,15 +48,51 @@ let getTileset;
 let reloadTileset;
 let pivot;
 let state;
+let gizmo;
+let dragStart;
 
 function initialState() {
-  return { target: null, translation: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0 }, dirty: false, picking: false, busy: false };
+  return {
+    target: null,
+    translation: { x: 0, y: 0, z: 0 },
+    rotation: { x: 0, y: 0, z: 0 },
+    rotationMatrix: Matrix3.clone(Matrix3.IDENTITY),
+    dirty: false,
+    picking: false,
+    busy: false,
+  };
 }
 
 export function mountPlacementPanel(options) {
   ({ widget, getTileset, reloadTileset } = options);
   pivot = pivotFrame(getTileset());
   state = initialState();
+  gizmo = new Gizmo(widget, {
+    onDragStart() {
+      dragStart = {
+        translation: { ...state.translation },
+        rotation: { ...state.rotation },
+        rotationMatrix: Matrix3.clone(state.rotationMatrix),
+      };
+    },
+    onMove(axis, meters) {
+      // the arrows follow the rotated axes, while the offsets are along the
+      // unrotated east, north and up axes
+      const direction = Matrix3.multiplyByVector(dragStart.rotationMatrix, unitVector(axis), new Cartesian3());
+      state.translation = {
+        x: dragStart.translation.x + direction.x * meters,
+        y: dragStart.translation.y + direction.y * meters,
+        z: dragStart.translation.z + direction.z * meters,
+      };
+      edited();
+    },
+    onRotate(axis, degrees) {
+      state.rotation = { ...dragStart.rotation, [axis]: dragStart.rotation[axis] + degrees };
+      state.rotationMatrix = Matrix3.multiply(dragStart.rotationMatrix, axisRotation(axis, degrees), new Matrix3());
+      edited();
+    },
+    onHoverChange: updateCursor,
+  });
 
   searchForm.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -85,6 +124,7 @@ export function mountPlacementPanel(options) {
   });
 
   panel.classList.remove('is-hidden');
+  applyPreview();
   render();
 }
 
@@ -96,11 +136,22 @@ function pivotFrame(tileset) {
   return Transforms.eastNorthUpToFixedFrame(center, undefined, new Matrix4());
 }
 
-function rotationMatrix(degrees) {
-  const x = Matrix3.fromRotationX(CesiumMath.toRadians(degrees.x));
-  const y = Matrix3.fromRotationY(CesiumMath.toRadians(degrees.y));
-  const z = Matrix3.fromRotationZ(CesiumMath.toRadians(degrees.z));
-  return Matrix3.multiply(z, Matrix3.multiply(y, x, new Matrix3()), new Matrix3());
+function axisRotation(axis, degrees) {
+  const radians = CesiumMath.toRadians(degrees);
+  if (axis === 'x') return Matrix3.fromRotationX(radians);
+  if (axis === 'y') return Matrix3.fromRotationY(radians);
+  return Matrix3.fromRotationZ(radians);
+}
+
+function unitVector(axis) {
+  if (axis === 'x') return Cartesian3.UNIT_X;
+  if (axis === 'y') return Cartesian3.UNIT_Y;
+  return Cartesian3.UNIT_Z;
+}
+
+function rotationFromDegrees(degrees) {
+  const yx = Matrix3.multiply(axisRotation('y', degrees.y), axisRotation('x', degrees.x), new Matrix3());
+  return Matrix3.multiply(axisRotation('z', degrees.z), yx, new Matrix3());
 }
 
 function desiredFrame() {
@@ -108,7 +159,7 @@ function desiredFrame() {
     ? Transforms.eastNorthUpToFixedFrame(Cartesian3.fromDegrees(state.target.longitude, state.target.latitude, state.target.height))
     : Matrix4.clone(pivot);
   const { x, y, z } = state.translation;
-  const local = Matrix4.fromRotationTranslation(rotationMatrix(state.rotation), new Cartesian3(x, y, z));
+  const local = Matrix4.fromRotationTranslation(state.rotationMatrix, new Cartesian3(x, y, z));
   return Matrix4.multiply(frame, local, new Matrix4());
 }
 
@@ -118,7 +169,14 @@ function placementDelta() {
 
 function applyPreview() {
   getTileset().modelMatrix = placementDelta();
+  gizmo.setFrame(desiredFrame(), Math.max(getTileset().boundingSphere.radius * 0.8, 5));
   widget.scene.requestRender();
+}
+
+function edited() {
+  state.dirty = true;
+  applyPreview();
+  render();
 }
 
 function updateFromFields() {
@@ -128,9 +186,8 @@ function updateFromFields() {
   for (const input of rotationInputs) {
     state.rotation[input.dataset.rotation] = finiteOrZero(input.value);
   }
-  state.dirty = true;
-  applyPreview();
-  render();
+  state.rotationMatrix = rotationFromDegrees(state.rotation);
+  edited();
 }
 
 function finiteOrZero(value) {
@@ -219,6 +276,7 @@ async function save() {
     const tileset = await reloadTileset();
     pivot = pivotFrame(tileset);
     state = initialState();
+    applyPreview();
     setMessage('');
     showToast("Position saved. You can close this window when you're done.");
   } catch (error) {
@@ -243,8 +301,12 @@ function render() {
   }
   pickButton.classList.toggle('is-active', state.picking);
   pickButton.textContent = state.picking ? 'Click the globe' : 'Pick position';
-  widget.scene.canvas.style.cursor = state.picking ? 'crosshair' : '';
+  updateCursor();
   saveButton.disabled = !state.dirty || state.busy;
   resetButton.disabled = state.busy;
   searchQuery.disabled = state.busy;
+}
+
+function updateCursor() {
+  widget.scene.canvas.style.cursor = state.picking ? 'crosshair' : gizmo.hovering ? 'pointer' : '';
 }
