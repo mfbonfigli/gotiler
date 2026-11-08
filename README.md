@@ -369,7 +369,9 @@ gotiler opens the viewer in the default browser and prints its address, which ca
 gotiler -o ./out --crs local --input-up-axis y --preview ./model.ply
 ```
 
-The viewer only listens on `127.0.0.1` and stops a few seconds after its page is closed, or with Ctrl+C. Its position panel moves the tileset:
+The viewer only listens on `127.0.0.1` and stops a few seconds after its page is closed, or with Ctrl+C.
+
+`gotiler view` opens as a plain viewer: click **Edit position** to show the position panel and the gizmo, and **Done** to hide them again, discarding unsaved changes. `--preview` opens with them already shown. The position panel moves the tileset:
 
 * search an address, or click **Pick position** and then the globe, to move the cloud's center there
 * drag the arrows of the gizmo drawn on the tileset to move it along its axes, or its rings to rotate it about them

@@ -1135,7 +1135,7 @@ func (c *cliOpts) finishSingleTileset(ctx context.Context) error {
 	if !c.preview {
 		return nil
 	}
-	return serveViewer(ctx, filepath.Join(c.output, "tileset.json"), viewer.Options{Port: c.viewerPort, IonToken: c.ionToken})
+	return serveViewer(ctx, filepath.Join(c.output, "tileset.json"), viewer.Options{Port: c.viewerPort, IonToken: c.ionToken, StartEditing: true})
 }
 
 // packageTilesets archives the written tilesets into .3tz files when --3tz is

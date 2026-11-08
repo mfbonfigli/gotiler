@@ -21,8 +21,12 @@
     <div id="cesium-host"></div>
     <div id="status">Loading the viewer&hellip;</div>
     <div id="toast" class="is-hidden" role="status"></div>
+    <button id="edit-position" type="button" class="is-hidden">Edit position</button>
     <aside id="placement" class="is-hidden">
-      <h2>Position</h2>
+      <div class="panel-header">
+        <h2>Position</h2>
+        <button id="done" type="button">Done</button>
+      </div>
       <form id="search-form" class="search">
         <input id="search-query" type="search" placeholder="Search an address" />
         <button type="submit">Search</button>

@@ -50,6 +50,9 @@ type Options struct {
 	// IonToken is an optional Cesium ion access token. With it the page uses
 	// Cesium World Imagery and World Terrain instead of the default imagery.
 	IonToken string
+	// StartEditing opens the page with the placement panel and gizmo shown,
+	// instead of as a plain viewer.
+	StartEditing bool
 	// Output receives status messages, such as the countdown to stopping
 	// after the page is closed. Nil discards them.
 	Output io.Writer
@@ -57,15 +60,16 @@ type Options struct {
 
 // Server serves the viewer page for one tileset on 127.0.0.1.
 type Server struct {
-	tileset    *tilesetFile
-	ionToken   string
-	output     io.Writer
-	token      string
-	listener   net.Listener
-	httpServer *http.Server
-	geocoder   *geocoder
-	pages      *pageTracker
-	stopping   chan struct{}
+	tileset      *tilesetFile
+	ionToken     string
+	startEditing bool
+	output       io.Writer
+	token        string
+	listener     net.Listener
+	httpServer   *http.Server
+	geocoder     *geocoder
+	pages        *pageTracker
+	stopping     chan struct{}
 }
 
 // NewServer opens the tileset, given its tileset.json or the folder holding
@@ -92,14 +96,15 @@ func newServer(tilesetPath string, opts Options, assets fs.FS) (*Server, error) 
 		return nil, fmt.Errorf("starting the viewer: %w", err)
 	}
 	s := &Server{
-		tileset:  tileset,
-		ionToken: opts.IonToken,
-		output:   cmp.Or[io.Writer](opts.Output, io.Discard),
-		token:    token,
-		listener: listener,
-		geocoder: newGeocoder(),
-		pages:    newPageTracker(defaultShutdownGrace),
-		stopping: make(chan struct{}),
+		tileset:      tileset,
+		ionToken:     opts.IonToken,
+		startEditing: opts.StartEditing,
+		output:       cmp.Or[io.Writer](opts.Output, io.Discard),
+		token:        token,
+		listener:     listener,
+		geocoder:     newGeocoder(),
+		pages:        newPageTracker(defaultShutdownGrace),
+		stopping:     make(chan struct{}),
 	}
 	s.httpServer = &http.Server{
 		Handler:           s.routes(assets),
@@ -219,6 +224,7 @@ type configResponse struct {
 	Editable       bool   `json:"editable"`
 	ReadOnlyReason string `json:"readOnlyReason,omitempty"`
 	IonToken       string `json:"ionToken,omitempty"`
+	StartEditing   bool   `json:"startEditing"`
 }
 
 func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
@@ -227,6 +233,7 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		Editable:       s.tileset.readOnlyReason == "",
 		ReadOnlyReason: s.tileset.readOnlyReason,
 		IonToken:       s.ionToken,
+		StartEditing:   s.startEditing,
 	})
 }
 

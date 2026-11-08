@@ -14,7 +14,7 @@ import {
 } from 'cesium';
 import { api } from './api.js';
 import { setStatus } from './notices.js';
-import { mountPlacementPanel } from './placement.js';
+import { mountPlacementPanel, showUnmovable } from './placement.js';
 
 async function createWidget(config) {
   const widget = new CesiumWidget(document.getElementById('cesium-host'), {
@@ -62,13 +62,14 @@ async function start() {
     setStatus('Loading the tileset…');
     let tileset = widget.scene.primitives.add(await Cesium3DTileset.fromUrl(config.tilesetUrl));
     frameCamera(widget, tileset);
+    setStatus('');
     if (!config.editable) {
-      setStatus(`View only: ${config.readOnlyReason}.`);
+      showUnmovable(config.readOnlyReason);
       return;
     }
-    setStatus('');
     mountPlacementPanel({
       widget,
+      startEditing: config.startEditing,
       getTileset: () => tileset,
       async reloadTileset() {
         const reloaded = await Cesium3DTileset.fromUrl(config.tilesetUrl);

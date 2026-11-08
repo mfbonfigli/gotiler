@@ -190,6 +190,15 @@ func TestServerConfig(t *testing.T) {
 			t.Errorf("config = %+v, want %+v", got, want)
 		}
 	})
+	t.Run("starting in edit mode", func(t *testing.T) {
+		s := newTestServer(t, "tileset.json", sampleTileset(""), Options{StartEditing: true})
+		rec := do(s, "GET", withToken(s, "/api/config"), "")
+		var got configResponse
+		decodeJSONBody(t, rec, &got)
+		if !got.StartEditing {
+			t.Errorf("config = %+v, want startEditing", got)
+		}
+	})
 	t.Run("read-only tileset", func(t *testing.T) {
 		s := newTestServer(t, "tileset.json", `{"root":{"boundingVolume":{"region":[0,0,1,1,0,1]},"geometricError":1}}`, Options{})
 		rec := do(s, "GET", withToken(s, "/api/config"), "")

@@ -74,13 +74,21 @@ body {
   background: var(--panel);
 }
 
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
 #placement h2 {
-  margin: 0 0 10px;
+  margin: 0;
   font-size: 15px;
 }
 
 #placement input,
-#placement button {
+#placement button,
+#edit-position {
   font: inherit;
   color: var(--text);
   border: 1px solid var(--panel-border);
@@ -89,13 +97,24 @@ body {
   padding: 5px 8px;
 }
 
-#placement button {
+#placement button,
+#edit-position {
   cursor: pointer;
 }
 
-#placement button:disabled {
+#placement button:disabled,
+#edit-position[aria-disabled='true'] {
   cursor: default;
   opacity: 0.5;
+}
+
+#edit-position {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 8px 14px;
+  border-radius: 6px;
+  background: var(--panel);
 }
 
 #placement button.primary,

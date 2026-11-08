@@ -83,7 +83,7 @@ func TestViewCommandReturnsViewerErrors(t *testing.T) {
 	}
 }
 
-func TestPreviewOpensTheTiledFileInTheViewer(t *testing.T) {
+func TestPreviewOpensTheTiledFileInTheViewerInEditMode(t *testing.T) {
 	calls := fakeViewer(t, nil)
 	input := filepath.Join(t.TempDir(), "cloud.las")
 	if err := touchFile(input); err != nil {
@@ -96,7 +96,7 @@ func TestPreviewOpensTheTiledFileInTheViewer(t *testing.T) {
 	if !mockTiler.ProcessFilesCalled {
 		t.Fatal("the file was not tiled")
 	}
-	want := viewerCall{filepath.Join("out", "tileset.json"), viewer.Options{Port: 9001, IonToken: "ion-abc"}}
+	want := viewerCall{filepath.Join("out", "tileset.json"), viewer.Options{Port: 9001, IonToken: "ion-abc", StartEditing: true}}
 	if len(*calls) != 1 || (*calls)[0] != want {
 		t.Errorf("viewer calls = %+v, want [%+v]", *calls, want)
 	}

@@ -1,6 +1,7 @@
 // The placement panel: address search, offset and rotation fields, picking a
 // position on the globe, the move and rotate gizmo, and saving the result as
-// the tileset's new root transform.
+// the tileset's new root transform. The page starts as a plain viewer and
+// shows the panel and gizmo once Edit position is clicked.
 //
 // The tileset is moved around a pivot: the east-north-up frame at the center
 // of its bounding sphere. The edited position is the frame
@@ -32,6 +33,8 @@ import { showToast } from './notices.js';
 // position, so its pivot frame is a plain translation.
 const minimumPlacedRadius = 100000;
 
+const editButton = document.getElementById('edit-position');
+const doneButton = document.getElementById('done');
 const panel = document.getElementById('placement');
 const searchForm = document.getElementById('search-form');
 const searchQuery = document.getElementById('search-query');
@@ -61,6 +64,15 @@ function initialState() {
     picking: false,
     busy: false,
   };
+}
+
+/** Shows Edit position as disabled, with the reason the tileset cannot be moved. */
+export function showUnmovable(reason) {
+  const explanation = `This tileset cannot be moved: ${reason}.`;
+  editButton.setAttribute('aria-disabled', 'true');
+  editButton.title = explanation;
+  editButton.addEventListener('click', () => showToast(explanation));
+  editButton.classList.remove('is-hidden');
 }
 
 export function mountPlacementPanel(options) {
@@ -94,6 +106,8 @@ export function mountPlacementPanel(options) {
     onHoverChange: updateCursor,
   });
 
+  editButton.addEventListener('click', () => setEditing(true));
+  doneButton.addEventListener('click', () => stopEditing());
   searchForm.addEventListener('submit', (event) => {
     event.preventDefault();
     search();
@@ -123,9 +137,24 @@ export function mountPlacementPanel(options) {
     if (state.dirty) event.preventDefault();
   });
 
-  panel.classList.remove('is-hidden');
   applyPreview();
+  setEditing(options.startEditing);
+}
+
+function setEditing(editing) {
+  panel.classList.toggle('is-hidden', !editing);
+  editButton.classList.toggle('is-hidden', editing);
+  gizmo.setVisible(editing);
   render();
+}
+
+function stopEditing() {
+  if (state.dirty && !window.confirm('Discard the unsaved position changes?')) return;
+  state = initialState();
+  applyPreview();
+  searchResults.replaceChildren();
+  setMessage('');
+  setEditing(false);
 }
 
 function pivotFrame(tileset) {
@@ -304,6 +333,7 @@ function render() {
   updateCursor();
   saveButton.disabled = !state.dirty || state.busy;
   resetButton.disabled = state.busy;
+  doneButton.disabled = state.busy;
   searchQuery.disabled = state.busy;
 }
 

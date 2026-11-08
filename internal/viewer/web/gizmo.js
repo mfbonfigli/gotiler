@@ -37,18 +37,28 @@ export class Gizmo {
     this.drawn = [];
     this.hoveredKey = null;
     this.drag = null;
+    this.setVisible(false);
 
     const events = new ScreenSpaceEventHandler(widget.scene.canvas);
     events.setInputAction((event) => this.startDrag(event.position), ScreenSpaceEventType.LEFT_DOWN);
     events.setInputAction((event) => {
       if (this.drag) this.continueDrag(event.endPosition);
-      else this.setHovered(this.handleAt(event.endPosition));
+      else if (this.visible) this.setHovered(this.handleAt(event.endPosition));
     }, ScreenSpaceEventType.MOUSE_MOVE);
     events.setInputAction(() => this.endDrag(), ScreenSpaceEventType.LEFT_UP);
   }
 
   get hovering() {
     return this.hoveredKey !== null;
+  }
+
+  /** Shows or hides the gizmo; a hidden gizmo ignores the mouse. */
+  setVisible(visible) {
+    this.visible = visible;
+    this.lines.show = visible;
+    this.points.show = visible;
+    if (!visible && this.hoveredKey !== null) this.setHovered(null);
+    this.widget.scene.requestRender();
   }
 
   /** Draws the gizmo at frame, with arrows size meters long. */
@@ -132,7 +142,7 @@ export class Gizmo {
   }
 
   startDrag(position) {
-    const id = this.handleAt(position);
+    const id = this.visible ? this.handleAt(position) : null;
     if (!id) {
       this.restoreCameraInertia();
       return;
