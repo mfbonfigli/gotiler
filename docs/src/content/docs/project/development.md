@@ -40,6 +40,18 @@ bash scripts/run-tests.sh build/tests/linux-arm64 build/linux-arm64/share
 
 The GitHub workflows use the same script to run the cross-compiled test binaries on native linux-arm64 and windows-amd64 runners.
 
+## macOS builds
+
+Docker cannot build macOS executables, so the `darwin-arm64` target builds natively on an Apple Silicon Mac. `scripts/build-darwin.sh` follows the Dockerfile builders: it builds the vcpkg libraries and PROJ statically under `build/deps/darwin-arm64` (reused by later builds), then the executable, the test binaries, the PROJ data and the third-party licenses. It needs the Xcode Command Line Tools, Go, CMake, pkg-config and bash 4 or later, since macOS ships bash 3.2:
+
+```bash
+xcode-select --install
+brew install bash cmake pkgconf go
+bash scripts/build.sh darwin-arm64
+```
+
+The executable links to macOS system libraries only, and needs macOS 12 or later. It carries the ad-hoc signature that the linker gives every Apple Silicon executable, with no Apple Developer ID signature or notarization: see [Installation](/gotiler/getting-started/installation/#manual-download) for running a downloaded copy. The GitHub workflows build it on a macOS 15 runner, which also runs the tests, then run it on a clean macOS 26 runner with `scripts/smoke-test.sh`, which tiles a small file through a link to the executable.
+
 ## Local Windows development
 
 Local builds require Go, CGO, MinGW, pkg-config, vcpkg dependencies, and a static PROJ build.
@@ -153,7 +165,20 @@ go mod tidy
 
 ## Releases
 
-Pushing a `v3.*` tag runs the draft-release workflow, which builds and tests all targets and attaches one zip per platform (executable, `share/`, README, license and third-party licenses) to a draft GitHub release, together with a `SHA256SUMS` file listing their checksums. Each zip also gets a signed build provenance attestation, which anyone can check with `gh attestation verify <zip> --repo mfbonfigli/gotiler`.
+Pushing a `v3.*` tag runs the draft-release workflow, which builds and tests all targets and attaches one archive per platform (executable, `share/`, README, license and third-party licenses) to a draft GitHub release, together with a `SHA256SUMS` file listing their checksums. `scripts/package.sh` builds the archives: a `.tar.gz` holding a `gotiler-<target>-<tag>/` folder for Linux and macOS, and a flat `.zip` for Windows. The release also carries `scripts/install.sh` and `scripts/install.ps1`, which the [one-line installs](/gotiler/getting-started/installation/#install-script) download from the latest release. Each archive and script gets a signed build provenance attestation, which anyone can check with `gh attestation verify <file> --repo mfbonfigli/gotiler`.
+
+## Install scripts
+
+`scripts/install.sh` is plain POSIX `sh`, so it runs under dash, busybox and macOS's `/bin/sh`, with only the tools those systems ship. `scripts/install.ps1` runs in Windows PowerShell 5.1 and PowerShell 7, through `irm ... | iex`: it runs in a single script block and throws instead of calling `exit`, which would close the user's window. It installs in `%LOCALAPPDATA%\Programs\gotiler` and adds that folder to the user `PATH` in the registry, keeping the value's `%VARIABLES%` unexpanded.
+
+The build workflow tests both on every pull request. It packages this run's builds and the two scripts into a test release, and serves it with `scripts/test-release-server.py`, which stands in for the GitHub releases page and its `releases/latest` redirects. `scripts/test-install.sh` then runs on Ubuntu (x86_64 and ARM64), Alpine, Fedora, Debian with GNU wget, and macOS, and `scripts/test-install.ps1` runs the exact `irm ... | iex` one-liner in Windows PowerShell 5.1 and PowerShell 7. The tests install, reinstall a pinned version keeping a file added to `share/`, reject a release with wrong checksums, and refuse to replace a folder the script did not install. To run the `sh` tests locally:
+
+```bash
+python3 scripts/test-release-server.py <folder> v0.0.0-ci 8000 &
+sh scripts/test-install.sh http://127.0.0.1:8000 v0.0.0-ci
+```
+
+where `<folder>/good/download/v0.0.0-ci/` holds archives built with `scripts/package.sh`, the install scripts and their `SHA256SUMS`, and `<folder>/bad/download/v0.0.0-ci/` the same files with wrong checksums. `scripts/test-install.ps1 -BaseUrl http://127.0.0.1:8000 -Tag v0.0.0-ci` runs the PowerShell tests the same way, but it edits your user `PATH` while it runs (restoring it at the end), so it is meant for CI runners.
 
 ## Documentation site
 

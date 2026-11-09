@@ -7,17 +7,13 @@ hero:
   title: <span class="gt-gradient">gotiler</span>
   tagline: gotiler is a <strong>fast</strong>, <strong>lightweight</strong> and <strong>portable</strong> converter to transform massive LAS, LAZ, E57 and PLY datasets into OGC 3D Tiles.
   actions:
-    - text: Download
-      link: https://github.com/mfbonfigli/gotiler/releases/latest
+    - text: Install
+      link: '#quick-start'
       icon: download
     - text: Documentation
       link: /gotiler/getting-started/installation/
       icon: open-book
       variant: secondary
-    - text: Quick start
-      link: '#quick-start'
-      icon: right-arrow
-      variant: minimal
 ---
 
 import { LinkButton, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
@@ -58,80 +54,99 @@ import Split from '../../components/home/Split.astro';
 
 <Band tone="base">
 
-<Split align="center">
-
 <SectionHeading
 	id="quick-start"
 	eyebrow="Quick start"
-	title={'Download, unzip, <span class="gt-gradient">tile</span>.'}
-	lead="No installer and no dependencies: the release archive is all you need."
+	title={'One line to install, one to <span class="gt-gradient">tile</span>.'}
+	lead="No dependencies and no administrator rights: the install script fetches the release for your platform, checks it and puts gotiler on your PATH."
 />
+
+<div class="gt-column">
 
 <Steps>
 
-1. **Download** gotiler CLI from the [latest release](https://github.com/mfbonfigli/gotiler/releases/latest).
+1. **Install** gotiler with the command for your platform, or download an archive from the [latest release](https://github.com/mfbonfigli/gotiler/releases/latest).
 
-2. **Unzip it anywhere.** Keep the executable next to its `share` folder.
+   <div class="gt-steady-tabs">
 
-3. **Tile** a file or a whole folder. Pass `--preview` to see the output right away in a local CesiumJS viewer and fine-tune its position.
+   <Tabs syncKey="install">
+   <TabItem label="Linux and macOS">
+
+   ```bash
+   curl -fsSL https://github.com/mfbonfigli/gotiler/releases/latest/download/install.sh | sh
+   ```
+
+   </TabItem>
+   <TabItem label="Windows">
+
+   ```powershell
+   irm https://github.com/mfbonfigli/gotiler/releases/latest/download/install.ps1 | iex
+   ```
+
+   </TabItem>
+   </Tabs>
+
+   </div>
+
+2. **Tile** a file or a whole folder. Pass `--preview` to see the output right away in a local CesiumJS viewer and fine-tune its position.
+
+   <div class="gt-steady-tabs">
+
+   <Tabs>
+   <TabItem label="Basic Usage">
+
+   ```bash
+   # Tile a LAS, LAZ, E57 or PLY file into ./out
+   gotiler -o ./out ./input.las
+
+   # Tile every file of a folder into its own tileset
+   gotiler -o ./out ./las_folder
+
+   # Merge a folder into one tileset, packed as a .3tz archive
+   gotiler -o ./out --join --3tz ./las_folder
+   ```
+
+   </TabItem>
+   <TabItem label="Custom CRS">
+
+   ```bash
+   # Set the input CRS, here with a vertical datum
+   gotiler -o ./out -c EPSG:32633+3855 ./input.las
+   ```
+
+   </TabItem>
+   <TabItem label="Colorize">
+
+   ```bash
+   # Color points by elevation
+   gotiler -o ./out --colorize z:viridis ./input.las
+
+   # Color by intensity on a reversed, 8-band turbo ramp
+   gotiler -o ./out --colorize intensity:turbo:reverse:steps=8 ./input.las
+   ```
+
+   </TabItem>
+   <TabItem label="Preview and Place">
+
+   ```bash
+   # Tile, then check the result on a globe
+   gotiler -o ./out --preview ./input.las
+
+   # Tile a Y-up model without a CRS, then move it into place
+   gotiler -o ./out --crs local --input-up-axis y --preview ./model.ply
+
+   # Open an existing tileset
+   gotiler view ./out
+   ```
+
+   </TabItem>
+   </Tabs>
+
+   </div>
 
 </Steps>
 
-<div slot="aside" class="gt-steady-tabs">
-
-<Tabs>
-<TabItem label="Basic Usage">
-
-```bash
-# Tile a LAS, LAZ, E57 or PLY file into ./out
-gotiler -o ./out ./input.las
-
-# Tile every file of a folder into its own tileset
-gotiler -o ./out ./las_folder
-
-# Merge a folder into one tileset, packed as a .3tz archive
-gotiler -o ./out --join --3tz ./las_folder
-```
-
-</TabItem>
-<TabItem label="Custom CRS">
-
-```bash
-# Set the input CRS, here with a vertical datum
-gotiler -o ./out -c EPSG:32633+3855 ./input.las
-```
-
-</TabItem>
-<TabItem label="Colorize">
-
-```bash
-# Color points by elevation
-gotiler -o ./out --colorize z:viridis ./input.las
-
-# Color by intensity on a reversed, 8-band turbo ramp
-gotiler -o ./out --colorize intensity:turbo:reverse:steps=8 ./input.las
-```
-
-</TabItem>
-<TabItem label="Preview and Place">
-
-```bash
-# Tile, then check the result on a globe
-gotiler -o ./out --preview ./input.las
-
-# Tile a Y-up model without a CRS, then move it into place
-gotiler -o ./out --crs local --input-up-axis y --preview ./model.ply
-
-# Open an existing tileset
-gotiler view ./out
-```
-
-</TabItem>
-</Tabs>
-
 </div>
-
-</Split>
 
 </Band>
 

@@ -51,3 +51,9 @@
 	display: block;
 	visibility: hidden;
 }
+
+/* A single column of home page content, wide enough for a one-line install
+   command. */
+.gt-column {
+	max-width: 56rem;
+}
