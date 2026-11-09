@@ -1,0 +1,209 @@
+---
+title: Point clouds to 3D Tiles, fast
+description: gotiler converts LAS, LAZ, E57 and PLY point clouds into streaming-ready OGC 3D Tiles 1.0 and 1.1, ready for CesiumJS and other 3D Tiles viewers.
+template: splash
+editUrl: false
+hero:
+  title: <span class="gt-gradient">gotiler</span>
+  tagline: gotiler is a <strong>fast</strong>, <strong>lightweight</strong> and <strong>portable</strong> converter to transform massive LAS, LAZ, E57 and PLY datasets into OGC 3D Tiles.
+  actions:
+    - text: Download
+      link: https://github.com/mfbonfigli/gotiler/releases/latest
+      icon: download
+    - text: Quick start
+      link: '#quick-start'
+      icon: right-arrow
+      variant: secondary
+---
+
+import { LinkButton, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import Band from '../../components/home/Band.astro';
+import Benchmarks from '../../components/home/Benchmarks.astro';
+import ClosingCards from '../../components/home/ClosingCards.astro';
+import Features from '../../components/home/Features.astro';
+import Placeholder from '../../components/home/Placeholder.astro';
+import SectionHeading from '../../components/home/SectionHeading.astro';
+import Split from '../../components/home/Split.astro';
+
+<Band tone="surface">
+
+<SectionHeading
+	id="features"
+	eyebrow="Features"
+	title={'Turn massive scans into <span class="gt-gradient">streaming 3D Tiles</span> in seconds.'}
+	lead="Built for huge datasets and simple workflows: point gotiler at a file or a folder, and get a tileset any 3D Tiles viewer can stream."
+/>
+
+<Features />
+
+</Band>
+
+<Band tone="blue">
+
+<SectionHeading
+	id="benchmarks"
+	eyebrow="Benchmarks"
+	title={'313 million points in <span class="gt-gradient">under 2 minutes</span>.'}
+	lead="Up to 7.8× faster than other open-source tilers, with a fraction of their memory."
+/>
+
+<Benchmarks />
+
+</Band>
+
+<Band tone="base">
+
+<Split align="center">
+
+<SectionHeading
+	id="quick-start"
+	eyebrow="Quick start"
+	title={'Download, unzip, <span class="gt-gradient">tile</span>.'}
+	lead="No installer and no dependencies: the release archive is all you need."
+/>
+
+<Steps>
+
+1. **Download** gotiler CLI from the [latest release](https://github.com/mfbonfigli/gotiler/releases/latest).
+
+2. **Unzip it anywhere.** Keep the executable next to its `share` folder.
+
+3. **Tile** a file or a whole folder. Pass `--preview` to see the output right away in a local CesiumJS viewer and fine-tune its position.
+
+</Steps>
+
+<div slot="aside">
+
+<Tabs>
+<TabItem label="Basic Usage">
+
+```bash
+# Tile a LAS, LAZ, E57 or PLY file into ./out
+gotiler -o ./out ./input.las
+
+# Tile every file of a folder into its own tileset
+gotiler -o ./out ./las_folder
+
+# Merge a folder into one tileset, packed as a .3tz archive
+gotiler -o ./out --join --3tz ./las_folder
+```
+
+</TabItem>
+<TabItem label="Custom CRS">
+
+```bash
+# Set the input CRS, here with a vertical datum
+gotiler -o ./out -c EPSG:32633+3855 ./input.las
+```
+
+</TabItem>
+<TabItem label="Colorize">
+
+```bash
+# Color points by elevation
+gotiler -o ./out --colorize z:viridis ./input.las
+
+# Color by intensity on a reversed, 8-band turbo ramp
+gotiler -o ./out --colorize intensity:turbo:reverse:steps=8 ./input.las
+```
+
+</TabItem>
+<TabItem label="Preview and Place">
+
+```bash
+# Tile, then check the result on a globe
+gotiler -o ./out --preview ./input.las
+
+# Tile a Y-up model without a CRS, then move it into place
+gotiler -o ./out --crs local --input-up-axis y --preview ./model.ply
+
+# Open an existing tileset
+gotiler view ./out
+```
+
+</TabItem>
+</Tabs>
+
+</div>
+
+</Split>
+
+</Band>
+
+<Band tone="teal">
+
+<SectionHeading
+	id="viewer"
+	eyebrow="gotiler view"
+	title={'A <span class="gt-gradient">3D globe viewer</span>, built in.'}
+	lead="Check any tileset on a local CesiumJS globe, and drag ungeoreferenced models into place."
+/>
+
+<Split>
+
+- **Search an address**, or click **Pick position** and then the globe, to move the model there.
+- **Drag the gizmo's** arrows and rings, or type offsets and rotations.
+- **Save position** writes the new root transform into `tileset.json`, keeping a backup of the original.
+- The viewer only listens on `127.0.0.1`, behind a random access token.
+
+```bash
+gotiler view ./out
+```
+
+<div slot="aside">
+	<Placeholder label="viewer screenshot" aspect="16 / 10" />
+</div>
+
+</Split>
+
+</Band>
+
+<Band tone="blue">
+
+<SectionHeading id="library" eyebrow="Go library" title={'Embed the <span class="gt-gradient">tiling engine</span>.'} />
+
+<Split wideAside>
+
+<p class="gt-lead">
+	The tiler, readers, encoders and plugins are importable packages of the
+	<code>github.com/mfbonfigli/gotiler/v3</code> module, with plugins for E57 and PLY input, meshopt
+	compression, subsampling, orthophoto colorization, 3TZ archives and S3 uploads.
+</p>
+
+<div class="gt-actions">
+	<LinkButton href="https://github.com/mfbonfigli/gotiler/blob/v3/LIBRARY.md" icon="right-arrow">
+		Library guide
+	</LinkButton>
+	<LinkButton href="https://pkg.go.dev/github.com/mfbonfigli/gotiler/v3" variant="secondary" icon="external">
+		API reference
+	</LinkButton>
+</div>
+
+<div slot="aside">
+
+```go title="main.go"
+func main() {
+	t, err := tiler.NewGoTiler()
+	if err != nil {
+		log.Fatal(err)
+	}
+	opts := tiler.NewDefaultTilerOptions()
+	ctx := context.Background()
+	err = t.ProcessFiles([]string{"scan.las"}, "./tiles", "", opts, ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+```
+
+</div>
+
+</Split>
+
+</Band>
+
+<Band tone="surface">
+
+<ClosingCards />
+
+</Band>

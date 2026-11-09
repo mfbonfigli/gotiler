@@ -1,0 +1,139 @@
+---
+// The benchmark results as bar charts, each bar scaled to the slowest or
+// largest result of its chart.
+const charts = [
+	{
+		title: 'Execution time',
+		rows: [
+			{ tool: 'gotiler CLI v3.0', value: 110, label: '1m 50s' },
+			{ tool: 'py3dtiles 12.1.1', value: 431, label: '7m 11s' },
+			{ tool: 'mago 3d tiler 1.15.4', value: 857, label: '14m 17s' },
+		],
+	},
+	{
+		title: 'Peak memory',
+		rows: [
+			{ tool: 'gotiler CLI v3.0', value: 605, label: '605 MB' },
+			{ tool: 'py3dtiles 12.1.1', value: 2560, label: '2.56 GB' },
+			{ tool: 'mago 3d tiler 1.15.4', value: 16810, label: '16.81 GB' },
+		],
+	},
+];
+---
+
+<div class="charts not-content">
+	{
+		charts.map(({ title, rows }) => {
+			const max = Math.max(...rows.map((row) => row.value));
+			return (
+				<figure>
+					<figcaption>
+						{title} <span>· lower is better</span>
+					</figcaption>
+					{rows.map(({ tool, value, label }, index) => (
+						<div class:list={['row', { ours: index === 0 }]}>
+							<span class="tool">{tool}</span>
+							<span class="bar" style={`--share: ${(value / max) * 100}%`} />
+							<span class="value">{label}</span>
+						</div>
+					))}
+				</figure>
+			);
+		})
+	}
+</div>
+<p class="footnote not-content">
+	The <a href="https://zenodo.org/records/5578198">Helsinki point cloud</a>, 313M points in a 13 GB
+	LAS file, tiled on the same AWS EC2 i4i.2xlarge instance running Ubuntu 24.04. Reproduce the runs
+	with <a href="https://github.com/mfbonfigli/gotiler/blob/v3/scripts/benchmark.sh">scripts/benchmark.sh</a>.
+</p>
+
+<style>
+	.charts {
+		display: grid;
+		gap: 1.5rem;
+	}
+
+	@media (min-width: 50rem) {
+		.charts {
+			grid-template-columns: 1fr 1fr;
+		}
+	}
+
+	figure {
+		margin: 0;
+		padding: 1.5rem;
+		border: 1px solid var(--sl-color-gray-5);
+		border-radius: 1rem;
+	}
+
+	figcaption {
+		margin-bottom: 1.25rem;
+		color: var(--sl-color-white);
+		font-weight: 700;
+	}
+
+	figcaption span {
+		color: var(--sl-color-gray-3);
+		font-weight: 400;
+	}
+
+	.row {
+		display: grid;
+		grid-template-columns: 9.5rem 1fr 4.5rem;
+		gap: 0.75rem;
+		align-items: center;
+		margin-top: 0.85rem;
+		font-size: var(--sl-text-sm);
+	}
+
+	/* on narrow screens each bar gets its own line below the tool and value */
+	@media (max-width: 32rem) {
+		.row {
+			grid-template-columns: 1fr auto;
+			row-gap: 0.35rem;
+		}
+
+		.tool,
+		.value {
+			grid-row: 1;
+		}
+
+		.bar {
+			grid-row: 2;
+			grid-column: 1 / -1;
+		}
+	}
+
+	.tool {
+		color: var(--sl-color-gray-2);
+	}
+
+	.bar {
+		height: 0.7rem;
+		border-radius: 999px;
+		background: linear-gradient(var(--sl-color-gray-4), var(--sl-color-gray-4)) no-repeat left / max(var(--share), 0.7rem) 100%;
+	}
+
+	.ours .tool,
+	.ours .value {
+		color: var(--sl-color-white);
+		font-weight: 700;
+	}
+
+	.ours .bar {
+		background: var(--gt-gradient) no-repeat left / max(var(--share), 0.7rem) 100%;
+	}
+
+	.value {
+		color: var(--sl-color-gray-2);
+		text-align: right;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.footnote {
+		margin-top: 1rem;
+		color: var(--sl-color-gray-3);
+		font-size: var(--sl-text-sm);
+	}
+</style>

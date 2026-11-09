@@ -1,0 +1,85 @@
+---
+// The license, alternative licensing and support cards that close the page.
+import { Icon, LinkButton } from '@astrojs/starlight/components';
+
+const cards = [
+	{
+		icon: 'open-book',
+		title: 'Open source',
+		text: 'gotiler is distributed under the GNU AGPLv3. Release archives ship the third-party licenses for their platform.',
+		link: { text: 'Read the license', href: 'https://github.com/mfbonfigli/gotiler/blob/v3/LICENSE.md' },
+	},
+	{
+		icon: 'comment',
+		title: 'Alternative licensing',
+		text: 'If the AGPLv3 does not fit, for example to embed the engine in proprietary software or services, contact the maintainer for alternative licenses.',
+		link: { text: 'Contact the maintainer', href: 'https://github.com/mfbonfigli' },
+	},
+	{
+		icon: 'heart',
+		title: 'Support the project',
+		text: 'gotiler is maintained with love. If it saves you time or resources, a donation or a star keeps it going.',
+		link: { text: 'Make a donation', href: 'https://ko-fi.com/mfbonfigli' },
+	},
+] as const;
+---
+
+<ul class="cards not-content">
+	{
+		cards.map(({ icon, title, text, link }) => (
+			<li>
+				<Icon name={icon} size="1.5rem" class="icon" />
+				<h3>{title}</h3>
+				<p>{text}</p>
+				<LinkButton href={link.href} variant="secondary" icon="right-arrow">
+					{link.text}
+				</LinkButton>
+			</li>
+		))
+	}
+</ul>
+
+<style>
+	.cards {
+		display: grid;
+		grid-template-columns: 1fr;
+		gap: 1rem;
+		margin: 5rem 0 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	@media (min-width: 50rem) {
+		.cards {
+			grid-template-columns: repeat(3, 1fr);
+		}
+	}
+
+	li {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 0.75rem;
+		padding: 1.5rem;
+		border: 1px solid var(--sl-color-gray-5);
+		border-radius: 1rem;
+		background: var(--sl-color-bg);
+	}
+
+	li :global(.icon) {
+		color: var(--sl-color-accent);
+	}
+
+	h3 {
+		color: var(--sl-color-white);
+		font-size: var(--sl-text-lg);
+		font-weight: 700;
+	}
+
+	p {
+		flex: 1;
+		color: var(--sl-color-gray-3);
+		font-size: var(--sl-text-sm);
+		line-height: 1.55;
+	}
+</style>

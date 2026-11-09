@@ -1,0 +1,117 @@
+---
+// Starlight's page footer (edit link, last update, previous and next page)
+// on the pages that have any of them, followed on every page by the site
+// footer: the name, the project links and the credits.
+import Default from '@astrojs/starlight/components/Footer.astro';
+import { Icon } from '@astrojs/starlight/components';
+
+const { editUrl, lastUpdated, pagination } = Astro.locals.starlightRoute;
+const hasPageFooter = Boolean(editUrl || lastUpdated || pagination.prev || pagination.next);
+const home = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+const repo = 'https://github.com/mfbonfigli/gotiler';
+const links = [
+	{ label: 'GitHub', href: repo, icon: 'github' },
+	{ label: 'Releases', href: `${repo}/releases`, icon: 'download' },
+	{ label: 'Support on Ko-fi', href: 'https://ko-fi.com/mfbonfigli', icon: 'heart' },
+	{ label: 'License', href: `${repo}/blob/v3/LICENSE.md`, icon: 'open-book' },
+] as const;
+---
+
+{hasPageFooter && <Default />}
+
+<div class="site-footer not-content">
+	<div class="top">
+		<div class="brand">
+			<a class="name" href={home}>gotiler</a>
+			<p>© 2026 Massimo Federico Bonfigli · GNU AGPLv3</p>
+		</div>
+		<nav aria-label="Project links">
+			<ul>
+				{
+					links.map(({ label, href, icon }) => (
+						<li>
+							<a href={href}>
+								<Icon name={icon} size="1rem" />
+								{label}
+							</a>
+						</li>
+					))
+				}
+			</ul>
+		</nav>
+	</div>
+	<p class="credits">The Go gopher was designed by Renée French and is licensed under CC BY 4.0.</p>
+</div>
+
+<style>
+	/* the top rule reaches the window edges through a box shadow, like the
+	   home page bands */
+	.site-footer {
+		margin-top: 3rem;
+		padding-block: 2.5rem 1rem;
+		border-top: 1px solid var(--sl-color-gray-5);
+		box-shadow: 0 -1px 0 100vmax var(--sl-color-bg);
+		clip-path: inset(-1px -100vmax 0);
+		font-size: var(--sl-text-sm);
+	}
+
+	/* on the home page the footer directly follows the last band */
+	:global(.sl-markdown-content) + .site-footer,
+	.site-footer:first-child {
+		margin-top: 0;
+	}
+
+	.top {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 1.5rem 3rem;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.brand {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem 1.25rem;
+		align-items: baseline;
+	}
+
+	.name {
+		color: var(--sl-color-white);
+		font-size: var(--sl-text-xl);
+		font-weight: 700;
+		text-decoration: none;
+	}
+
+	.brand p {
+		color: var(--sl-color-gray-3);
+	}
+
+	ul {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem 1.5rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	nav a {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		color: var(--sl-color-gray-2);
+		text-decoration: none;
+	}
+
+	nav a:hover {
+		color: var(--sl-color-white);
+	}
+
+	.credits {
+		margin-top: 2rem;
+		color: var(--sl-color-gray-3);
+		font-size: var(--sl-text-xs);
+		line-height: 1.6;
+	}
+</style>

@@ -1,0 +1,59 @@
+---
+// Two columns on wide screens, stacked on narrow ones: the default slot on the
+// left, the "aside" slot on the right. A section can put its heading in the
+// left column, so the aside sits beside the heading too; "center" then aligns
+// the two columns on their middles. "wideAside" gives the right column more
+// room, for code with long lines.
+interface Props {
+	align?: 'start' | 'center';
+	wideAside?: boolean;
+}
+
+const { align = 'start', wideAside = false } = Astro.props;
+---
+
+<div class:list={['split', align, { 'wide-aside': wideAside }]}>
+	<div class="main"><slot /></div>
+	<div class="aside"><slot name="aside" /></div>
+</div>
+
+<style>
+	.split {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		gap: 2rem;
+		align-items: start;
+	}
+
+	@media (min-width: 60rem) {
+		.split {
+			grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+			gap: 3rem;
+		}
+
+		.split.center {
+			align-items: center;
+		}
+
+		.split.wide-aside {
+			grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+		}
+	}
+
+	/* when the split opens a band, it takes the spacing the section heading
+	   would otherwise have */
+	:global(.band) > .split:first-child {
+		margin-top: 5rem;
+	}
+
+	/* the columns start flush: Starlight spaces consecutive content elements,
+	   which would push the aside down, and the aside may wrap its content in
+	   an element of its own */
+	.main,
+	.aside,
+	.main > :global(:first-child),
+	.aside > :global(:first-child),
+	.aside > :global(*) > :global(:first-child) {
+		margin-top: 0;
+	}
+</style>

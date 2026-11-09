@@ -1,0 +1,77 @@
+---
+// Replaces Starlight's hero, used only by the home page, with a product-style
+// one: a headline whose <span class="gt-gradient"> words take the brand
+// gradient, the tagline and actions, and a visual beside them.
+import { LinkButton } from '@astrojs/starlight/components';
+import Placeholder from './home/Placeholder.astro';
+
+const { data } = Astro.locals.starlightRoute.entry;
+const { title = data.title, tagline, actions = [] } = data.hero || {};
+---
+
+<div class="hero not-content">
+	<div class="copy">
+		<h1 id="_top" data-page-title set:html={title} />
+		{tagline && <p class="tagline" set:html={tagline} />}
+		<div class="actions">
+			{
+				actions.map(({ link, text, variant, icon }) => (
+					<LinkButton href={link} variant={variant} icon={icon?.name}>
+						{text}
+					</LinkButton>
+				))
+			}
+		</div>
+	</div>
+	<Placeholder class="visual" label="point cloud animation" aspect="1 / 1" />
+</div>
+
+<style>
+	.hero {
+		display: grid;
+		gap: 2.5rem;
+		align-items: center;
+		padding-block: 1rem 2rem;
+	}
+
+	@media (min-width: 60rem) {
+		.hero {
+			grid-template-columns: 1.15fr 1fr;
+			gap: 3.5rem;
+			padding-block: 3rem 4rem;
+		}
+	}
+
+	h1 {
+		margin-block: 0 1rem;
+		color: var(--sl-color-white);
+		font-size: clamp(2.6rem, 6vw, 4.25rem);
+		font-weight: 800;
+		line-height: 1.04;
+		letter-spacing: -0.03em;
+	}
+
+	.tagline {
+		max-width: 36rem;
+		color: var(--sl-color-gray-2);
+		font-size: var(--sl-text-xl);
+		line-height: 1.5;
+	}
+
+	.tagline :global(strong) {
+		color: var(--sl-color-white);
+	}
+
+	.actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem 1rem;
+		margin-top: 2rem;
+	}
+
+	.visual {
+		width: 100%;
+		max-width: 32rem;
+		justify-self: center;
+	}
+</style>

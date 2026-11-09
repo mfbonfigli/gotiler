@@ -1,0 +1,50 @@
+---
+// The heading block of a home page section: a small label, a bold title whose
+// <span class="gt-gradient"> words take the brand gradient, and a lead.
+interface Props {
+	id: string;
+	eyebrow: string;
+	title: string;
+	lead?: string;
+}
+
+const { id, eyebrow, title, lead } = Astro.props;
+---
+
+<header class="section-heading not-content" id={id}>
+	<p class="eyebrow">{eyebrow}</p>
+	<h2 set:html={title} />
+	{lead && <p class="lead" set:html={lead} />}
+</header>
+
+<style>
+	.section-heading {
+		max-width: 44rem;
+		margin-top: 5rem;
+		margin-bottom: 2.5rem;
+		scroll-margin-top: calc(var(--sl-nav-height) + 1.5rem);
+	}
+
+	.eyebrow {
+		color: var(--sl-color-accent);
+		font-size: var(--sl-text-sm);
+		font-weight: 700;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+	}
+
+	h2 {
+		margin-block: 0.5rem 1rem;
+		color: var(--sl-color-white);
+		font-size: clamp(2rem, 4.2vw, 2.9rem);
+		font-weight: 800;
+		line-height: 1.1;
+		letter-spacing: -0.025em;
+	}
+
+	.lead {
+		color: var(--sl-color-gray-2);
+		font-size: var(--sl-text-lg);
+		line-height: 1.55;
+	}
+</style>

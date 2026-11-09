@@ -1,0 +1,76 @@
+---
+// Stands in for an image or animation that does not exist yet: a tilted field
+// of points colored with the viridis ramp, with a label saying what will go
+// there.
+interface Props {
+	label: string;
+	aspect?: string;
+	class?: string;
+}
+
+const { label, aspect = '4 / 3', class: className } = Astro.props;
+---
+
+<figure class:list={['placeholder not-content', className]} style={`aspect-ratio: ${aspect}`}>
+	<div class="fade" aria-hidden="true"><div class="points"></div></div>
+	<figcaption>Placeholder · {label}</figcaption>
+</figure>
+
+<style>
+	.placeholder {
+		position: relative;
+		margin: 0;
+		overflow: hidden;
+		border: 1px solid var(--sl-color-gray-5);
+		border-radius: 1rem;
+		background: var(--gt-panel);
+		box-shadow: 0 1.5rem 3rem -1.5rem rgb(0 0 0 / 0.5);
+	}
+
+	.fade {
+		position: absolute;
+		inset: 0;
+		-webkit-mask-image: radial-gradient(ellipse at center, #000 35%, transparent 72%);
+		mask-image: radial-gradient(ellipse at center, #000 35%, transparent 72%);
+	}
+
+	/* the points are a dot pattern cut out of a viridis gradient, laid on a
+	   tilted plane that slowly turns */
+	.points {
+		position: absolute;
+		inset: -35%;
+		background: linear-gradient(90deg, #3a5a8c, #2d708e, #1e9b8a, #2bb07f, #51c46a, #c2df23, #fde725);
+		-webkit-mask-image: radial-gradient(circle, #000 1.4px, transparent 2px);
+		mask-image: radial-gradient(circle, #000 1.4px, transparent 2px);
+		-webkit-mask-size: 10px 10px;
+		mask-size: 10px 10px;
+		transform: perspective(700px) rotateX(60deg) rotateZ(-20deg);
+		animation: turn 80s linear infinite;
+	}
+
+	@keyframes turn {
+		to {
+			transform: perspective(700px) rotateX(60deg) rotateZ(340deg);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.points {
+			animation: none;
+		}
+	}
+
+	figcaption {
+		position: absolute;
+		left: 50%;
+		bottom: 1rem;
+		transform: translateX(-50%);
+		padding: 0.25rem 0.75rem;
+		border: 1px solid rgb(255 255 255 / 0.15);
+		border-radius: 999px;
+		background: rgb(11 18 32 / 0.8);
+		color: #c9d5e6;
+		font-size: var(--sl-text-xs);
+		white-space: nowrap;
+	}
+</style>
