@@ -180,6 +180,26 @@ Pushing a `v3.*` tag runs the draft-release workflow, which builds and tests all
 attaches one archive per platform (executable, `share/`, README, license and third-party licenses)
 to a draft GitHub release, together with a `SHA256SUMS` file listing their checksums.
 `scripts/package.sh` builds the archives: a `.tar.gz` holding a `gotiler-<target>-<tag>/` folder
-for Linux and macOS, and a flat `.zip` for Windows. Each archive also gets a signed build
-provenance attestation, which anyone can check with
-`gh attestation verify <archive> --repo mfbonfigli/gotiler`.
+for Linux and macOS, and a flat `.zip` for Windows. The release also carries `scripts/install.sh`,
+which the README's one-line install downloads from the latest release. Each archive and the script
+get a signed build provenance attestation, which anyone can check with
+`gh attestation verify <file> --repo mfbonfigli/gotiler`.
+
+## Install Script
+
+`scripts/install.sh` is plain POSIX `sh`, so it runs under dash, busybox and macOS's `/bin/sh`,
+with only the tools those systems ship. The build workflow tests it on every pull request: it
+packages this run's Linux and macOS builds into a test release, serves it with
+`scripts/test-release-server.py`, which stands in for the GitHub releases page and its
+`releases/latest` redirect, then runs `scripts/test-install.sh` on Ubuntu (x86_64 and ARM64),
+Alpine, Fedora, Debian with GNU wget, and macOS. The tests install, reinstall a pinned version
+keeping a file added to `share/`, reject a release with wrong checksums, and refuse to replace a
+folder the script did not install. To run them locally:
+
+```bash
+python3 scripts/test-release-server.py <folder> v0.0.0-ci 8000 &
+sh scripts/test-install.sh http://127.0.0.1:8000 v0.0.0-ci
+```
+
+where `<folder>/good/download/v0.0.0-ci/` holds archives built with `scripts/package.sh` and their
+`SHA256SUMS`, and `<folder>/bad/download/v0.0.0-ci/` the same archives with wrong checksums.

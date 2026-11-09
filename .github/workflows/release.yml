@@ -259,19 +259,22 @@ jobs:
           for target in linux-amd64 linux-arm64 windows-amd64 darwin-arm64; do
             bash scripts/package.sh "$target" "artifacts/$target" "$TAG" release-assets
           done
+          cp scripts/install.sh release-assets/
           ls -la release-assets/
 
       - name: Generate checksums
         shell: bash
         working-directory: release-assets
         run: |
-          sha256sum gotiler-* > SHA256SUMS
+          sha256sum gotiler-* install.sh > SHA256SUMS
           cat SHA256SUMS
 
       - name: Attest build provenance
         uses: actions/attest@v4
         with:
-          subject-path: release-assets/gotiler-*
+          subject-path: |
+            release-assets/gotiler-*
+            release-assets/install.sh
 
       - name: Create draft release
         uses: softprops/action-gh-release@v3
@@ -281,6 +284,16 @@ jobs:
           name: ${{ github.ref_name }}
           body: |
             ## gotiler ${{ github.ref_name }}
+
+            ### Install
+
+            On Linux and macOS, install the latest release in your home folder:
+
+            ```bash
+            curl -fsSL https://github.com/${{ github.repository }}/releases/latest/download/install.sh | sh
+            ```
+
+            The script checks the download against `SHA256SUMS`. To install this release instead of the latest one, add `GOTILER_VERSION=${{ github.ref_name }}` before `sh`. See the README for the other settings.
 
             ### Downloads
 
@@ -330,4 +343,5 @@ jobs:
             ```
           files: |
             release-assets/gotiler-*
+            release-assets/install.sh
             release-assets/SHA256SUMS
