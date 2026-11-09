@@ -45,9 +45,9 @@ Time and peak memory to tile the [Helsinki point cloud](https://zenodo.org/recor
 
 ## 📣 Installation
 
-Each [GitHub release](https://github.com/mfbonfigli/gotiler/releases) has prebuilt archives for Windows x86_64, Linux x86_64, Linux ARM64 and macOS on Apple Silicon. Unzip one anywhere: the executable must stay next to its `share` folder, which holds the PROJ data. A symbolic link to the executable, for example from a folder on your `PATH`, works too.
+Each [GitHub release](https://github.com/mfbonfigli/gotiler/releases) has prebuilt archives: a `.tar.gz` for Linux x86_64, Linux ARM64 and macOS on Apple Silicon, and a `.zip` for Windows x86_64. Extract one anywhere: the executable must stay next to its `share` folder, which holds the PROJ data. A symbolic link to the executable, for example from a folder on your `PATH`, works too.
 
-The macOS executable is not signed with an Apple Developer ID or notarized, so macOS blocks it when the zip was downloaded with a browser. Remove the quarantine flag from the zip before unzipping it, with `xattr -d com.apple.quarantine gotiler-darwin-arm64-<version>.zip`, or from the unzipped folder with `xattr -dr com.apple.quarantine <folder>`. It needs macOS 12 or later.
+The macOS executable is not signed with an Apple Developer ID or notarized, so macOS blocks it when the archive was downloaded with a browser. Remove the quarantine flag from the archive before extracting it, with `xattr -d com.apple.quarantine gotiler-darwin-arm64-<version>.tar.gz`, or from the extracted folder with `xattr -dr com.apple.quarantine gotiler-darwin-arm64-<version>`. It needs macOS 12 or later.
 
 For high-precision datum conversions, including vertical ones, download the grids you need from the PROJ CDN into `share/`.
 

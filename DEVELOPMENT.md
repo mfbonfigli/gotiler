@@ -177,7 +177,9 @@ go mod tidy
 ## Releases
 
 Pushing a `v3.*` tag runs the draft-release workflow, which builds and tests all targets and
-attaches one zip per platform (executable, `share/`, README, license and third-party licenses) to
-a draft GitHub release, together with a `SHA256SUMS` file listing their checksums. Each zip also
-gets a signed build provenance attestation, which anyone can check with
-`gh attestation verify <zip> --repo mfbonfigli/gotiler`.
+attaches one archive per platform (executable, `share/`, README, license and third-party licenses)
+to a draft GitHub release, together with a `SHA256SUMS` file listing their checksums.
+`scripts/package.sh` builds the archives: a `.tar.gz` holding a `gotiler-<target>-<tag>/` folder
+for Linux and macOS, and a flat `.zip` for Windows. Each archive also gets a signed build
+provenance attestation, which anyone can check with
+`gh attestation verify <archive> --repo mfbonfigli/gotiler`.
