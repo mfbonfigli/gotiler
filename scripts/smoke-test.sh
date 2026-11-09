@@ -3,8 +3,12 @@
 # Runs a gotiler build folder, the executable next to its share/ PROJ data as
 # the release archives ship it, on a machine without the build's libraries or
 # PROJ: prints the version, then tiles a small LAZ file with an EPSG input
-# CRS, which needs the PROJ database from share/. The tiling goes through a
+# CRS, which runs a PROJ coordinate transformation. The tiling goes through a
 # symbolic link to the executable, the way package managers install it.
+#
+# It does not prove that the executable finds share/: the static PROJ build
+# embeds proj.db, so EPSG codes resolve without it. The unit test
+# TestProjSearchPathResolvesSymlinks covers that lookup.
 #
 # Written for bash 3.2, the version macOS ships.
 #
@@ -24,7 +28,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 exe="$(cd "$1" && pwd)/gotiler"
 input="$repo_root/internal/pc/testdata/laz14/las14_pf7_v3_multichannel_1000pts.laz"
 
-# only the PROJ data next to the executable may be used
+# ignore any PROJ data the machine points to
 unset PROJ_DATA PROJ_LIB
 
 # downloaded workflow artifacts lose the executable bit
