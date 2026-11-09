@@ -1,0 +1,56 @@
+name: Docs
+
+# Builds the documentation site in docs/ on pull requests, and publishes it
+# to GitHub Pages on pushes to v3.
+
+on:
+  pull_request:
+    branches:
+      - v3
+    paths:
+      - "docs/**"
+      - ".github/workflows/docs.yml"
+  push:
+    branches:
+      - v3
+    paths:
+      - "docs/**"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # Installs the dependencies from docs/package-lock.json, builds the
+      # site (failing on broken internal links) and uploads it as the Pages
+      # artifact.
+      - name: Build the site
+        uses: withastro/action@v6
+        with:
+          path: docs
+          node-version: 24
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publish to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

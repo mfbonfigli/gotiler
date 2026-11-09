@@ -55,7 +55,8 @@ bash scripts/build.sh darwin-arm64
 
 The executable links to macOS system libraries only, and needs macOS 12 or later. It carries the
 ad-hoc signature that the linker gives every Apple Silicon executable, with no Apple Developer ID
-signature or notarization: see the README for running a downloaded copy. The GitHub workflows build
+signature or notarization: see [Installation](https://mfbonfigli.github.io/gotiler/getting-started/installation/#manual-download)
+for running a downloaded copy. The GitHub workflows build
 it on a macOS 15 runner, which also runs the tests, then run it on a clean macOS 26 runner with
 `scripts/smoke-test.sh`, which tiles a small file through a link to the executable.
 

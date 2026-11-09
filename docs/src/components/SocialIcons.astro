@@ -1,0 +1,135 @@
+---
+// The header's links: Documentation, marked current on every page but the
+// home page, then GitHub with the repository's live star count, and Ko-fi.
+// Starlight shows this component in the header on wide screens and in the
+// mobile menu.
+import { Icon } from '@astrojs/starlight/components';
+
+const home = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+const docs = `${home}getting-started/installation/`;
+const inDocs = Astro.url.pathname !== home;
+---
+
+<a class="docs-link" href={docs} aria-current={inDocs ? 'page' : undefined}>Documentation</a>
+<a class="icon-link" href="https://github.com/mfbonfigli/gotiler" title="gotiler on GitHub">
+	<span class="sr-only">GitHub</span>
+	<Icon name="github" />
+	<span class="stars" data-github-stars hidden>
+		<Icon name="star" size="0.85rem" />
+		<span data-count></span>
+		<span class="sr-only">stars</span>
+	</span>
+</a>
+<a class="icon-link ko-fi" href="https://ko-fi.com/mfbonfigli" title="Support gotiler on Ko-fi">
+	<span class="sr-only">Support gotiler on Ko-fi</span>
+	<Icon name="heart" />
+</a>
+
+<script>
+	// GitHub allows 60 unauthenticated API requests an hour per visitor, so the
+	// count is kept in localStorage for an hour and shared by every page.
+	const api = 'https://api.github.com/repos/mfbonfigli/gotiler';
+	const cacheKey = 'gotiler-github-stars';
+	const maxAge = 60 * 60 * 1000;
+
+	interface CachedStars {
+		count: number;
+		time: number;
+	}
+
+	function readCache(): CachedStars | undefined {
+		try {
+			const cached = JSON.parse(localStorage.getItem(cacheKey) ?? 'null');
+			return typeof cached?.count === 'number' && typeof cached?.time === 'number' ? cached : undefined;
+		} catch {
+			return undefined;
+		}
+	}
+
+	function writeCache(count: number) {
+		try {
+			localStorage.setItem(cacheKey, JSON.stringify({ count, time: Date.now() }));
+		} catch {
+			// storage can be full or blocked: the count then shows for this page only
+		}
+	}
+
+	function show(count: number) {
+		const text = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(count);
+		for (const stars of document.querySelectorAll<HTMLElement>('[data-github-stars]')) {
+			stars.querySelector('[data-count]')!.textContent = text;
+			stars.hidden = false;
+		}
+	}
+
+	const cached = readCache();
+	if (cached) show(cached.count);
+	if (!cached || Date.now() - cached.time > maxAge) {
+		fetch(api, { headers: { Accept: 'application/vnd.github+json' } })
+			.then((response) => (response.ok ? response.json() : Promise.reject(response.status)))
+			.then(({ stargazers_count: count }) => {
+				if (typeof count !== 'number') return;
+				writeCache(count);
+				show(count);
+			})
+			// without a count, the GitHub link shows its icon alone
+			.catch(() => {});
+	}
+</script>
+
+<style>
+	.docs-link {
+		margin-inline-end: 0.5rem;
+		color: var(--sl-color-gray-2);
+		font-size: var(--sl-text-sm);
+		font-weight: 600;
+		text-decoration: none;
+		white-space: nowrap;
+	}
+
+	.docs-link:hover,
+	.docs-link[aria-current='page'] {
+		color: var(--sl-color-white);
+	}
+
+	.icon-link {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		padding: 0.5em;
+		margin: -0.5em;
+		color: var(--sl-color-text-accent);
+		text-decoration: none;
+	}
+
+	.icon-link:hover {
+		color: var(--sl-color-white);
+	}
+
+	.ko-fi:hover {
+		color: #ff5e5b;
+	}
+
+	.stars {
+		display: flex;
+		align-items: center;
+		gap: 0.2rem;
+		padding: 0.1rem 0.45rem;
+		border: 1px solid var(--sl-color-gray-5);
+		border-radius: 999px;
+		color: var(--sl-color-gray-2);
+		font-size: var(--sl-text-xs);
+		font-weight: 600;
+		font-variant-numeric: tabular-nums;
+		line-height: 1.4;
+	}
+
+	.stars[hidden] {
+		display: none;
+	}
+
+	.icon-link:hover .stars {
+		color: var(--sl-color-white);
+		border-color: var(--sl-color-gray-4);
+	}
+</style>

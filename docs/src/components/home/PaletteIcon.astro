@@ -1,0 +1,21 @@
+---
+// A painter's palette, drawn for the colorization feature since Starlight's
+// icon set has none. It takes the text color, like Starlight's icons.
+interface Props {
+	size?: string;
+}
+
+const { size = '1em' } = Astro.props;
+---
+
+<svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" fill="none">
+	<path
+		d="M12 3.2c-5 0-9 3.7-9 8.4 0 4.7 4 8.6 8.9 8.6 1.2 0 1.9-.8 1.9-1.8 0-.5-.2-.9-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1 .8-1.8 1.9-1.8h2.1c2.8 0 4.7-1.9 4.7-4.5 0-3.6-4-6.3-9.5-6.3Z"
+		stroke="currentColor"
+		stroke-width="1.7"
+		stroke-linejoin="round"></path>
+	<circle cx="7.4" cy="11.6" r="1.35" fill="currentColor"></circle>
+	<circle cx="9.6" cy="7.6" r="1.35" fill="currentColor"></circle>
+	<circle cx="14.3" cy="7.3" r="1.35" fill="currentColor"></circle>
+	<circle cx="17.6" cy="10.3" r="1.35" fill="currentColor"></circle>
+</svg>

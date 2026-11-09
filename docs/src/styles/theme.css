@@ -1,0 +1,59 @@
+/* gotiler's colors: Starlight's accent, plus the blue-to-green gradient that
+   highlights keywords on the home page. */
+
+:root {
+	--sl-color-accent-low: #0f2550;
+	--sl-color-accent: #3d7cf5;
+	--sl-color-accent-high: #c6d9ff;
+	--gt-gradient: linear-gradient(100deg, #5b95ff 0%, #22b8c4 50%, #4bc96f 100%);
+}
+
+:root[data-theme='light'] {
+	--sl-color-accent-low: #d6e3ff;
+	--sl-color-accent: #2563eb;
+	--sl-color-accent-high: #11306e;
+	--gt-gradient: linear-gradient(100deg, #2563eb 0%, #0e98a5 50%, #1f9d50 100%);
+}
+
+.gt-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.75rem 1rem;
+}
+
+.gt-gradient {
+	background: var(--gt-gradient);
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+}
+
+/* body text that reads like a section lead */
+.gt-lead {
+	color: var(--sl-color-gray-2);
+	font-size: var(--sl-text-lg);
+	line-height: 1.55;
+}
+
+/* Tabs whose panels all share one grid cell, hidden ones included but
+   invisible: the block keeps the height of its tallest panel, so switching
+   tabs moves nothing around it. */
+.gt-steady-tabs starlight-tabs {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.gt-steady-tabs starlight-tabs > [role='tabpanel'] {
+	grid-area: 2 / 1;
+}
+
+.gt-steady-tabs starlight-tabs > [role='tabpanel'][hidden] {
+	display: block;
+	visibility: hidden;
+}
+
+/* A single column of home page content, wide enough for a one-line install
+   command. */
+.gt-column {
+	max-width: 56rem;
+}

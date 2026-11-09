@@ -11,3 +11,8 @@ pprof_*.prof
 **/__pycache__/
 **/*.pyc
 .DS_Store
+
+# the documentation site's dependencies and build output
+docs/node_modules/
+docs/dist/
+docs/.astro/

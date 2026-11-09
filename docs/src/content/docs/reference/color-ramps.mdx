@@ -1,0 +1,76 @@
+---
+title: Color ramps
+description: The 36 color ramps --colorize accepts, grouped by purpose, with what each one suits best.
+sidebar:
+  order: 2
+---
+
+import Ramp from '../../../components/Ramp.astro';
+
+`--colorize` accepts 36 ramps from freely licensed sources: matplotlib, seaborn, cmocean, Fabio Crameri's Scientific Colour Maps and ColorBrewer (see [THIRD-PARTY-LICENSES.md](https://github.com/mfbonfigli/gotiler/blob/v3/THIRD-PARTY-LICENSES.md) for attributions). Good starting points: `viridis` for elevation, `turbo` for intensity, `rdbu` with `stretch=minmax` for change detection, `las-classification` for class codes. [Colorizing points](/gotiler/guides/colorizing/) explains how to apply them.
+
+## Perceptually uniform
+
+The best default choices, embedded as canonical 256-entry lookup tables.
+
+| Ramp | Preview | Best for |
+| ---- | ------- | -------- |
+| <Ramp names="viridis" /> | <Ramp names="viridis" swatch /> | General-purpose elevation or continuous density; the scientific standard.                         |
+| <Ramp names="viridis-pastel" /> | <Ramp names="viridis-pastel" swatch /> | A soft, pastel take on viridis that keeps its perceptual ordering.                                |
+| <Ramp names="magma inferno plasma" /> | <Ramp names="magma inferno plasma" swatch /> | Heat-like sequential data with a dark-to-bright look.                                             |
+| <Ramp names="cividis" /> | <Ramp names="cividis" swatch /> | Optimized for color-vision deficiency.                                                            |
+| <Ramp names="turbo" /> | <Ramp names="turbo" swatch /> | Vibrant rainbow alternative to "jet" with tuned lightness; great for intensity and edge spotting. |
+| <Ramp names="batlow" /> | <Ramp names="batlow" swatch /> | Colorblind-safe multi-hue rainbow alternative (Crameri); ideal for canopy-height models.          |
+
+## Terrain and elevation
+
+| Ramp | Preview | Best for |
+| ---- | ------- | -------- |
+| <Ramp names="terrain" /> | <Ramp names="terrain" swatch /> | Classic land elevation: blue lowlands through green, yellow and brown to white peaks. |
+| <Ramp names="gist-earth" /> | <Ramp names="gist-earth" swatch /> | Like terrain with deeper earth tones; pairs well with hillshading.                    |
+| <Ramp names="topo" /> | <Ramp names="topo" swatch /> | Combined bathymetry + land elevation (cmocean); dark depths to bright uplands.        |
+| <Ramp names="oleron" /> | <Ramp names="oleron" swatch /> | Perceptually uniform olive-to-brown ramp for bare-earth DEMs and dryland topography.  |
+| <Ramp names="nuuk" /> | <Ramp names="nuuk" swatch /> | Deep indigo to bright mint; crisp accents for urban building heights.                 |
+
+## Sequential intensity and density
+
+Single direction, dark to bright.
+
+| Ramp | Preview | Best for |
+| ---- | ------- | -------- |
+| <Ramp names="grayscale heat" /> | <Ramp names="grayscale heat" swatch /> | Simple built-in defaults.                                                      |
+| <Ramp names="cubehelix" /> | <Ramp names="cubehelix" swatch /> | Monotonically increasing brightness; stays readable in black-and-white prints. |
+| <Ramp names="mako" /> | <Ramp names="mako" swatch /> | Dark navy to light turquoise; deep-water and coastal bathymetric LiDAR.        |
+| <Ramp names="rocket" /> | <Ramp names="rocket" swatch /> | Blackish-purple through reds to pale cream; point-density heat maps.           |
+| <Ramp names="haline" /> | <Ramp names="haline" swatch /> | Deep blue to bright green (cmocean); brackish water and estuaries.             |
+| <Ramp names="amp" /> | <Ramp names="amp" swatch /> | Light-to-deep red (cmocean); laser/radar intensity over dark basemaps.         |
+| <Ramp names="ylgnbu" /> | <Ramp names="ylgnbu" swatch /> | ColorBrewer Yellow-Green-Blue; density distributions and drainage.             |
+| <Ramp names="blues" /> | <Ramp names="blues" swatch /> | ColorBrewer single-hue blue; water depth, subtle underlays.                    |
+
+## Diverging change detection
+
+Pair them with `stretch=minmax` or symmetric data, so the midpoint lands on your baseline.
+
+| Ramp | Preview | Best for |
+| ---- | ------- | -------- |
+| <Ramp names="rdbu" /> | <Ramp names="rdbu" swatch /> | The gold standard for change: red = loss/erosion, blue = gain/accumulation. |
+| <Ramp names="brbg" /> | <Ramp names="brbg" swatch /> | Brown-to-blue-green; bare soil versus vegetation/water shifts.            |
+| <Ramp names="coolwarm" /> | <Ramp names="coolwarm" swatch /> | Balance-adjusted blue-to-red that tolerates hillshading and shadows.      |
+| <Ramp names="spectral" /> | <Ramp names="spectral" swatch /> | Full-spectrum diverging ramp for deviations from a baseline.              |
+| <Ramp names="balance" /> | <Ramp names="balance" swatch /> | Perceptually uniform blue-white-red (cmocean) with a truly neutral center. |
+| <Ramp names="seismic" /> | <Ramp names="seismic" swatch /> | High-contrast deep-blue/white/deep-red; subsurface and elevation differences. |
+| <Ramp names="roma" /> | <Ramp names="roma" swatch /> | Crameri diverging scheme tailored to topographic anomalies.               |
+| <Ramp names="berlin" /> | <Ramp names="berlin" swatch /> | Dark-centered diverging map for dark-mode viewers.                        |
+| <Ramp names="piyg" /> | <Ramp names="piyg" swatch /> | Pink-to-yellow-green; NDVI-style vegetation anomalies.                    |
+
+## Categorical classification
+
+| Ramp | Preview | Best for |
+| ---- | ------- | -------- |
+| <Ramp names="las-classification" /> | <Ramp names="las-classification" swatch /> | ASPRS LAS class codes with their conventional colors (fixed 0–255 scale). |
+| <Ramp names="dark2" /> | <Ramp names="dark2" swatch /> | Distinct muted dark tones; urban feature separation.                      |
+| <Ramp names="paired" /> | <Ramp names="paired" swatch /> | Light/dark hue pairs; nested classes like low vs. high vegetation.        |
+| <Ramp names="set2" /> | <Ramp names="set2" swatch /> | Pastel palette that keeps overlaid labels legible.                        |
+| <Ramp names="accent" /> | <Ramp names="accent" swatch /> | Makes selected categories pop against neutral basemaps.                   |
+
+Categorical ramps map equal-width value bands to discrete colors: combine them with `stretch=minmax` (or data with a known range) so category codes land on stable bands. `las-classification` needs nothing extra, as it is pinned to the absolute 0–255 class range.

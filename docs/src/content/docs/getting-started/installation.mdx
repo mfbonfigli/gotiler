@@ -1,0 +1,228 @@
+---
+title: Installation
+description: Install gotiler on Linux, macOS or Windows with one command, or download a release archive and run it, with nothing else to install.
+sidebar:
+  order: 1
+---
+
+import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
+gotiler ships as a self-contained archive: one executable plus a `share` folder holding the PROJ data it uses to transform coordinates. There is no runtime or shared library to set up.
+
+## Install script
+
+On Linux (x86_64 or ARM64), macOS (Apple Silicon, macOS 12 or later) and 64-bit Windows, one command installs the latest release:
+
+<Tabs syncKey="install">
+<TabItem label="Linux and macOS">
+
+```bash
+curl -fsSL https://github.com/mfbonfigli/gotiler/releases/latest/download/install.sh | sh
+```
+
+The script installs gotiler in `~/.local/share/gotiler` and links the executable from `~/.local/bin`. If that folder is not on your `PATH`, it prints the line to add to your shell profile. It needs only tools that Linux and macOS ship: `curl` or `wget`, `tar`, `gzip`, `awk` and a SHA-256 tool.
+
+</TabItem>
+<TabItem label="Windows">
+
+```powershell
+irm https://github.com/mfbonfigli/gotiler/releases/latest/download/install.ps1 | iex
+```
+
+Run it in Windows PowerShell 5.1 or PowerShell 7. The script installs gotiler in `%LOCALAPPDATA%\Programs\gotiler` and adds that folder to your user `PATH`, so gotiler runs from that window and from any new terminal. On Windows on ARM it installs the x86_64 build, which Windows 11 runs through emulation.
+
+</TabItem>
+</Tabs>
+
+Both scripts check the download against the release's `SHA256SUMS` file and need no administrator rights. Then check that gotiler runs:
+
+```bash
+gotiler version
+```
+
+### Update
+
+Run the install command again: it replaces the installed version and keeps the files you added to its `share` folder, such as [datum grids](#datum-grids).
+
+### Settings
+
+The scripts read these environment variables:
+
+| Variable              | Default                                                                   | Sets                                                  |
+| --------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `GOTILER_VERSION`     | The latest release                                                        | The release to install, for example `v3.1.0`          |
+| `GOTILER_INSTALL_DIR` | `~/.local/share/gotiler`, or `%LOCALAPPDATA%\Programs\gotiler` on Windows | The install folder                                    |
+| `GOTILER_BIN_DIR`     | `~/.local/bin`                                                            | The folder of the `gotiler` link, on Linux and macOS |
+
+They never replace a folder they did not install: if the install folder already holds other files, they stop and ask you to pick another one. To install a given release:
+
+<Tabs syncKey="install">
+<TabItem label="Linux and macOS">
+
+```bash
+curl -fsSL https://github.com/mfbonfigli/gotiler/releases/latest/download/install.sh | GOTILER_VERSION=v3.1.0 sh
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+```powershell
+$env:GOTILER_VERSION = 'v3.1.0'
+irm https://github.com/mfbonfigli/gotiler/releases/latest/download/install.ps1 | iex
+```
+
+</TabItem>
+</Tabs>
+
+### Uninstall
+
+<Tabs syncKey="install">
+<TabItem label="Linux and macOS">
+
+Delete the install folder and the link to the executable:
+
+```bash
+rm -rf ~/.local/share/gotiler ~/.local/bin/gotiler
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+Delete the install folder:
+
+```powershell
+Remove-Item -Recurse -Force "$env:LOCALAPPDATA\Programs\gotiler"
+```
+
+Then remove that folder from the `Path` of your account in **Edit environment variables for your account**, which the Start menu finds by name.
+
+</TabItem>
+</Tabs>
+
+## Manual download
+
+Each [GitHub release](https://github.com/mfbonfigli/gotiler/releases/latest) has an archive per platform:
+
+| Platform            | Archive                                  |
+| ------------------- | ---------------------------------------- |
+| Linux x86_64        | `gotiler-linux-amd64-<version>.tar.gz`  |
+| Linux ARM64         | `gotiler-linux-arm64-<version>.tar.gz`  |
+| macOS Apple Silicon | `gotiler-darwin-arm64-<version>.tar.gz` |
+| Windows x86_64      | `gotiler-windows-amd64-<version>.zip`   |
+
+<Tabs syncKey="os">
+<TabItem label="Linux">
+
+<Steps>
+
+1. Download the archive for your CPU, `gotiler-linux-amd64-<version>.tar.gz` or `gotiler-linux-arm64-<version>.tar.gz`, from the [latest release](https://github.com/mfbonfigli/gotiler/releases/latest).
+
+2. Extract it, into a `gotiler-linux-amd64-<version>` folder:
+
+   ```bash
+   tar -xzf gotiler-linux-amd64-<version>.tar.gz
+   ```
+
+3. Check that gotiler runs:
+
+   ```bash
+   ./gotiler-linux-amd64-<version>/gotiler version
+   ```
+
+</Steps>
+
+</TabItem>
+<TabItem label="macOS">
+
+<Steps>
+
+1. Download `gotiler-darwin-arm64-<version>.tar.gz` from the [latest release](https://github.com/mfbonfigli/gotiler/releases/latest). The executable needs an Apple Silicon Mac with macOS 12 or later.
+
+2. The executable is not signed with an Apple Developer ID or notarized, so macOS blocks it when a browser downloaded the archive. Remove the download's quarantine flag, then extract the archive into a `gotiler-darwin-arm64-<version>` folder:
+
+   ```bash
+   xattr -d com.apple.quarantine gotiler-darwin-arm64-<version>.tar.gz
+   tar -xzf gotiler-darwin-arm64-<version>.tar.gz
+   ```
+
+   If you already extracted it, run `xattr -dr com.apple.quarantine gotiler-darwin-arm64-<version>` on the extracted folder instead. Downloads made with `curl` or `gh release download` carry no quarantine flag.
+
+3. Check that gotiler runs:
+
+   ```bash
+   ./gotiler-darwin-arm64-<version>/gotiler version
+   ```
+
+</Steps>
+
+</TabItem>
+<TabItem label="Windows">
+
+<Steps>
+
+1. Download `gotiler-windows-amd64-<version>.zip` from the [latest release](https://github.com/mfbonfigli/gotiler/releases/latest).
+
+2. Extract it into a folder of its own, for example `C:\Tools\gotiler`: the archive has no top-level folder.
+
+3. Open PowerShell in that folder and check that gotiler runs:
+
+   ```powershell
+   .\gotiler.exe version
+   ```
+
+</Steps>
+
+</TabItem>
+</Tabs>
+
+:::caution[Keep the share folder]
+The executable must stay next to its `share` folder, which holds the PROJ data. To run gotiler from anywhere, add its folder to your `PATH`, or create a symbolic link to the executable in a folder that is already on it.
+:::
+
+## Verify the download
+
+The install scripts check their download on their own. For a manual download, compare the archive's checksum with the one listed in the release's `SHA256SUMS` file:
+
+<Tabs syncKey="os">
+<TabItem label="Linux">
+
+```bash
+# run in the folder holding the archive and SHA256SUMS
+sha256sum -c SHA256SUMS --ignore-missing
+```
+
+</TabItem>
+<TabItem label="macOS">
+
+```bash
+# run in the folder holding the archive and SHA256SUMS
+grep gotiler-darwin-arm64 SHA256SUMS | shasum -a 256 -c
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+```powershell
+(Get-FileHash .\gotiler-windows-amd64-<version>.zip -Algorithm SHA256).Hash
+```
+
+</TabItem>
+</Tabs>
+
+Every archive and install script also has a signed build provenance attestation, which proves that the repository's release workflow built it. To check one with the [GitHub CLI](https://cli.github.com/):
+
+```bash
+gh attestation verify gotiler-linux-amd64-<version>.tar.gz --repo mfbonfigli/gotiler
+```
+
+## Datum grids
+
+The bundled PROJ data covers the common transformations. For high-precision datum conversions, including vertical ones, download the grids you need from the [PROJ CDN](https://cdn.proj.org/) into the `share` folder. With the install script, that is `~/.local/share/gotiler/share` on Linux and macOS, and `%LOCALAPPDATA%\Programs\gotiler\share` on Windows.
+
+## Disk space
+
+While processing, gotiler keeps temporary working files in a `tmp` folder inside the output folder, so the output drive needs extra free disk space. The space is released at the end of processing.
+
+## Building from source
+
+gotiler can also be built from source with Go, CGO and PROJ: see [Development](/gotiler/project/development/) for the setup on Linux, macOS and Windows.

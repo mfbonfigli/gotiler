@@ -1,0 +1,47 @@
+---
+// A full-width background band behind one home page section. Each tone mixes
+// a brand color into the theme background, so it works in light and dark
+// mode. The band reaches the window edges through a box shadow, which paints
+// outside the content column without widening the page.
+interface Props {
+	tone?: 'base' | 'surface' | 'blue' | 'teal';
+}
+
+const { tone = 'base' } = Astro.props;
+---
+
+<section class:list={['band', tone]}>
+	<slot />
+</section>
+
+<style>
+	.band {
+		/* the bands touch: no spacing from the surrounding content */
+		margin-block: 0;
+		padding-block: 1px 5rem;
+		background: var(--band);
+		box-shadow: 0 0 0 100vmax var(--band);
+		clip-path: inset(0 -100vmax);
+	}
+
+	.base {
+		--band: var(--sl-color-bg);
+	}
+
+	.surface {
+		--band: color-mix(in srgb, var(--sl-color-gray-6) 55%, var(--sl-color-bg));
+	}
+
+	.blue {
+		--band: color-mix(in srgb, #3d7cf5 8%, var(--sl-color-bg));
+	}
+
+	.teal {
+		--band: color-mix(in srgb, #22b8c4 8%, var(--sl-color-bg));
+	}
+
+	/* on the dark theme the teal reads green, so it turns a muted slate blue */
+	:global([data-theme='dark']) .teal {
+		--band: color-mix(in srgb, #4a8fb0 9%, var(--sl-color-bg));
+	}
+</style>

@@ -1,0 +1,124 @@
+---
+// The feature grid: one tile per feature, joined by hairlines.
+import { Icon } from '@astrojs/starlight/components';
+import PaletteIcon from './PaletteIcon.astro';
+
+const features = [
+	{
+		icon: 'rocket',
+		title: 'Fast and out-of-core',
+		text: 'Uses every CPU core and fast NVMe drives, and tiles billion-point clouds without running out of RAM.',
+	},
+	{
+		icon: 'database',
+		title: 'Compressed by default',
+		text: 'Compresses 3D Tiles 1.1 point clouds with meshopt compression and quantization, cutting tileset size by up to 70% or more.',
+	},
+	{
+		icon: 'document',
+		title: 'LAS, LAZ, E57 and PLY',
+		text: 'Reads LAS, LAZ, E57 and ASCII or binary PLY inputs.',
+	},
+	{
+		icon: 'random',
+		title: 'Automatic reprojection',
+		text: 'Reads the CRS from LAS GeoTIFF or WKT metadata and transforms coordinates with the embedded PROJ library.',
+	},
+	{
+		icon: 'puzzle',
+		title: '3D Tiles 1.0 and 1.1',
+		text: '3D Tiles 1.0 and 1.1, optionally packed into a single .3tz archive.',
+	},
+	{
+		icon: 'list-format',
+		title: 'Per-point attributes',
+		text: 'Export intensity, classification, GPS time, LAS extra bytes or any other attribute of the input.',
+	},
+	{
+		icon: 'palette',
+		title: 'Colorization',
+		text: 'Colorize point clouds from their attributes with 36 embedded ramps, or directly from an RGB GeoTIFF orthophoto. No extra tooling required.',
+	},
+	{
+		icon: 'laptop',
+		title: 'Self-contained',
+		text: 'One executable and its bundled data folder, for Linux, macOS and Windows. Nothing else to install to run it.',
+	},
+] as const;
+---
+
+<ul class="features not-content">
+	{
+		features.map(({ icon, title, text }) => (
+			<li>
+				<span class="icon">
+					{icon === 'palette' ? <PaletteIcon size="1.25rem" /> : <Icon name={icon} size="1.25rem" />}
+				</span>
+				<h3>{title}</h3>
+				<p>{text}</p>
+			</li>
+		))
+	}
+</ul>
+
+<style>
+	.features {
+		display: grid;
+		grid-template-columns: 1fr;
+		gap: 1px;
+		margin: 0;
+		padding: 0;
+		overflow: hidden;
+		border: 1px solid var(--sl-color-gray-5);
+		border-radius: 1rem;
+		background: var(--sl-color-gray-5);
+		list-style: none;
+	}
+
+	@media (min-width: 45rem) {
+		.features {
+			grid-template-columns: repeat(2, 1fr);
+		}
+	}
+
+	li {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		column-gap: 1rem;
+		align-items: start;
+		padding: 1.5rem;
+		background: var(--sl-color-bg);
+		transition: background-color 0.2s;
+	}
+
+	li > .icon {
+		grid-row: span 2;
+	}
+
+	li:hover {
+		background: var(--sl-color-bg-nav);
+	}
+
+	.icon {
+		display: inline-grid;
+		place-items: center;
+		width: 2.25rem;
+		height: 2.25rem;
+		border-radius: 0.6rem;
+		background: var(--sl-color-accent-low);
+		color: var(--sl-color-accent-high);
+	}
+
+	h3 {
+		margin-block: 0.35rem 0.4rem;
+		color: var(--sl-color-white);
+		font-size: var(--sl-text-base);
+		font-weight: 700;
+	}
+
+	p {
+		color: var(--sl-color-gray-3);
+		font-size: var(--sl-text-sm);
+		line-height: 1.55;
+	}
+</style>
