@@ -207,8 +207,9 @@ jobs:
         run: bash scripts/smoke-test.sh build/darwin-arm64
 
   # -------------------------------------------------------------------
-  # Create draft GitHub Release with 4 per-platform zip files, their
-  # SHA-256 checksums and signed build provenance attestations
+  # Create draft GitHub Release with 4 per-platform archives (.tar.gz
+  # for Linux and macOS, .zip for Windows), their SHA-256 checksums and
+  # signed build provenance attestations
   # -------------------------------------------------------------------
   create-release:
     needs:
@@ -251,65 +252,29 @@ jobs:
           name: gotiler-darwin-arm64
           path: artifacts/darwin-arm64
 
-      - name: Create release zips
+      - name: Create release archives
         shell: bash
         run: |
           TAG="${{ github.ref_name }}"
-          mkdir -p release-zips
-
-          # --- linux-amd64 ---
-          mkdir -p pkg
-          cp artifacts/linux-amd64/gotiler pkg/gotiler
-          chmod +x pkg/gotiler
-          cp -r artifacts/linux-amd64/share pkg/
-          cp artifacts/linux-amd64/THIRD-PARTY-LICENSES.md pkg/
-          cp README.md LICENSE.md pkg/
-          (cd pkg && zip -r "../release-zips/gotiler-linux-amd64-${TAG}.zip" .)
-          rm -rf pkg
-
-          # --- linux-arm64 ---
-          mkdir -p pkg
-          cp artifacts/linux-arm64/gotiler pkg/gotiler
-          chmod +x pkg/gotiler
-          cp -r artifacts/linux-arm64/share pkg/
-          cp artifacts/linux-arm64/THIRD-PARTY-LICENSES.md pkg/
-          cp README.md LICENSE.md pkg/
-          (cd pkg && zip -r "../release-zips/gotiler-linux-arm64-${TAG}.zip" .)
-          rm -rf pkg
-
-          # --- windows-amd64 ---
-          mkdir -p pkg
-          cp artifacts/windows-amd64/gotiler.exe pkg/gotiler.exe
-          cp -r artifacts/windows-amd64/share pkg/
-          cp artifacts/windows-amd64/THIRD-PARTY-LICENSES.md pkg/
-          cp README.md LICENSE.md pkg/
-          (cd pkg && zip -r "../release-zips/gotiler-windows-amd64-${TAG}.zip" .)
-          rm -rf pkg
-
-          # --- darwin-arm64 ---
-          mkdir -p pkg
-          cp artifacts/darwin-arm64/gotiler pkg/gotiler
-          chmod +x pkg/gotiler
-          cp -r artifacts/darwin-arm64/share pkg/
-          cp artifacts/darwin-arm64/THIRD-PARTY-LICENSES.md pkg/
-          cp README.md LICENSE.md pkg/
-          (cd pkg && zip -r "../release-zips/gotiler-darwin-arm64-${TAG}.zip" .)
-          rm -rf pkg
-
-          echo "Release zips created:"
-          ls -la release-zips/
+          for target in linux-amd64 linux-arm64 windows-amd64 darwin-arm64; do
+            bash scripts/package.sh "$target" "artifacts/$target" "$TAG" release-assets
+          done
+          cp scripts/install.sh release-assets/
+          ls -la release-assets/
 
       - name: Generate checksums
         shell: bash
-        working-directory: release-zips
+        working-directory: release-assets
         run: |
-          sha256sum *.zip > SHA256SUMS
+          sha256sum gotiler-* install.sh > SHA256SUMS
           cat SHA256SUMS
 
       - name: Attest build provenance
         uses: actions/attest@v4
         with:
-          subject-path: release-zips/*.zip
+          subject-path: |
+            release-assets/gotiler-*
+            release-assets/install.sh
 
       - name: Create draft release
         uses: softprops/action-gh-release@v3
@@ -320,30 +285,44 @@ jobs:
           body: |
             ## gotiler ${{ github.ref_name }}
 
+            ### Install
+
+            On Linux and macOS, install the latest release in your home folder:
+
+            ```bash
+            curl -fsSL https://github.com/${{ github.repository }}/releases/latest/download/install.sh | sh
+            ```
+
+            The script checks the download against `SHA256SUMS`. To install this release instead of the latest one, add `GOTILER_VERSION=${{ github.ref_name }}` before `sh`. See the README for the other settings.
+
             ### Downloads
 
             | Platform | File |
             |----------|------|
-            | Linux x86_64 | `gotiler-linux-amd64-${{ github.ref_name }}.zip` |
-            | Linux ARM64  | `gotiler-linux-arm64-${{ github.ref_name }}.zip` |
+            | Linux x86_64 | `gotiler-linux-amd64-${{ github.ref_name }}.tar.gz` |
+            | Linux ARM64  | `gotiler-linux-arm64-${{ github.ref_name }}.tar.gz` |
             | Windows x86_64 | `gotiler-windows-amd64-${{ github.ref_name }}.zip` |
-            | macOS Apple Silicon | `gotiler-darwin-arm64-${{ github.ref_name }}.zip` |
+            | macOS Apple Silicon | `gotiler-darwin-arm64-${{ github.ref_name }}.tar.gz` |
 
-            Each zip contains the executable, PROJ data files (`share/`), and license documentation, including the platform's third-party licenses.
+            Each archive contains the executable, PROJ data files (`share/`), and license documentation, including the platform's third-party licenses. The `.tar.gz` archives extract into a `gotiler-<platform>-${{ github.ref_name }}` folder:
+
+            ```bash
+            tar -xzf gotiler-linux-amd64-${{ github.ref_name }}.tar.gz
+            ```
 
             ### macOS
 
-            The macOS executable is not signed with an Apple Developer ID or notarized, so macOS blocks it when the zip was downloaded with a browser. Before unzipping, remove the download's quarantine flag:
+            The macOS executable is not signed with an Apple Developer ID or notarized, so macOS blocks it when the archive was downloaded with a browser. Before extracting it, remove the download's quarantine flag:
 
             ```bash
-            xattr -d com.apple.quarantine gotiler-darwin-arm64-${{ github.ref_name }}.zip
+            xattr -d com.apple.quarantine gotiler-darwin-arm64-${{ github.ref_name }}.tar.gz
             ```
 
-            If you already unzipped it, run `xattr -dr com.apple.quarantine` on the unzipped folder instead. Downloads made with `curl` or `gh release download` have no quarantine flag. The executable needs an Apple Silicon Mac with macOS 12 or later.
+            If it is already extracted, run `xattr -dr com.apple.quarantine gotiler-darwin-arm64-${{ github.ref_name }}` on the extracted folder instead. Downloads made with `curl` or `gh release download` have no quarantine flag. The executable needs an Apple Silicon Mac with macOS 12 or later.
 
             ### Verifying downloads
 
-            `SHA256SUMS` lists the SHA-256 checksum of every zip. On Linux, from the download folder:
+            `SHA256SUMS` lists the SHA-256 checksum of every archive. On Linux, from the download folder:
 
             ```bash
             sha256sum -c SHA256SUMS --ignore-missing
@@ -357,11 +336,12 @@ jobs:
 
             On Windows, compare the output of `Get-FileHash <zip>` with the zip's line in `SHA256SUMS`.
 
-            Every zip also has a signed build provenance attestation, proving it was built by this repository's release workflow. With the GitHub CLI:
+            Every archive also has a signed build provenance attestation, proving it was built by this repository's release workflow. With the GitHub CLI:
 
             ```bash
-            gh attestation verify gotiler-linux-amd64-${{ github.ref_name }}.zip --repo ${{ github.repository }}
+            gh attestation verify gotiler-linux-amd64-${{ github.ref_name }}.tar.gz --repo ${{ github.repository }}
             ```
           files: |
-            release-zips/*.zip
-            release-zips/SHA256SUMS
+            release-assets/gotiler-*
+            release-assets/install.sh
+            release-assets/SHA256SUMS

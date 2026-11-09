@@ -35,6 +35,13 @@ jobs:
           chmod +x scripts/build.sh
           ./scripts/build.sh linux-amd64
 
+      - name: Upload linux-amd64 build
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-linux-amd64-${{ github.run_id }}
+          path: build/linux-amd64/
+          if-no-files-found: error
+
   # -------------------------------------------------------------------
   # Build: linux-arm64 (cross-compiled on amd64)
   # -------------------------------------------------------------------
@@ -60,6 +67,13 @@ jobs:
           path: |
             build/tests/linux-arm64/
             build/linux-arm64/share/
+          if-no-files-found: error
+
+      - name: Upload linux-arm64 build
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-linux-arm64-${{ github.run_id }}
+          path: build/linux-arm64/
           if-no-files-found: error
 
   # -------------------------------------------------------------------
@@ -181,3 +195,118 @@ jobs:
       - name: Run the darwin-arm64 executable
         shell: bash
         run: bash scripts/smoke-test.sh build/darwin-arm64
+
+  # -------------------------------------------------------------------
+  # Package: the Linux and macOS release archives of this run, as a
+  # test release for the install script
+  # -------------------------------------------------------------------
+  package-test-release:
+    needs:
+      - build-linux-amd64
+      - build-linux-arm64
+      - build-darwin-arm64
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download linux-amd64 build
+        uses: actions/download-artifact@v8
+        with:
+          name: build-linux-amd64-${{ github.run_id }}
+          path: build/linux-amd64/
+
+      - name: Download linux-arm64 build
+        uses: actions/download-artifact@v8
+        with:
+          name: build-linux-arm64-${{ github.run_id }}
+          path: build/linux-arm64/
+
+      - name: Download darwin-arm64 build
+        uses: actions/download-artifact@v8
+        with:
+          name: build-darwin-arm64-${{ github.run_id }}
+          path: build/darwin-arm64/
+
+      - name: Package the release archives
+        shell: bash
+        run: |
+          release=test-release/download/v0.0.0-ci
+          for target in linux-amd64 linux-arm64 darwin-arm64; do
+            bash scripts/package.sh "$target" "build/$target" v0.0.0-ci "$release"
+          done
+          (cd "$release" && sha256sum gotiler-* > SHA256SUMS && cat SHA256SUMS)
+
+      - name: Upload the test release
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-release-${{ github.run_id }}
+          path: test-release/
+          if-no-files-found: error
+
+  # -------------------------------------------------------------------
+  # Test: the install script on each supported platform, against a local
+  # server standing in for the GitHub releases page
+  # -------------------------------------------------------------------
+  test-install-script:
+    needs: package-test-release
+    name: test-install-script (${{ matrix.name }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ubuntu, dash, curl
+            runner: ubuntu-24.04
+          - name: ubuntu arm64, dash, curl
+            runner: ubuntu-24.04-arm
+          - name: alpine, busybox, wget
+            runner: ubuntu-24.04
+            image: alpine:latest
+          - name: fedora, bash, curl
+            runner: ubuntu-24.04
+            image: fedora:latest
+          - name: debian, dash, GNU wget
+            runner: ubuntu-24.04
+            image: debian:stable-slim
+            setup: apt-get update -qq && apt-get install -y -qq wget > /dev/null &&
+          - name: macos, sh, curl
+            runner: macos-26
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download the test release
+        uses: actions/download-artifact@v8
+        with:
+          name: test-release-${{ github.run_id }}
+          path: site/good/
+
+      # site/bad is the same release with wrong checksums
+      - name: Serve the test release
+        shell: bash
+        run: |
+          mkdir -p site/bad/download/v0.0.0-ci
+          for f in site/good/download/v0.0.0-ci/gotiler-*; do ln "$f" site/bad/download/v0.0.0-ci/; done
+          awk '{ print "0000000000000000000000000000000000000000000000000000000000000000  " $2 }' \
+            site/good/download/v0.0.0-ci/SHA256SUMS > site/bad/download/v0.0.0-ci/SHA256SUMS
+          nohup python3 -I scripts/test-release-server.py site v0.0.0-ci 8000 > server.log 2>&1 &
+          for _ in $(seq 20); do
+            curl -fsS -o /dev/null http://127.0.0.1:8000/good/tag/v0.0.0-ci && exit 0
+            sleep 1
+          done
+          cat server.log
+          exit 1
+
+      - name: Run the install script tests
+        shell: bash
+        env:
+          IMAGE: ${{ matrix.image }}
+          SETUP: ${{ matrix.setup }}
+        run: |
+          if [ -z "$IMAGE" ]; then
+            sh scripts/test-install.sh http://127.0.0.1:8000 v0.0.0-ci
+          else
+            docker run --rm --network host -v "$PWD:/src:ro" -w /src "$IMAGE" \
+              sh -c "$SETUP sh scripts/test-install.sh http://127.0.0.1:8000 v0.0.0-ci"
+          fi
