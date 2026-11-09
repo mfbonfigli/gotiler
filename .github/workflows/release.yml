@@ -259,14 +259,14 @@ jobs:
           for target in linux-amd64 linux-arm64 windows-amd64 darwin-arm64; do
             bash scripts/package.sh "$target" "artifacts/$target" "$TAG" release-assets
           done
-          cp scripts/install.sh release-assets/
+          cp scripts/install.sh scripts/install.ps1 release-assets/
           ls -la release-assets/
 
       - name: Generate checksums
         shell: bash
         working-directory: release-assets
         run: |
-          sha256sum gotiler-* install.sh > SHA256SUMS
+          sha256sum gotiler-* install.sh install.ps1 > SHA256SUMS
           cat SHA256SUMS
 
       - name: Attest build provenance
@@ -275,6 +275,7 @@ jobs:
           subject-path: |
             release-assets/gotiler-*
             release-assets/install.sh
+            release-assets/install.ps1
 
       - name: Create draft release
         uses: softprops/action-gh-release@v3
@@ -293,7 +294,13 @@ jobs:
             curl -fsSL https://github.com/${{ github.repository }}/releases/latest/download/install.sh | sh
             ```
 
-            The script checks the download against `SHA256SUMS`. To install this release instead of the latest one, add `GOTILER_VERSION=${{ github.ref_name }}` before `sh`. See the README for the other settings.
+            On Windows, in PowerShell:
+
+            ```powershell
+            irm https://github.com/${{ github.repository }}/releases/latest/download/install.ps1 | iex
+            ```
+
+            Both scripts check the download against `SHA256SUMS` and need no administrator rights. To install this release instead of the latest one, set `GOTILER_VERSION=${{ github.ref_name }}` first: `curl ... | GOTILER_VERSION=${{ github.ref_name }} sh`, or `$env:GOTILER_VERSION = '${{ github.ref_name }}'` in PowerShell. The comments at the top of each script list their other settings.
 
             ### Downloads
 
@@ -344,4 +351,5 @@ jobs:
           files: |
             release-assets/gotiler-*
             release-assets/install.sh
+            release-assets/install.ps1
             release-assets/SHA256SUMS
