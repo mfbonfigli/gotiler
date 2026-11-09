@@ -39,6 +39,26 @@ bash scripts/run-tests.sh build/tests/linux-arm64 build/linux-arm64/share
 The GitHub workflows use the same script to run the cross-compiled test binaries on native
 linux-arm64 and windows-amd64 runners.
 
+## macOS Builds
+
+Docker cannot build macOS executables, so the `darwin-arm64` target builds natively on an Apple
+Silicon Mac. `scripts/build-darwin.sh` follows the Dockerfile builders: it builds the vcpkg libraries
+and PROJ statically under `build/deps/darwin-arm64` (reused by later builds), then the executable,
+the test binaries, the PROJ data and the third-party licenses. It needs the Xcode Command Line Tools,
+Go, CMake, pkg-config and bash 4 or later, since macOS ships bash 3.2:
+
+```bash
+xcode-select --install
+brew install bash cmake pkgconf go
+bash scripts/build.sh darwin-arm64
+```
+
+The executable links to macOS system libraries only, and needs macOS 12 or later. It carries the
+ad-hoc signature that the linker gives every Apple Silicon executable, with no Apple Developer ID
+signature or notarization: see the README for running a downloaded copy. The GitHub workflows build
+it on a macOS 15 runner, which also runs the tests, then run it on a clean macOS 26 runner with
+`scripts/smoke-test.sh`, which tiles a small file through a link to the executable.
+
 ## Local Windows Development
 
 Local builds require Go, CGO, MinGW, pkg-config, vcpkg dependencies, and a static PROJ build.
