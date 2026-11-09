@@ -8,7 +8,7 @@ if [[ "${TRACE-0}" == "1" ]]; then
     set -o xtrace
 fi
 
-VALID_TARGETS=("linux-amd64" "linux-arm64" "windows-amd64" "all")
+VALID_TARGETS=("linux-amd64" "linux-arm64" "windows-amd64" "darwin-arm64" "all")
 
 usage() {
     echo -e '
@@ -17,7 +17,10 @@ Usage: ./build.sh [TARGET]
 
 Arguments:
   TARGET           Build target (default: all)
-                   Valid values: linux-amd64, linux-arm64, windows-amd64, all
+                   Valid values: linux-amd64, linux-arm64, windows-amd64,
+                   darwin-arm64, all
+                   all builds the Docker targets. darwin-arm64 builds natively
+                   on an Apple Silicon Mac, see scripts/build-darwin.sh
   --version VALUE  Version string embedded in the binary
 
 Output:
@@ -34,10 +37,15 @@ Output:
       share/
       gotiler.exe
       THIRD-PARTY-LICENSES.md
+    darwin-arm64/
+      share/
+      gotiler
+      THIRD-PARTY-LICENSES.md
     tests/
       linux-amd64/     test binaries, one per package directory
       linux-arm64/
       windows-amd64/
+      darwin-arm64/
 '
     exit
 }
@@ -50,6 +58,7 @@ main() {
     Reset='\033[0m'
 
     TARGET="all"
+    VERSION=""
     VERSION_ARGS=()
     i=1
 
@@ -62,14 +71,15 @@ main() {
             --version|-V)
                 next=$((i + 1))
                 if [[ $next -le $# ]]; then
-                    VERSION_ARGS=(--build-arg "VERSION=${!next}")
+                    VERSION="${!next}"
+                    VERSION_ARGS=(--build-arg "VERSION=${VERSION}")
                     i=$next
                 else
                     echo -e "${Red}Missing value for $arg${Reset}"
                     exit 1
                 fi
                 ;;
-            linux-amd64|linux-arm64|windows-amd64|all)
+            linux-amd64|linux-arm64|windows-amd64|darwin-arm64|all)
                 TARGET="$arg"
                 ;;
             *)
@@ -118,11 +128,17 @@ main() {
             DOCKER_TARGET="windows-amd64-builder"
             rm -rf "./build/windows-amd64" "./build/tests/windows-amd64"
             ;;
+        darwin-arm64)
+            # Docker cannot build macOS executables
+            DOCKER_TARGET=""
+            ;;
     esac
 
     echo -e "${Blue} => Building...${Reset}"
 
-    if [[ "$DOCKER_TARGET" == "final" ]]; then
+    if [[ "$TARGET" == "darwin-arm64" ]]; then
+        bash "$(dirname "${BASH_SOURCE[0]}")/build-darwin.sh" "$VERSION"
+    elif [[ "$DOCKER_TARGET" == "final" ]]; then
         docker build "${VERSION_ARGS[@]}" "${DOCKER_BUILD_ARGS[@]}" -t gotiler:build --target=final --output ./build .
     else
         docker build "${VERSION_ARGS[@]}" "${DOCKER_BUILD_ARGS[@]}" -t "gotiler:build-$TARGET" --target="$DOCKER_TARGET" .
@@ -165,6 +181,7 @@ main() {
             windows-amd64) [[ "$host_os" == "windows" && "$host_arch" == "amd64" ]] && can_run=true ;;
             linux-amd64)   [[ "$host_os" == "linux"   && "$host_arch" == "amd64" ]] && can_run=true ;;
             linux-arm64)   [[ "$host_os" == "linux"   && "$host_arch" == "arm64" ]] && can_run=true ;;
+            darwin-arm64)  [[ "$host_os" == "darwin"  && "$host_arch" == "arm64" ]] && can_run=true ;;
         esac
 
         if [[ "$can_run" != true ]]; then

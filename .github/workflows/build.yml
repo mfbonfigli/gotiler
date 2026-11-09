@@ -128,3 +128,56 @@ jobs:
       - name: Run windows-amd64 tests
         shell: bash
         run: bash scripts/run-tests.sh build/tests/windows-amd64 build/windows-amd64/share
+
+  # -------------------------------------------------------------------
+  # Build and test: darwin-arm64 (native on an Apple Silicon runner, as
+  # Docker cannot build macOS executables; tests run inline)
+  # -------------------------------------------------------------------
+  build-darwin-arm64:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      # the license and test scripts need bash 4 or later: macOS ships 3.2
+      - name: Install bash
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+        run: brew install bash
+
+      - name: Build and test darwin-arm64
+        shell: bash
+        run: bash scripts/build.sh darwin-arm64
+
+      - name: Upload darwin-arm64 build
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-darwin-arm64-${{ github.run_id }}
+          path: build/darwin-arm64/
+          if-no-files-found: error
+
+  # -------------------------------------------------------------------
+  # Smoke test: darwin-arm64 executable on a clean runner with a newer
+  # macOS, which has neither the build's libraries nor PROJ
+  # -------------------------------------------------------------------
+  smoke-test-darwin-arm64:
+    needs: build-darwin-arm64
+    runs-on: macos-26
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download darwin-arm64 build
+        uses: actions/download-artifact@v8
+        with:
+          name: build-darwin-arm64-${{ github.run_id }}
+          path: build/darwin-arm64/
+
+      - name: Run the darwin-arm64 executable
+        shell: bash
+        run: bash scripts/smoke-test.sh build/darwin-arm64

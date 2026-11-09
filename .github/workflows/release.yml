@@ -152,7 +152,62 @@ jobs:
         run: bash scripts/run-tests.sh build/tests/windows-amd64 build/windows-amd64/share
 
   # -------------------------------------------------------------------
-  # Create draft GitHub Release with 3 per-platform zip files, their
+  # Build and test: darwin-arm64 (native on an Apple Silicon runner, as
+  # Docker cannot build macOS executables; tests run inline)
+  # -------------------------------------------------------------------
+  build-darwin-arm64:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      # the license and test scripts need bash 4 or later: macOS ships 3.2
+      - name: Install bash
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+        run: brew install bash
+
+      - name: Build and test darwin-arm64
+        shell: bash
+        run: |
+          VERSION="${{ github.ref_name }}"
+          bash scripts/build.sh darwin-arm64 --version "${VERSION#v}"
+
+      - name: Upload darwin-arm64 artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: gotiler-darwin-arm64
+          path: build/darwin-arm64/
+          if-no-files-found: error
+
+  # -------------------------------------------------------------------
+  # Smoke test: darwin-arm64 executable on a clean runner with a newer
+  # macOS, which has neither the build's libraries nor PROJ
+  # -------------------------------------------------------------------
+  smoke-test-darwin-arm64:
+    needs: build-darwin-arm64
+    runs-on: macos-26
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download darwin-arm64 artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: gotiler-darwin-arm64
+          path: build/darwin-arm64/
+
+      - name: Run the darwin-arm64 executable
+        shell: bash
+        run: bash scripts/smoke-test.sh build/darwin-arm64
+
+  # -------------------------------------------------------------------
+  # Create draft GitHub Release with 4 per-platform zip files, their
   # SHA-256 checksums and signed build provenance attestations
   # -------------------------------------------------------------------
   create-release:
@@ -160,6 +215,7 @@ jobs:
       - build-linux-amd64
       - test-linux-arm64
       - test-windows-amd64
+      - smoke-test-darwin-arm64
     runs-on: ubuntu-24.04
     if: success()
     permissions:
@@ -188,6 +244,12 @@ jobs:
         with:
           name: gotiler-windows-amd64
           path: artifacts/windows-amd64
+
+      - name: Download darwin-arm64 artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: gotiler-darwin-arm64
+          path: artifacts/darwin-arm64
 
       - name: Create release zips
         shell: bash
@@ -224,6 +286,16 @@ jobs:
           (cd pkg && zip -r "../release-zips/gotiler-windows-amd64-${TAG}.zip" .)
           rm -rf pkg
 
+          # --- darwin-arm64 ---
+          mkdir -p pkg
+          cp artifacts/darwin-arm64/gotiler pkg/gotiler
+          chmod +x pkg/gotiler
+          cp -r artifacts/darwin-arm64/share pkg/
+          cp artifacts/darwin-arm64/THIRD-PARTY-LICENSES.md pkg/
+          cp README.md LICENSE.md pkg/
+          (cd pkg && zip -r "../release-zips/gotiler-darwin-arm64-${TAG}.zip" .)
+          rm -rf pkg
+
           echo "Release zips created:"
           ls -la release-zips/
 
@@ -255,8 +327,19 @@ jobs:
             | Linux x86_64 | `gotiler-linux-amd64-${{ github.ref_name }}.zip` |
             | Linux ARM64  | `gotiler-linux-arm64-${{ github.ref_name }}.zip` |
             | Windows x86_64 | `gotiler-windows-amd64-${{ github.ref_name }}.zip` |
+            | macOS Apple Silicon | `gotiler-darwin-arm64-${{ github.ref_name }}.zip` |
 
             Each zip contains the executable, PROJ data files (`share/`), and license documentation, including the platform's third-party licenses.
+
+            ### macOS
+
+            The macOS executable is not signed with an Apple Developer ID or notarized, so macOS blocks it when the zip was downloaded with a browser. Before unzipping, remove the download's quarantine flag:
+
+            ```bash
+            xattr -d com.apple.quarantine gotiler-darwin-arm64-${{ github.ref_name }}.zip
+            ```
+
+            If you already unzipped it, run `xattr -dr com.apple.quarantine` on the unzipped folder instead. Downloads made with `curl` or `gh release download` have no quarantine flag. The executable needs an Apple Silicon Mac with macOS 12 or later.
 
             ### Verifying downloads
 
@@ -264,6 +347,12 @@ jobs:
 
             ```bash
             sha256sum -c SHA256SUMS --ignore-missing
+            ```
+
+            On macOS:
+
+            ```bash
+            grep gotiler-darwin-arm64 SHA256SUMS | shasum -a 256 -c
             ```
 
             On Windows, compare the output of `Get-FileHash <zip>` with the zip's line in `SHA256SUMS`.
