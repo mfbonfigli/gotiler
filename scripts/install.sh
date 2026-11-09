@@ -50,7 +50,7 @@ detect_target() {
     case "$os" in
         Linux) os="linux" ;;
         Darwin) os="darwin" ;;
-        MINGW* | MSYS* | CYGWIN*) fail "on Windows, download the .zip archive from $releases_url" ;;
+        MINGW* | MSYS* | CYGWIN*) fail "on Windows, install from PowerShell with: irm $releases_url/latest/download/install.ps1 | iex" ;;
         *) fail "gotiler has no release for $os" ;;
     esac
     case "$arch" in

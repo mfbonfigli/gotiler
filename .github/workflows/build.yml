@@ -123,6 +123,13 @@ jobs:
             build/windows-amd64/share/
           if-no-files-found: error
 
+      - name: Upload windows-amd64 build
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-windows-amd64-${{ github.run_id }}
+          path: build/windows-amd64/
+          if-no-files-found: error
+
   # -------------------------------------------------------------------
   # Test: windows-amd64 (run natively on Windows runner)
   # -------------------------------------------------------------------
@@ -197,14 +204,15 @@ jobs:
         run: bash scripts/smoke-test.sh build/darwin-arm64
 
   # -------------------------------------------------------------------
-  # Package: the Linux and macOS release archives of this run, as a
-  # test release for the install script
+  # Package: the release archives and install scripts of this run, as a
+  # test release for the install scripts
   # -------------------------------------------------------------------
   package-test-release:
     needs:
       - build-linux-amd64
       - build-linux-arm64
       - build-darwin-arm64
+      - build-windows-amd64
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
@@ -228,14 +236,21 @@ jobs:
           name: build-darwin-arm64-${{ github.run_id }}
           path: build/darwin-arm64/
 
+      - name: Download windows-amd64 build
+        uses: actions/download-artifact@v8
+        with:
+          name: build-windows-amd64-${{ github.run_id }}
+          path: build/windows-amd64/
+
       - name: Package the release archives
         shell: bash
         run: |
           release=test-release/download/v0.0.0-ci
-          for target in linux-amd64 linux-arm64 darwin-arm64; do
+          for target in linux-amd64 linux-arm64 darwin-arm64 windows-amd64; do
             bash scripts/package.sh "$target" "build/$target" v0.0.0-ci "$release"
           done
-          (cd "$release" && sha256sum gotiler-* > SHA256SUMS && cat SHA256SUMS)
+          cp scripts/install.sh scripts/install.ps1 "$release/"
+          (cd "$release" && sha256sum gotiler-* install.sh install.ps1 > SHA256SUMS && cat SHA256SUMS)
 
       - name: Upload the test release
         uses: actions/upload-artifact@v7
@@ -245,7 +260,7 @@ jobs:
           if-no-files-found: error
 
   # -------------------------------------------------------------------
-  # Test: the install script on each supported platform, against a local
+  # Test: the install scripts on each supported platform, against a local
   # server standing in for the GitHub releases page
   # -------------------------------------------------------------------
   test-install-script:
@@ -272,6 +287,12 @@ jobs:
             setup: apt-get update -qq && apt-get install -y -qq wget > /dev/null &&
           - name: macos, sh, curl
             runner: macos-26
+          - name: windows, PowerShell 5.1
+            runner: windows-latest
+            powershell: powershell
+          - name: windows, PowerShell 7
+            runner: windows-latest
+            powershell: pwsh
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -282,29 +303,34 @@ jobs:
           name: test-release-${{ github.run_id }}
           path: site/good/
 
-      # site/bad is the same release with wrong checksums
-      - name: Serve the test release
-        shell: bash
-        run: |
-          mkdir -p site/bad/download/v0.0.0-ci
-          for f in site/good/download/v0.0.0-ci/gotiler-*; do ln "$f" site/bad/download/v0.0.0-ci/; done
-          awk '{ print "0000000000000000000000000000000000000000000000000000000000000000  " $2 }' \
-            site/good/download/v0.0.0-ci/SHA256SUMS > site/bad/download/v0.0.0-ci/SHA256SUMS
-          nohup python3 -I scripts/test-release-server.py site v0.0.0-ci 8000 > server.log 2>&1 &
-          for _ in $(seq 20); do
-            curl -fsS -o /dev/null http://127.0.0.1:8000/good/tag/v0.0.0-ci && exit 0
-            sleep 1
-          done
-          cat server.log
-          exit 1
-
+      # site/bad is the same release with wrong checksums. The server runs
+      # in the same step as the tests, as a background process may not
+      # outlive its step on Windows.
       - name: Run the install script tests
         shell: bash
         env:
           IMAGE: ${{ matrix.image }}
           SETUP: ${{ matrix.setup }}
+          POWERSHELL: ${{ matrix.powershell }}
         run: |
-          if [ -z "$IMAGE" ]; then
+          mkdir -p site/bad/download
+          cp -R site/good/download/v0.0.0-ci site/bad/download/
+          awk '{ print "0000000000000000000000000000000000000000000000000000000000000000  " $2 }' \
+            site/good/download/v0.0.0-ci/SHA256SUMS > site/bad/download/v0.0.0-ci/SHA256SUMS
+
+          # Windows runners may have no python3, or only a Microsoft Store stub of it
+          python=python3
+          python3 --version > /dev/null 2>&1 || python=python
+          "$python" -I scripts/test-release-server.py site v0.0.0-ci 8000 > server.log 2>&1 &
+          for _ in $(seq 20); do
+            curl -fsS -o /dev/null http://127.0.0.1:8000/good/tag/v0.0.0-ci && break
+            sleep 1
+          done
+          curl -fsS -o /dev/null http://127.0.0.1:8000/good/tag/v0.0.0-ci || { cat server.log; exit 1; }
+
+          if [ -n "$POWERSHELL" ]; then
+            pwsh -NoProfile -File scripts/test-install.ps1 -BaseUrl http://127.0.0.1:8000 -Tag v0.0.0-ci -Shell "$POWERSHELL"
+          elif [ -z "$IMAGE" ]; then
             sh scripts/test-install.sh http://127.0.0.1:8000 v0.0.0-ci
           else
             docker run --rm --network host -v "$PWD:/src:ro" -w /src "$IMAGE" \

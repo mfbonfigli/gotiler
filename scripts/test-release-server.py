@@ -1,11 +1,14 @@
 """Serves FOLDER as a stand-in for a GitHub releases page, for
-scripts/test-install.sh.
+scripts/test-install.sh and scripts/test-install.ps1.
 
-Like github.com/<owner>/<repo>/releases, every <prefix>/latest path redirects
-to <prefix>/tag/TAG and every <prefix>/tag/<name> page exists. Any other path
-is a file of FOLDER, e.g. <prefix>/download/<tag>/<asset>.
+Like github.com/<owner>/<repo>/releases:
+- <prefix>/latest redirects to <prefix>/tag/TAG, and every
+  <prefix>/tag/<name> page exists;
+- <prefix>/latest/download/<file> redirects to <prefix>/download/TAG/<file>.
+Any other path is a file of FOLDER, e.g. <prefix>/download/<tag>/<file>.
 
-Usage: python3 scripts/test-release-server.py FOLDER TAG PORT
+Usage: python3 scripts/test-release-server.py FOLDER TAG PORT [ADDRESS]
+ADDRESS defaults to all interfaces.
 """
 
 import functools
@@ -25,14 +28,14 @@ class ReleasesHandler(http.server.SimpleHTTPRequestHandler):
             super().do_HEAD()
 
     def answer_page(self, send_body):
-        """Answers the latest-release redirect and the tag pages; returns
+        """Answers the latest-release redirects and the tag pages; returns
         False for any other path."""
+        if "/latest/download/" in self.path:
+            prefix, file = self.path.split("/latest/download/", 1)
+            self.redirect(f"{prefix}/download/{self.latest_tag}/{file}")
+            return True
         if self.path.endswith("/latest"):
-            prefix = self.path[: -len("latest")]
-            self.send_response(302)
-            self.send_header("Location", f"http://{self.headers['Host']}{prefix}tag/{self.latest_tag}")
-            self.send_header("Content-Length", "0")
-            self.end_headers()
+            self.redirect(f"{self.path[: -len('/latest')]}/tag/{self.latest_tag}")
             return True
         if "/tag/" in self.path:
             body = b"release page\n"
@@ -45,14 +48,21 @@ class ReleasesHandler(http.server.SimpleHTTPRequestHandler):
             return True
         return False
 
+    def redirect(self, path):
+        self.send_response(302)
+        self.send_header("Location", f"http://{self.headers['Host']}{path}")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
 
 def main():
-    if len(sys.argv) != 4:
+    if len(sys.argv) not in (4, 5):
         sys.exit(__doc__)
     folder, tag, port = sys.argv[1], sys.argv[2], int(sys.argv[3])
+    address = sys.argv[4] if len(sys.argv) == 5 else ""
     ReleasesHandler.latest_tag = tag
     handler = functools.partial(ReleasesHandler, directory=folder)
-    http.server.ThreadingHTTPServer(("", port), handler).serve_forever()
+    http.server.ThreadingHTTPServer((address, port), handler).serve_forever()
 
 
 if __name__ == "__main__":

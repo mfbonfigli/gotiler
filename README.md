@@ -45,23 +45,27 @@ Time and peak memory to tile the [Helsinki point cloud](https://zenodo.org/recor
 
 ## 📣 Installation
 
+### Linux / macOS
+
 On Linux (x86_64 or ARM64) and macOS (Apple Silicon, macOS 12 or later), install the latest release with:
 
 ```bash
 curl -fsSL https://github.com/mfbonfigli/gotiler/releases/latest/download/install.sh | sh
 ```
 
-The script needs no administrator rights and only tools that macOS and Linux distributions ship: `curl` or `wget`, `tar`, `gzip`, `awk`, and `sha256sum`, `shasum` or `openssl`. It downloads the release archive for your machine and checks it against the release's `SHA256SUMS`. It then installs it in `~/.local/share/gotiler`, links the executable from `~/.local/bin/gotiler`, and tells you how to add `~/.local/bin` to your `PATH` if it is missing. Run it again to upgrade: it replaces the installed version and keeps the files you added to `share/`, such as PROJ grids. Environment variables change its defaults:
+### Windows
 
-| Variable | Default | Description |
-|---|---|---|
-| `GOTILER_VERSION` | latest release | Release to install, e.g. `v3.1.0`: `curl ... \| GOTILER_VERSION=v3.1.0 sh` |
-| `GOTILER_INSTALL_DIR` | `~/.local/share/gotiler` | Folder for the executable and its `share` folder. The script only replaces a folder it installed itself. |
-| `GOTILER_BIN_DIR` | `~/.local/bin` | Folder for the `gotiler` link. For a system-wide install, run the script with `sudo` and set this to `/usr/local/bin` and `GOTILER_INSTALL_DIR` to `/usr/local/lib/gotiler`. |
+On 64-bit Windows, install the latest release from PowerShell with:
 
-To install by hand, download an archive from a [GitHub release](https://github.com/mfbonfigli/gotiler/releases): a `.tar.gz` for Linux x86_64, Linux ARM64 and macOS on Apple Silicon, or a `.zip` for Windows x86_64. Extract it anywhere: the executable must stay next to its `share` folder, which holds the PROJ data. A symbolic link to the executable, for example from a folder on your `PATH`, works too.
+```powershell
+irm https://github.com/mfbonfigli/gotiler/releases/latest/download/install.ps1 | iex
+```
 
-The macOS executable is not signed with an Apple Developer ID or notarized, so macOS blocks it when the archive was downloaded with a browser; the install script's downloads are not affected. Remove the quarantine flag from the archive before extracting it, with `xattr -d com.apple.quarantine gotiler-darwin-arm64-<version>.tar.gz`, or from the extracted folder with `xattr -dr com.apple.quarantine gotiler-darwin-arm64-<version>`.
+### Manual download
+
+If you prefer to download and install gotiler manually, the [releases page](https://github.com/mfbonfigli/gotiler/releases) has the archives for each platform, ready to extract and use. On macOS, the executable is not notarized: run `xattr -dr com.apple.quarantine <folder>` on the extracted folder before the first run.
+
+### Notes
 
 For high-precision datum conversions, including vertical ones, download the grids you need from the PROJ CDN into `share/`.
 
