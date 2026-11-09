@@ -11,3 +11,9 @@ npm run build   # build the site into dist/, failing on broken internal links
 ```
 
 Pushes to `v3` that change this folder publish the site through `.github/workflows/docs.yml`. Pull requests build it without publishing.
+
+The color ramp previews come from `src/data/ramp-swatches.json`, sampled from gotiler's ramp tables. After changing a ramp, regenerate it from the repository root, or a Go test fails:
+
+```bash
+go run ./docs/scripts/ramp-swatches > docs/src/data/ramp-swatches.json
+```

@@ -1,0 +1,80 @@
+---
+// One table cell of the color ramps reference: the names of one or more
+// ramps, or with "swatch" their color previews, from the gradients that
+// docs/scripts/ramp-swatches samples from gotiler's ramp tables. Each ramp
+// takes one line of a fixed height, so a row's names and previews line up.
+import swatches from '../data/ramp-swatches.json';
+
+interface Props {
+	/** space-separated ramp names */
+	names: string;
+	swatch?: boolean;
+}
+
+const { names, swatch = false } = Astro.props;
+const ramps = names.split(/\s+/).map((name) => {
+	const gradient = (swatches as Record<string, string>)[name];
+	if (!gradient) {
+		throw new Error(`No swatch for the color ramp "${name}": regenerate src/data/ramp-swatches.json`);
+	}
+	return { name, gradient };
+});
+---
+
+<span class="ramps">
+	{
+		ramps.map(({ name, gradient }) =>
+			swatch ? (
+				<span class="line">
+					<span class="swatch" style={`background: ${gradient}`} role="img" aria-label={`${name} colors`} />
+				</span>
+			) : (
+				<span class="line">
+					<code>{name}</code>
+				</span>
+			),
+		)
+	}
+</span>
+
+<style>
+	/* table cells align on their first text baseline, which a cell of
+	   previews lacks: align the ramp cells' tops instead */
+	:global(td:has(> .ramps)) {
+		vertical-align: top;
+	}
+
+	/* on narrow screens the description keeps a readable width, and the
+	   table scrolls sideways in its own box instead */
+	:global(td:has(> .ramps) ~ td) {
+		min-width: 14rem;
+	}
+
+	.ramps {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.line {
+		display: flex;
+		align-items: center;
+		min-height: 1.9rem;
+	}
+
+	code {
+		white-space: nowrap;
+	}
+
+	.swatch {
+		width: 8rem;
+		height: 0.9rem;
+		border-radius: 0.25rem;
+		box-shadow: inset 0 0 0 1px rgb(127 127 127 / 0.25);
+	}
+
+	@media (max-width: 50rem) {
+		.swatch {
+			width: 5rem;
+		}
+	}
+</style>

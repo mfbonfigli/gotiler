@@ -1,0 +1,103 @@
+---
+title: Installation
+description: Download a prebuilt gotiler release for Windows or Linux and run it, with nothing else to install.
+sidebar:
+  order: 1
+---
+
+import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
+gotiler ships as a self-contained archive: one executable plus a `share` folder holding the PROJ data it uses to transform coordinates. There is no installer, runtime or shared library to set up.
+
+## Download
+
+Each [GitHub release](https://github.com/mfbonfigli/gotiler/releases/latest) has an archive per platform:
+
+| Platform       | Archive                               |
+| -------------- | ------------------------------------- |
+| Windows x86_64 | `gotiler-windows-amd64-<version>.zip` |
+| Linux x86_64   | `gotiler-linux-amd64-<version>.zip`   |
+| Linux ARM64    | `gotiler-linux-arm64-<version>.zip`   |
+
+No macOS build is published.
+
+## Install
+
+<Tabs syncKey="os">
+<TabItem label="Windows">
+
+<Steps>
+
+1. Download `gotiler-windows-amd64-<version>.zip` from the [latest release](https://github.com/mfbonfigli/gotiler/releases/latest).
+
+2. Extract it into a folder of its own, for example `C:\Tools\gotiler`: the archive has no top-level folder.
+
+3. Open PowerShell in that folder and check that gotiler runs:
+
+   ```powershell
+   .\gotiler.exe version
+   ```
+
+</Steps>
+
+</TabItem>
+<TabItem label="Linux">
+
+<Steps>
+
+1. Download the archive for your CPU, `gotiler-linux-amd64-<version>.zip` or `gotiler-linux-arm64-<version>.zip`, from the [latest release](https://github.com/mfbonfigli/gotiler/releases/latest).
+
+2. Extract it into a folder of its own, as the archive has no top-level folder:
+
+   ```bash
+   unzip gotiler-linux-amd64-<version>.zip -d ~/gotiler
+   ```
+
+3. Check that gotiler runs:
+
+   ```bash
+   ~/gotiler/gotiler version
+   ```
+
+</Steps>
+
+</TabItem>
+</Tabs>
+
+:::caution[Keep the share folder]
+The executable must stay next to its `share` folder, which holds the PROJ data. To run gotiler from anywhere, add its folder to your `PATH`, or create a symbolic link to the executable in a folder that is already on it.
+:::
+
+## Verify the download
+
+Each release also publishes a `SHA256SUMS` file with the checksum of every archive. To check an archive, compare its checksum with the one listed there:
+
+<Tabs syncKey="os">
+<TabItem label="Windows">
+
+```powershell
+(Get-FileHash .\gotiler-windows-amd64-<version>.zip -Algorithm SHA256).Hash
+```
+
+</TabItem>
+<TabItem label="Linux">
+
+```bash
+# run in the folder holding the archive and SHA256SUMS
+sha256sum -c SHA256SUMS --ignore-missing
+```
+
+</TabItem>
+</Tabs>
+
+## Datum grids
+
+The bundled PROJ data covers the common transformations. For high-precision datum conversions, including vertical ones, download the grids you need from the [PROJ CDN](https://cdn.proj.org/) into the `share` folder.
+
+## Disk space
+
+While processing, gotiler keeps temporary working files in a `tmp` folder inside the output folder, so the output drive needs extra free disk space. The space is released at the end of processing.
+
+## Building from source
+
+gotiler can also be built from source with Go, CGO and PROJ: see [DEVELOPMENT.md](https://github.com/mfbonfigli/gotiler/blob/v3/DEVELOPMENT.md) for the setup on Windows and Linux.

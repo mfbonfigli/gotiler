@@ -23,7 +23,17 @@ export default defineConfig({
 			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/mfbonfigli/gotiler' }],
 			editLink: { baseUrl: 'https://github.com/mfbonfigli/gotiler/edit/v3/docs/' },
 			customCss: ['./src/styles/theme.css'],
-			components: { Hero: './src/components/Hero.astro', Footer: './src/components/Footer.astro' },
+			components: {
+				Hero: './src/components/Hero.astro',
+				Footer: './src/components/Footer.astro',
+				SocialIcons: './src/components/SocialIcons.astro',
+			},
+			// each group lists its folder's pages, ordered by their sidebar.order
+			sidebar: [
+				{ label: 'Getting started', items: [{ autogenerate: { directory: 'getting-started' } }] },
+				{ label: 'CLI guides', items: [{ autogenerate: { directory: 'guides' } }] },
+				{ label: 'Reference', items: [{ autogenerate: { directory: 'reference' } }] },
+			],
 			plugins: [starlightLinksValidator(), starlightLlmsTxt()],
 		}),
 	],
