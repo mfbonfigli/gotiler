@@ -20,6 +20,9 @@ export default defineConfig({
 				alt: 'gotiler',
 				replacesTitle: true,
 			},
+			// the emblem of the logo, also for phone home screens
+			favicon: '/favicon.png',
+			head: [{ tag: 'link', attrs: { rel: 'apple-touch-icon', href: '/gotiler/apple-touch-icon.png' } }],
 			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/mfbonfigli/gotiler' }],
 			editLink: { baseUrl: 'https://github.com/mfbonfigli/gotiler/edit/v3/docs/' },
 			customCss: ['./src/styles/theme.css'],
