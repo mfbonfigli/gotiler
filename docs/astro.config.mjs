@@ -33,6 +33,8 @@ export default defineConfig({
 				{ label: 'Getting started', items: [{ autogenerate: { directory: 'getting-started' } }] },
 				{ label: 'CLI guides', items: [{ autogenerate: { directory: 'guides' } }] },
 				{ label: 'Reference', items: [{ autogenerate: { directory: 'reference' } }] },
+				{ label: 'Go library', items: [{ autogenerate: { directory: 'library' } }] },
+				{ label: 'Project', items: [{ autogenerate: { directory: 'project' } }] },
 			],
 			plugins: [starlightLinksValidator(), starlightLlmsTxt()],
 		}),
