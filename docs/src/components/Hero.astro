@@ -1,43 +1,34 @@
 ---
 // Replaces Starlight's hero, used only by the home page, with a product-style
 // one: a headline whose <span class="gt-gradient"> words take the brand
-// gradient, the tagline and actions, and a visual beside them.
+// gradient, the tagline and actions.
 import { LinkButton } from '@astrojs/starlight/components';
-import Placeholder from './home/Placeholder.astro';
 
 const { data } = Astro.locals.starlightRoute.entry;
 const { title = data.title, tagline, actions = [] } = data.hero || {};
 ---
 
 <div class="hero not-content">
-	<div class="copy">
-		<h1 id="_top" data-page-title set:html={title} />
-		{tagline && <p class="tagline" set:html={tagline} />}
-		<div class="actions">
-			{
-				actions.map(({ link, text, variant, icon }) => (
-					<LinkButton href={link} variant={variant} icon={icon?.name}>
-						{text}
-					</LinkButton>
-				))
-			}
-		</div>
+	<h1 id="_top" data-page-title set:html={title} />
+	{tagline && <p class="tagline" set:html={tagline} />}
+	<div class="actions">
+		{
+			actions.map(({ link, text, variant, icon }) => (
+				<LinkButton href={link} variant={variant} icon={icon?.name}>
+					{text}
+				</LinkButton>
+			))
+		}
 	</div>
-	<Placeholder class="visual" label="point cloud animation" aspect="1 / 1" />
 </div>
 
 <style>
 	.hero {
-		display: grid;
-		gap: 2.5rem;
-		align-items: center;
 		padding-block: 1rem 2rem;
 	}
 
 	@media (min-width: 60rem) {
 		.hero {
-			grid-template-columns: 1.15fr 1fr;
-			gap: 3.5rem;
 			padding-block: 3rem 4rem;
 		}
 	}
@@ -67,11 +58,5 @@ const { title = data.title, tagline, actions = [] } = data.hero || {};
 		flex-wrap: wrap;
 		gap: 0.75rem 1rem;
 		margin-top: 2rem;
-	}
-
-	.visual {
-		width: 100%;
-		max-width: 32rem;
-		justify-self: center;
 	}
 </style>

@@ -25,8 +25,9 @@ import Band from '../../components/home/Band.astro';
 import Benchmarks from '../../components/home/Benchmarks.astro';
 import ClosingCards from '../../components/home/ClosingCards.astro';
 import Features from '../../components/home/Features.astro';
-import Placeholder from '../../components/home/Placeholder.astro';
+import Screenshot from '../../components/home/Screenshot.astro';
 import SectionHeading from '../../components/home/SectionHeading.astro';
+import viewerScreenshot from '../../assets/home/viewer.webp';
 import Split from '../../components/home/Split.astro';
 
 <Band tone="surface">
@@ -76,7 +77,7 @@ import Split from '../../components/home/Split.astro';
 
 </Steps>
 
-<div slot="aside">
+<div slot="aside" class="gt-steady-tabs">
 
 <Tabs>
 <TabItem label="Basic Usage">
@@ -155,7 +156,12 @@ gotiler view ./out
 ```
 
 <div slot="aside">
-	<Placeholder label="viewer screenshot" aspect="16 / 10" />
+	<Screenshot
+		src={viewerScreenshot}
+		alt="The gotiler viewer in edit mode: the Melbourne point cloud on a satellite globe, with the position gizmo's arrows and rings and the Position panel open."
+	>
+		Point cloud: <a href="https://data.melbourne.vic.gov.au/explore/dataset/city-of-melbourne-3d-point-cloud-2018/information/">City of Melbourne</a>, CC BY 4.0 · Imagery: VersaTiles &amp; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>
+	</Screenshot>
 </div>
 
 </Split>
