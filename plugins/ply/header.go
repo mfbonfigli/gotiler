@@ -1,4 +1,5 @@
-// Package ply reads point clouds from PLY (Polygon File Format) files.
+// Package ply reads point clouds and 3D Gaussian splats from PLY (Polygon
+// File Format) files.
 package ply
 
 import (

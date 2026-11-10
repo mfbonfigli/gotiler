@@ -72,22 +72,22 @@ func (r *Reader) open(attrs model.Attributes) error {
 	if r.mapper, err = newPointMapper(r.decoder.scalars, attrs); err != nil {
 		return err
 	}
-	return r.checkBinaryDataIsComplete()
+	return checkBinaryDataIsComplete(r.file, r.decoder)
 }
 
 // checkBinaryDataIsComplete fails fast on truncated binary files, which would
 // otherwise only be detected after reading all the vertices before the cut.
-func (r *Reader) checkBinaryDataIsComplete() error {
-	want, ok := r.decoder.binaryDataSize()
+func checkBinaryDataIsComplete(file *os.File, decoder *vertexDecoder) error {
+	want, ok := decoder.binaryDataSize()
 	if !ok {
 		return nil
 	}
-	info, err := r.file.Stat()
+	info, err := file.Stat()
 	if err != nil {
 		return err
 	}
-	if available := info.Size() - r.decoder.vertexDataOffset; available < want {
-		return fmt.Errorf("the file is truncated: the header declares %d vertices, needing %d bytes, but only %d bytes follow", r.decoder.count, want, available)
+	if available := info.Size() - decoder.vertexDataOffset; available < want {
+		return fmt.Errorf("the file is truncated: the header declares %d vertices, needing %d bytes, but only %d bytes follow", decoder.count, want, available)
 	}
 	return nil
 }
