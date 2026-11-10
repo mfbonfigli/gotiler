@@ -13,12 +13,12 @@ func TestWeight(t *testing.T) {
 	s := roundSplat(0, geom.Vec3{})
 	s.Scale = geom.Vec3{X: 1, Y: 2, Z: 3}
 	s.Opacity = 0.5
-	assertClose(t, "weight", weight(s), 0.5*(2+3+6)/3.0)
+	assertClose(t, "weight", Weight(s), 0.5*(2+3+6)/3.0)
 
 	s.Opacity = 0
-	assertClose(t, "transparent weight", weight(s), minWeight)
+	assertClose(t, "transparent weight", Weight(s), minWeight)
 	s.Opacity, s.Scale = 1, geom.Vec3{}
-	assertClose(t, "pointlike weight", weight(s), minWeight)
+	assertClose(t, "pointlike weight", Weight(s), minWeight)
 }
 
 // TestAccumulatorMatchesMoments checks that the merged Gaussian has the
@@ -36,14 +36,14 @@ func TestAccumulatorMatchesMoments(t *testing.T) {
 		var total float64
 		var mean geom.Vec3
 		for _, s := range splats {
-			total += weight(s)
-			mean = mean.Add(s.Center.MulScalar(weight(s)))
+			total += Weight(s)
+			mean = mean.Add(s.Center.MulScalar(Weight(s)))
 		}
 		mean = mean.MulScalar(1 / total)
 		var want geom.Mat3
 		for _, s := range splats {
 			d := s.Center.Sub(mean)
-			want = want.Add(covariance(s).Add(geom.Outer(d, d)).MulScalar(weight(s) / total))
+			want = want.Add(covariance(s).Add(geom.Outer(d, d)).MulScalar(Weight(s) / total))
 		}
 
 		merged := merge(t, splats...)
@@ -176,14 +176,14 @@ func TestAccumulatorGuardStaysOff(t *testing.T) {
 			var total float64
 			var mean geom.Vec3
 			for _, s := range splats {
-				total += weight(s)
-				mean = mean.Add(s.Center.MulScalar(weight(s)))
+				total += Weight(s)
+				mean = mean.Add(s.Center.MulScalar(Weight(s)))
 			}
 			mean = mean.MulScalar(1 / total)
 			var want geom.Mat3
 			for _, s := range splats {
 				d := s.Center.Sub(mean)
-				want = want.Add(covariance(s).Add(geom.Outer(d, d)).MulScalar(weight(s) / total))
+				want = want.Add(covariance(s).Add(geom.Outer(d, d)).MulScalar(Weight(s) / total))
 			}
 			assertMat3(t, "covariance", covariance(merge(t, splats...)), want)
 		})

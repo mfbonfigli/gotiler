@@ -30,9 +30,9 @@ const (
 	minNormalVariance = 1e-10
 )
 
-// weight returns how much a splat contributes to the image: its opacity times
-// its mean projected area.
-func weight(s splat.Splat) float64 {
+// Weight returns how much a splat contributes to the image: its opacity times
+// its mean projected area. Merging and spatial partitioning weigh splats by it.
+func Weight(s splat.Splat) float64 {
 	area := (s.Scale.X*s.Scale.Y + s.Scale.X*s.Scale.Z + s.Scale.Y*s.Scale.Z) / 3
 	return math.Max(minWeight, s.Opacity*math.Max(area, minWeight))
 }
@@ -67,7 +67,7 @@ type accumulator struct {
 // add folds s into the accumulator, keeping a reference to its SHRest if it
 // is the heaviest splat so far.
 func (a *accumulator) add(s splat.Splat) {
-	w := weight(s)
+	w := Weight(s)
 	rotation := s.Rotation.RotationMatrix()
 	if a.weight == 0 {
 		a.transparency = 1

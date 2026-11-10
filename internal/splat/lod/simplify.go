@@ -213,7 +213,7 @@ func newSplatInfo(s splat.Splat) splatInfo {
 	scale := geom.Vec3{X: math.Max(s.Scale.X, floor), Y: math.Max(s.Scale.Y, floor), Z: math.Max(s.Scale.Z, floor)}
 	covariance := splat.CovarianceFromRotationScale(s.Rotation.RotationMatrix(), scale)
 	return splatInfo{
-		weight:         weight(s),
+		weight:         Weight(s),
 		covariance:     covariance,
 		logDeterminant: logDeterminant(covariance),
 		color:          s.BaseColor(),

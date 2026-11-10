@@ -231,7 +231,7 @@ func TestMergeCost(t *testing.T) {
 	if c := cost(base, displaced); !(c > 0 && c < cost(base, farther)) {
 		t.Errorf("merging splats costs %v at 0.05 apart and %v at 0.1, want it to grow with distance", c, cost(base, farther))
 	}
-	assertClose(t, "color cost", cost(base, recolored), colorWeight*2*weight(base)*base.BaseColor().Sub(recolored.BaseColor()).LengthSquared())
+	assertClose(t, "color cost", cost(base, recolored), colorWeight*2*Weight(base)*base.BaseColor().Sub(recolored.BaseColor()).LengthSquared())
 	assertClose(t, "symmetry", cost(base, farther), cost(farther, base))
 
 	// Heavier splats cost more to merge.
