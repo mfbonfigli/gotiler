@@ -150,11 +150,11 @@ type Options struct {
 	Branding      Branding
 	TilerProvider TilerProvider
 	ExtraCommands []CommandFactory
-	// PointCloudCommandName moves the point-cloud flags and action under the
-	// named subcommand. Leave empty to expose point-cloud conversion at root.
-	PointCloudCommandName    string
-	PointCloudCommandAliases []string
 }
+
+// pointCloudCommandName is the command that tiles point clouds. The app runs
+// it, with the same flags, when no command is given.
+const pointCloudCommandName = "pcloud"
 
 func DefaultTilerProvider() (tiler.Tiler, error) {
 	return tiler.NewGoTiler()
@@ -199,14 +199,25 @@ func NewApp(opts Options) *cli.Command {
 		BuildInfo: opts.BuildInfo,
 		Branding:  opts.Branding,
 	}
-	pointCloudAction := func(ctx context.Context, cmd *cli.Command) error {
+	tilePointClouds := func(cmd *cli.Command, showHelp func(*cli.Command) error) error {
 		if cmd.Args().Len() == 0 {
-			_ = cli.ShowAppHelp(cmd)
+			_ = showHelp(cmd)
 			return fmt.Errorf("input path must be set")
 		}
 		return pointCloudCommand(opts.TilerProvider, c, cmd.Args().First())
 	}
 	commands := []*cli.Command{
+		{
+			Name:      pointCloudCommandName,
+			Usage:     "convert a point cloud file or folder into 3D Tiles",
+			ArgsUsage: "<file or folder>",
+			Flags:     getPointCloudFlags(c),
+			Action: func(ctx context.Context, cmd *cli.Command) error {
+				return tilePointClouds(cmd, cli.ShowSubcommandHelp)
+			},
+		},
+		newSplatCommand(),
+		newViewCommand(),
 		{
 			Name:  "version",
 			Usage: "print the gotiler version",
@@ -216,29 +227,6 @@ func NewApp(opts Options) *cli.Command {
 				return nil
 			},
 		},
-		newViewCommand(),
-		newSplatCommand(),
-	}
-	var appFlags []cli.Flag
-	var appAction cli.ActionFunc
-	if opts.PointCloudCommandName == "" {
-		appFlags = getPointCloudFlags(c)
-		appAction = pointCloudAction
-	} else {
-		pointCloudCommandName := opts.PointCloudCommandName
-		commands = append(commands, &cli.Command{
-			Name:    pointCloudCommandName,
-			Aliases: opts.PointCloudCommandAliases,
-			Usage:   "convert a point cloud file or folder into 3D tiles",
-			Flags:   getPointCloudFlags(c),
-			Action: func(ctx context.Context, cmd *cli.Command) error {
-				if cmd.Args().Len() == 0 {
-					_ = cli.ShowSubcommandHelp(cmd)
-					return fmt.Errorf("input path must be set")
-				}
-				return pointCloudCommand(opts.TilerProvider, c, cmd.Args().First())
-			},
-		})
 	}
 	for _, factory := range opts.ExtraCommands {
 		if cmd := factory(cmdCtx); cmd != nil {
@@ -246,15 +234,39 @@ func NewApp(opts Options) *cli.Command {
 		}
 	}
 	return &cli.Command{
-		Name:                  opts.Branding.Name,
-		Usage:                 opts.Branding.Usage,
-		Version:               opts.BuildInfo.VersionString(),
-		HideVersion:           true,
-		Flags:                 appFlags,
-		Action:                appAction,
+		Name:        opts.Branding.Name,
+		Usage:       opts.Branding.Usage,
+		Description: fmt.Sprintf("Without a command, %[1]s runs %[2]s: see %[1]s %[2]s --help.", opts.Branding.Name, pointCloudCommandName),
+		Version:     opts.BuildInfo.VersionString(),
+		HideVersion: true,
+		// The root takes the point cloud flags for backward compatibility,
+		// but neither lists them nor passes them on to the commands.
+		Flags: rootOnly(getPointCloudFlags(c)),
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			return tilePointClouds(cmd, cli.ShowAppHelp)
+		},
 		Commands:              commands,
 		EnableShellCompletion: true,
 	}
+}
+
+// rootOnly hides flags from the help and keeps them from the subcommands.
+func rootOnly(flags []cli.Flag) []cli.Flag {
+	for _, flag := range flags {
+		switch f := flag.(type) {
+		case *cli.StringFlag:
+			f.Hidden, f.Local = true, true
+		case *cli.BoolFlag:
+			f.Hidden, f.Local = true, true
+		case *cli.IntFlag:
+			f.Hidden, f.Local = true, true
+		case *cli.Float64Flag:
+			f.Hidden, f.Local = true, true
+		default:
+			panic(fmt.Sprintf("rootOnly: unsupported flag type %T", flag))
+		}
+	}
+	return flags
 }
 
 func normalizeBranding(branding Branding) Branding {
