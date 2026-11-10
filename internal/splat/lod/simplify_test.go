@@ -324,3 +324,22 @@ func BenchmarkSimplify(b *testing.B) {
 		})
 	}
 }
+
+// TestSimplifyMergesPilesInPairs checks that splats piled up on one point
+// pair up at once: a pass over 2000 of them merges nearly 1000 pairs, as
+// they do not all pick the same nearest neighbors.
+func TestSimplifyMergesPilesInPairs(t *testing.T) {
+	splats := randomSplats(6, 2000, 0)
+	for i := range splats {
+		splats[i].Center = geom.Vec3{X: 1, Y: 2, Z: 3}
+	}
+	ws := workspaces.Get().(*workspace)
+	defer ws.release()
+	next, err := ws.pass(splats, 1000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if merged := len(splats) - len(next); merged < 950 {
+		t.Errorf("a pass merged %d pairs of 2000 piled splats, want nearly 1000", merged)
+	}
+}

@@ -35,6 +35,9 @@ const (
 type Source interface {
 	// SHDegree returns the degree of the spherical harmonics of the splats.
 	SHDegree() int
+	// NumberOfSplats returns how many splats the source expects to give, for
+	// progress reports: Next can give fewer.
+	NumberOfSplats() int
 	// Next returns the next splat, or io.EOF after the last one.
 	Next() (splat.Splat, error)
 }
@@ -79,8 +82,9 @@ type sample struct {
 
 // readInput reads the splats of source into a new store at path, dropping
 // those below the minimum opacity and the spherical harmonics above the
-// maximum degree, and turning them so that their up axis is +Z.
-func readInput(ctx context.Context, source Source, path string, opts inputOptions) (*input, error) {
+// maximum degree, and turning them so that their up axis is +Z. It reports
+// each splat read to progress, which can be nil.
+func readInput(ctx context.Context, source Source, path string, opts inputOptions, progress *phaseReporter) (*input, error) {
 	up, err := upAxisRotation(opts.upAxis)
 	if err != nil {
 		return nil, err
@@ -111,6 +115,7 @@ func readInput(ctx context.Context, source Source, path string, opts inputOption
 			if err := ctx.Err(); err != nil {
 				return nil, err
 			}
+			progress.add(min(in.read, checkEvery))
 		}
 		s, err := source.Next()
 		if errors.Is(err, io.EOF) {
@@ -153,6 +158,7 @@ func readInput(ctx context.Context, source Source, path string, opts inputOption
 	if err := writer.Close(); err != nil {
 		return nil, err
 	}
+	progress.add(in.read % checkEvery)
 	switch {
 	case in.read == 0:
 		return nil, errors.New("the input holds no valid splats")

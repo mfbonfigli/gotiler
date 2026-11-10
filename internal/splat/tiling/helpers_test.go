@@ -34,6 +34,8 @@ type sliceSource struct {
 
 func (s *sliceSource) SHDegree() int { return s.degree }
 
+func (s *sliceSource) NumberOfSplats() int { return len(s.splats) }
+
 func (s *sliceSource) Next() (splat.Splat, error) {
 	if len(s.splats) == 0 {
 		if s.err != nil {
@@ -100,7 +102,7 @@ func stored(s splat.Splat) splat.Splat {
 // directory.
 func mustReadInput(t testing.TB, splats []splat.Splat, degree int, opts inputOptions) *input {
 	t.Helper()
-	in, err := readInput(context.Background(), &sliceSource{degree: degree, splats: splats}, filepath.Join(t.TempDir(), "input.bin"), opts)
+	in, err := readInput(context.Background(), &sliceSource{degree: degree, splats: splats}, filepath.Join(t.TempDir(), "input.bin"), opts, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

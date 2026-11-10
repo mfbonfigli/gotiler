@@ -19,8 +19,9 @@ func bruteNearest(splats []splat.Splat, query geom.Vec3, self int32, k int, maxD
 			all = append(all, neighbor{distanceSquared: d, index: int32(i)})
 		}
 	}
+	search := kdSearch{self: self}
 	slices.SortFunc(all, func(a, b neighbor) int {
-		if closer(a, b) {
+		if search.closer(a, b) {
 			return -1
 		}
 		return 1

@@ -40,7 +40,7 @@ func routed(t *testing.T, plan *node, shCount int) map[string][]splat.Splat {
 
 func mustRoute(t *testing.T, in *input, plan *node, workers int) {
 	t.Helper()
-	if err := route(context.Background(), in, plan, t.TempDir(), workers); err != nil {
+	if err := route(context.Background(), in, plan, t.TempDir(), workers, nil); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -141,7 +141,7 @@ func TestRouteErrors(t *testing.T) {
 		{"missing input", context.Background(), &missing, t.TempDir(), "missing.bin"},
 		{"missing directory", context.Background(), in, filepath.Join(t.TempDir(), "gone"), "gone"},
 	} {
-		err := route(test.ctx, test.in, plan, test.dir, 4)
+		err := route(test.ctx, test.in, plan, test.dir, 4, nil)
 		if err == nil || !strings.Contains(err.Error(), test.want) {
 			t.Errorf("%s: error %v, want one mentioning %q", test.name, err, test.want)
 		}

@@ -186,7 +186,7 @@ func TestReadInputErrors(t *testing.T) {
 		{"short batch", context.Background(), &sliceSource{degree: 1, splats: splats}, "g.bin", keepAll, "spherical-harmonic coefficients"},
 		{"full batch", context.Background(), &sliceSource{degree: 1, splats: randomSplats(7, 5000, 0, geom.Vec3{}, geom.Vec3{X: 1, Y: 1, Z: 1})}, "h.bin", keepAll, "spherical-harmonic coefficients"},
 	} {
-		_, err := readInput(test.ctx, test.source, filepath.Join(dir, test.path), test.opts)
+		_, err := readInput(test.ctx, test.source, filepath.Join(dir, test.path), test.opts, nil)
 		if err == nil || !strings.Contains(err.Error(), test.want) {
 			t.Errorf("%s: error %v, want one mentioning %q", test.name, err, test.want)
 		}

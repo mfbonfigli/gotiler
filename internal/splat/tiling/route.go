@@ -25,8 +25,9 @@ const maxOpenWriters = 1024
 //
 // It sets the path, count and bounds of each leaf, and creates no store for a
 // leaf that gets no splats. Within a leaf store, the splats of each batch keep
-// their input order, but the batches of different workers interleave.
-func route(ctx context.Context, in *input, plan *node, dir string, workers int) error {
+// their input order, but the batches of different workers interleave. It
+// reports each splat routed to progress, which can be nil.
+func route(ctx context.Context, in *input, plan *node, dir string, workers int, progress *phaseReporter) error {
 	leaves := plan.leaves(nil)
 	for i, leaf := range leaves {
 		leaf.ordinal = i
@@ -41,7 +42,7 @@ func route(ctx context.Context, in *input, plan *node, dir string, workers int) 
 	for w := range workers {
 		start, end := in.count*w/workers, in.count*(w+1)/workers
 		wg.Go(func() {
-			if err := routeRange(ctx, in, plan, len(leaves), pool, start, end-start); err != nil {
+			if err := routeRange(ctx, in, plan, pool, start, end-start, progress); err != nil {
 				cancel(err)
 			}
 		})
@@ -55,7 +56,7 @@ func route(ctx context.Context, in *input, plan *node, dir string, workers int) 
 }
 
 // routeRange routes count splats of the input store from index start.
-func routeRange(ctx context.Context, in *input, plan *node, leafCount int, pool *writerPool, start, count int) error {
+func routeRange(ctx context.Context, in *input, plan *node, pool *writerPool, start, count int, progress *phaseReporter) error {
 	reader, err := store.OpenRange(in.path, in.shCount, start, count)
 	if err != nil {
 		return err
@@ -103,6 +104,7 @@ func routeRange(ctx context.Context, in *input, plan *node, leafCount int, pool 
 			}
 			first = last
 		}
+		progress.add(len(batch))
 	}
 }
 

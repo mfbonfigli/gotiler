@@ -59,8 +59,13 @@ func (t *kdTree) split(points []kdPoint) {
 }
 
 // nearest appends to found[:0] the k points nearest to query, at most
-// sqrt(maxDistanceSquared) away and other than the point at index self,
-// ordered by distance and then by index, and returns it.
+// sqrt(maxDistanceSquared) away and other than the point at index self, and
+// returns it. They are ordered by distance, and points at the same distance
+// by their index, counted onwards from self and wrapping around.
+//
+// Counting from self keeps splats that pile up on one point from all picking
+// the same few neighbors among the pile: they pick the next ones instead, so
+// that most of them can merge in pairs at once.
 func (t *kdTree) nearest(query geom.Vec3, self int32, k int, maxDistanceSquared float64, found []neighbor) []neighbor {
 	search := kdSearch{query: query, self: self, k: k, limit: maxDistanceSquared, found: found[:0]}
 	search.visit(t.points)
@@ -102,14 +107,14 @@ func (s *kdSearch) visit(points []kdPoint) {
 // k of them, and tightens the search limit when the list is full.
 func (s *kdSearch) insert(n neighbor) {
 	if len(s.found) == s.k {
-		if !closer(n, s.found[s.k-1]) {
+		if !s.closer(n, s.found[s.k-1]) {
 			return
 		}
 		s.found = s.found[:s.k-1]
 	}
 	i := len(s.found)
 	s.found = append(s.found, n)
-	for ; i > 0 && closer(n, s.found[i-1]); i-- {
+	for ; i > 0 && s.closer(n, s.found[i-1]); i-- {
 		s.found[i] = s.found[i-1]
 	}
 	s.found[i] = n
@@ -118,11 +123,11 @@ func (s *kdSearch) insert(n neighbor) {
 	}
 }
 
-func closer(a, b neighbor) bool {
+func (s *kdSearch) closer(a, b neighbor) bool {
 	if a.distanceSquared != b.distanceSquared {
 		return a.distanceSquared < b.distanceSquared
 	}
-	return a.index < b.index
+	return uint32(a.index-s.self) < uint32(b.index-s.self)
 }
 
 // selectNth reorders points so that the one at index n is where sorting them
