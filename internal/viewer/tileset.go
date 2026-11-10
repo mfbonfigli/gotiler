@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"slices"
 	"sync"
+
+	"github.com/mfbonfigli/gotiler/v3/internal/geom"
 )
 
 const defaultTilesetFile = "tileset.json"
@@ -252,13 +254,10 @@ func (t tileVolumes) usesRegion() bool {
 	return slices.ContainsFunc(t.Children, tileVolumes.usesRegion)
 }
 
-// matrix3 is a row-major 3x3 matrix.
-type matrix3 [3][3]float64
-
 // linearPart returns the rotation and scale part of a column-major 4x4
 // transform.
-func linearPart(m [16]float64) matrix3 {
-	var out matrix3
+func linearPart(m [16]float64) geom.Mat3 {
+	var out geom.Mat3
 	for row := range 3 {
 		for col := range 3 {
 			out[row][col] = m[col*4+row]
@@ -267,45 +266,9 @@ func linearPart(m [16]float64) matrix3 {
 	return out
 }
 
-func (a matrix3) mul(b matrix3) matrix3 {
-	var out matrix3
-	for row := range 3 {
-		for col := range 3 {
-			out[row][col] = a[row][0]*b[0][col] + a[row][1]*b[1][col] + a[row][2]*b[2][col]
-		}
-	}
-	return out
-}
-
-func (a matrix3) transpose() matrix3 {
-	var out matrix3
-	for row := range 3 {
-		for col := range 3 {
-			out[row][col] = a[col][row]
-		}
-	}
-	return out
-}
-
-func (a matrix3) determinant() float64 {
-	return a[0][0]*(a[1][1]*a[2][2]-a[1][2]*a[2][1]) -
-		a[0][1]*(a[1][0]*a[2][2]-a[1][2]*a[2][0]) +
-		a[0][2]*(a[1][0]*a[2][1]-a[1][1]*a[2][0])
-}
-
-// inverse returns the inverse of a, which must have a non-zero determinant.
-func (a matrix3) inverse() matrix3 {
-	det := a.determinant()
-	return matrix3{
-		{(a[1][1]*a[2][2] - a[1][2]*a[2][1]) / det, (a[0][2]*a[2][1] - a[0][1]*a[2][2]) / det, (a[0][1]*a[1][2] - a[0][2]*a[1][1]) / det},
-		{(a[1][2]*a[2][0] - a[1][0]*a[2][2]) / det, (a[0][0]*a[2][2] - a[0][2]*a[2][0]) / det, (a[0][2]*a[1][0] - a[0][0]*a[1][2]) / det},
-		{(a[1][0]*a[2][1] - a[1][1]*a[2][0]) / det, (a[0][1]*a[2][0] - a[0][0]*a[2][1]) / det, (a[0][0]*a[1][1] - a[0][1]*a[1][0]) / det},
-	}
-}
-
-func (a matrix3) isRotation() bool {
+func isRotation(m geom.Mat3) bool {
 	const tolerance = 1e-6
-	gram := a.transpose().mul(a)
+	gram := m.Transpose().Mul(m)
 	for row := range 3 {
 		for col := range 3 {
 			want := 0.0
@@ -317,7 +280,7 @@ func (a matrix3) isRotation() bool {
 			}
 		}
 	}
-	return a.determinant() > 0
+	return m.Determinant() > 0
 }
 
 func isAffine(m [16]float64) bool {
@@ -330,7 +293,7 @@ func isAffine(m [16]float64) bool {
 }
 
 func isInvertibleAffine(m [16]float64) bool {
-	return isAffine(m) && linearPart(m).determinant() != 0
+	return isAffine(m) && linearPart(m).Determinant() != 0
 }
 
 // checkRigidChange verifies that going from the current transform to next
@@ -342,8 +305,8 @@ func checkRigidChange(current, next [16]float64) error {
 	if !isAffine(next) {
 		return fmt.Errorf("%w: it must hold finite numbers and end with the row 0 0 0 1", errInvalidTransform)
 	}
-	change := linearPart(next).mul(linearPart(current).inverse())
-	if !change.isRotation() {
+	change := linearPart(next).Mul(linearPart(current).Inverse())
+	if !isRotation(change) {
 		return fmt.Errorf("%w: it must only move and rotate the tileset, not scale, skew or mirror it", errInvalidTransform)
 	}
 	return nil

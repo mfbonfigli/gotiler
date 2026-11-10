@@ -22,6 +22,37 @@ func TestMat3Arithmetic(t *testing.T) {
 	assertMat3(t, "outer", Outer(Vec3{1, 2, 3}, Vec3{4, 5, 6}), Mat3{{4, 5, 6}, {8, 10, 12}, {12, 15, 18}})
 }
 
+func TestMat3Inverse(t *testing.T) {
+	rng := rand.New(rand.NewPCG(17, 18))
+	matrices := []Mat3{
+		IdentityMat3(),
+		{{1, 2, 3}, {4, 5, 6}, {7, 8, 10}},
+		{{1, 0.2, 0}, {0, 1, 0}, {0, 0, 1}},
+		{{-1, 0, 0}, {0, 1, 0}, {0, 0, 1}},
+		randomRotation(rng).RotationMatrix().MulScalar(2.5),
+	}
+	for range 50 {
+		var m Mat3
+		for r := range 3 {
+			for c := range 3 {
+				m[r][c] = rng.NormFloat64()
+			}
+		}
+		matrices = append(matrices, m)
+	}
+	for _, m := range matrices {
+		if math.Abs(m.Determinant()) < 1e-3 {
+			continue
+		}
+		assertMat3(t, "m·m⁻¹", m.Mul(m.Inverse()), IdentityMat3())
+		assertMat3(t, "m⁻¹·m", m.Inverse().Mul(m), IdentityMat3())
+	}
+
+	rotation := randomRotation(rng).RotationMatrix()
+	assertMat3(t, "inverse of a rotation", rotation.Inverse(), rotation.Transpose())
+	assertMat3(t, "inverse of a diagonal matrix", diagonal(2, -4, 0.5).Inverse(), diagonal(0.5, -0.25, 2))
+}
+
 func TestMat3IsFinite(t *testing.T) {
 	if !IdentityMat3().IsFinite() {
 		t.Error("the identity is reported as not finite")

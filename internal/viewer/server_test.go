@@ -213,7 +213,7 @@ func TestServerConfig(t *testing.T) {
 
 func TestServerSavesTheRootTransform(t *testing.T) {
 	s := newMovableTestServer(t)
-	moved := columnMajor(rotationZ(25).mul(linearPart(placedTransform)), 4517600, 1096960, 4382040)
+	moved := columnMajor(rotationZ(25).Mul(linearPart(placedTransform)), 4517600, 1096960, 4382040)
 	body, _ := json.Marshal(map[string]any{"transform": moved})
 
 	rec := do(s, "POST", withToken(s, "/api/save"), string(body))

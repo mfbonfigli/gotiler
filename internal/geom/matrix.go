@@ -80,6 +80,17 @@ func (m Mat3) Determinant() float64 {
 		m[0][2]*(m[1][0]*m[2][1]-m[1][1]*m[2][0])
 }
 
+// Inverse returns m⁻¹, its adjugate divided by its determinant. m must have a
+// non-zero determinant.
+func (m Mat3) Inverse() Mat3 {
+	det := m.Determinant()
+	return Mat3{
+		{(m[1][1]*m[2][2] - m[1][2]*m[2][1]) / det, (m[0][2]*m[2][1] - m[0][1]*m[2][2]) / det, (m[0][1]*m[1][2] - m[0][2]*m[1][1]) / det},
+		{(m[1][2]*m[2][0] - m[1][0]*m[2][2]) / det, (m[0][0]*m[2][2] - m[0][2]*m[2][0]) / det, (m[0][2]*m[1][0] - m[0][0]*m[1][2]) / det},
+		{(m[1][0]*m[2][1] - m[1][1]*m[2][0]) / det, (m[0][1]*m[2][0] - m[0][0]*m[2][1]) / det, (m[0][0]*m[1][1] - m[0][1]*m[1][0]) / det},
+	}
+}
+
 // IsFinite reports whether no element of m is NaN or infinite.
 func (m Mat3) IsFinite() bool {
 	for r := range 3 {
