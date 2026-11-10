@@ -16,8 +16,18 @@ import (
 )
 
 const (
-	// maxSamples is how many splats the spatial partition is planned from.
-	maxSamples = 262_144
+	// The spatial partition is planned from minSamples splats, or from
+	// samplesPerLeaf for each tile's worth of splats the source expects to
+	// give if that is more, up to maxSamples.
+	//
+	// The leaves of the plan then hold a tile's worth of splats give or take
+	// about 6%, whatever the size of the input. minSamples is gosplattiler's
+	// fixed sample, which gives a 100 million splat scene 50 samples per leaf,
+	// and leaves that miss their size by 20% or more. The samples take 32
+	// bytes each, 128 MB at most.
+	minSamples     = 262_144
+	samplesPerLeaf = 256
+	maxSamples     = 4_194_304
 
 	// samplingSeed seeds the choice of samples, so that tiling is
 	// deterministic. It is gosplattiler's, which then plans the same tiles.
@@ -51,6 +61,9 @@ type inputOptions struct {
 	maxSHDegree int
 	// upAxis names the input axis that points up, as upAxisRotation takes it.
 	upAxis string
+	// perTile is the most splats of a tile, which sizes the sample that the
+	// partition is planned from. Zero samples minSamples splats.
+	perTile int
 }
 
 // input describes the splats a source left in a store.
@@ -68,8 +81,8 @@ type input struct {
 	origin geom.Vec3
 	// bounds holds the splats out to boundsSigmas, relative to origin.
 	bounds geom.Bounds
-	// samples are up to maxSamples splat centers, relative to origin, picked
-	// at random with equal chances.
+	// samples are splat centers, relative to origin, picked at random with
+	// equal chances: as many as sampleCount tells.
 	samples []sample
 }
 
@@ -106,7 +119,8 @@ func readInput(ctx context.Context, source Source, path string, opts inputOption
 	}
 	defer writer.Close() //nolint:errcheck
 	// Algorithm R: the k-th splat replaces a random sample with chance
-	// maxSamples/k, which leaves every splat the same chance to be sampled.
+	// limit/k, which leaves every splat the same chance to be sampled.
+	limit := sampleCount(source.NumberOfSplats(), opts.perTile)
 	rng := rand.New(rand.NewSource(samplingSeed))
 	var bounds geom.Bounds
 	batch := make([]splat.Splat, 0, store.BatchSize)
@@ -140,9 +154,9 @@ func readInput(ctx context.Context, source Source, path string, opts inputOption
 
 		bounds.Include(s.Bounds(boundsSigmas))
 		in.count++
-		if len(in.samples) < maxSamples {
+		if len(in.samples) < limit {
 			in.samples = append(in.samples, sample{center: s.Center, weight: lod.Weight(s)})
-		} else if j := rng.Int63n(int64(in.count)); j < maxSamples {
+		} else if j := rng.Int63n(int64(in.count)); j < int64(limit) {
 			in.samples[j] = sample{center: s.Center, weight: lod.Weight(s)}
 		}
 		if batch = append(batch, s); len(batch) == cap(batch) {
@@ -172,4 +186,17 @@ func readInput(ctx context.Context, source Source, path string, opts inputOption
 		in.samples[i].center = in.samples[i].center.Sub(in.origin)
 	}
 	return in, nil
+}
+
+// sampleCount returns how many splats to plan the partition from, for a
+// source that expects to give expected splats, tiled perTile in each leaf.
+func sampleCount(expected, perTile int) int {
+	if expected <= 0 || perTile <= 0 {
+		return minSamples
+	}
+	leaves := expected / perTile
+	if leaves >= maxSamples/samplesPerLeaf {
+		return maxSamples
+	}
+	return max(minSamples, (leaves+1)*samplesPerLeaf)
 }

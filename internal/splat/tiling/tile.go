@@ -139,6 +139,7 @@ func Tile(ctx context.Context, source Source, dir string, opts Options) (Result,
 		minOpacity:  opts.MinOpacity,
 		maxSHDegree: opts.MaxSHDegree,
 		upAxis:      opts.UpAxis,
+		perTile:     opts.SplatsPerTile,
 	}, reading)
 	if err != nil {
 		return Result{}, err

@@ -3,6 +3,7 @@ package tiling
 import (
 	"context"
 	"errors"
+	"math"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -129,15 +130,15 @@ func TestReadInputTurnsTheUpAxisUp(t *testing.T) {
 }
 
 func TestReadInputSamplesLargeInputsUniformly(t *testing.T) {
-	const n = maxSamples + maxSamples/2
+	const n = minSamples + minSamples/2
 	splats := make([]splat.Splat, n)
 	for i := range splats {
 		// The X coordinate tells the index of the splat.
 		splats[i] = splat.Splat{Center: geom.Vec3{X: float64(i)}, Rotation: geom.IdentityQuat(), Scale: geom.Vec3{X: 1, Y: 1, Z: 1}, Opacity: 1, SourceIndex: i}
 	}
 	in := mustReadInput(t, splats, 0, keepAll)
-	if len(in.samples) != maxSamples {
-		t.Fatalf("%d samples, want %d", len(in.samples), maxSamples)
+	if len(in.samples) != minSamples {
+		t.Fatalf("%d samples, want %d", len(in.samples), minSamples)
 	}
 	seen := map[int]bool{}
 	firstThird := 0
@@ -153,11 +154,55 @@ func TestReadInputSamplesLargeInputsUniformly(t *testing.T) {
 	}
 	// Each splat is kept with chance 2/3: the first third of the splats holds
 	// a third of the samples, give or take a few standard deviations (0.1%).
-	if share := float64(firstThird) / maxSamples; share < 0.33 || share > 0.337 {
+	if share := float64(firstThird) / minSamples; share < 0.33 || share > 0.337 {
 		t.Errorf("the first third of the splats holds %.4f of the samples", share)
 	}
 	if again := mustReadInput(t, splats, 0, keepAll); !reflect.DeepEqual(again.samples, in.samples) {
 		t.Error("sampling the same splats again picked other samples")
+	}
+}
+
+// TestReadInputSamplesMoreOfInputsOfManyTiles checks that the sample grows
+// with the tiles the input fills: 1500 tiles of 1000 splats get 256 samples
+// each, more than the 262,144 samples of smaller inputs.
+func TestReadInputSamplesMoreOfInputsOfManyTiles(t *testing.T) {
+	const n, perTile = 1_500_000, 1000
+	splats := make([]splat.Splat, n)
+	for i := range splats {
+		splats[i] = splat.Splat{Center: geom.Vec3{X: float64(i)}, Rotation: geom.IdentityQuat(), Scale: geom.Vec3{X: 1, Y: 1, Z: 1}, Opacity: 1, SourceIndex: i}
+	}
+	in := mustReadInput(t, splats, 0, inputOptions{maxSHDegree: -1, perTile: perTile})
+	if want := (n/perTile + 1) * samplesPerLeaf; len(in.samples) != want {
+		t.Fatalf("%d samples, want %d", len(in.samples), want)
+	}
+	// The leaves planned from them hold a tile's worth of splats, give or
+	// take a few standard deviations of 6%.
+	plan := buildPlan(in.samples, in.count, perTile)
+	if err := route(context.Background(), in, plan, t.TempDir(), 4, nil); err != nil {
+		t.Fatal(err)
+	}
+	for _, leaf := range plan.leaves(nil) {
+		if leaf.count > perTile*13/10 {
+			t.Fatalf("leaf %s holds %d splats, more than 1.3 tiles of %d", leaf.id, leaf.count, perTile)
+		}
+	}
+}
+
+func TestSampleCount(t *testing.T) {
+	for _, test := range []struct{ expected, perTile, want int }{
+		{0, 20_000, minSamples},
+		{1_000_000, 0, minSamples},
+		{1_000_000, 20_000, minSamples},
+		// 1024 tiles of 20,000 splats are the most that minSamples cover.
+		{20_479_999, 20_000, minSamples},
+		{20_480_000, 20_000, 1025 * samplesPerLeaf},
+		{106_000_000, 20_000, 5301 * samplesPerLeaf},
+		{1_000_000_000, 20_000, maxSamples},
+		{math.MaxInt, 1, maxSamples},
+	} {
+		if got := sampleCount(test.expected, test.perTile); got != test.want {
+			t.Errorf("sampleCount(%d, %d) = %d, want %d", test.expected, test.perTile, got, test.want)
+		}
 	}
 }
 
