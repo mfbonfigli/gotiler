@@ -896,6 +896,14 @@ func voxelSampleSplit(pts []model.Point, targetCount int, collectResiduals bool,
 		}
 		sort.Ints(passPicked)
 
+		// The pass that fills the quota usually offers more points than fit.
+		// Points come in input order, which follows the scan or one side of the
+		// node, so keeping the first ones would make that region denser than the
+		// rest: keep a random subset, spread over the whole node.
+		if room := targetCount - len(pickedPoints); len(passPicked) > room {
+			passPicked = randomSubset(passPicked, room)
+		}
+
 		for _, idx := range passPicked {
 			if len(pickedPoints) >= targetCount {
 				break
@@ -943,6 +951,20 @@ func voxelSampleSplit(pts []model.Point, targetCount int, collectResiduals bool,
 	}
 
 	return pickedPoints, residuals, nil
+}
+
+// randomSubset reorders indices and returns count of them, in ascending order,
+// each with the same chance to be chosen. The choice is deterministic (seed=0),
+// like randomSplit's.
+func randomSubset(indices []int, count int) []int {
+	rng := rand.New(rand.NewSource(0))
+	for i := 0; i < count; i++ {
+		j := i + rng.Intn(len(indices)-i)
+		indices[i], indices[j] = indices[j], indices[i]
+	}
+	chosen := indices[:count]
+	sort.Ints(chosen)
+	return chosen
 }
 
 // countInternalNodes counts all non-leaf nodes in the tree rooted at n.
