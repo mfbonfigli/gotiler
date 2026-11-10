@@ -494,16 +494,64 @@ func TestTileReportsProgress(t *testing.T) {
 }
 
 func TestGeometricError(t *testing.T) {
-	var b geom.Bounds
-	b.IncludePoint(geom.Vec3{})
-	b.IncludePoint(geom.Vec3{X: 2, Y: 3, Z: 4})
+	size := geom.Vec3{X: 2, Y: 3, Z: 4}
 	// The surface is 2·3 + 2·4 + 3·4 = 26.
-	want := math.Sqrt(26.0/100) * 2 * 1.5 * math.Pow(1.1, 3)
-	if got := geometricError(b, 100, 3, 1.5); !closeTo(got, want) {
+	want := math.Sqrt(26.0/100) * 5 * 1.5 * math.Pow(1.1, 3)
+	if got := geometricError(size, 100, 3, 1.5); !closeTo(got, want) {
 		t.Errorf("geometric error %v, want %v", got, want)
 	}
-	if geometricError(b, 0, 1, 1) != 0 || geometricError(geom.Bounds{}, 10, 1, 1) != 0 {
+	if geometricError(size, 0, 1, 1) != 0 || geometricError(geom.Vec3{}, 10, 1, 1) != 0 {
 		t.Error("no splats or no area should have no error")
+	}
+}
+
+// gridSplats returns the splats of a grid of nx by ny by nz centers, one
+// unit apart from the origin.
+func gridSplats(nx, ny, nz int) []splat.Splat {
+	var splats []splat.Splat
+	for x := range nx {
+		for y := range ny {
+			for z := range nz {
+				splats = append(splats, splat.Splat{
+					Center:   geom.Vec3{X: float64(x), Y: float64(y), Z: float64(z)},
+					Rotation: geom.IdentityQuat(), Scale: geom.Vec3{X: 0.1, Y: 0.1, Z: 0.1}, Opacity: 1,
+					SourceIndex: len(splats),
+				})
+			}
+		}
+	}
+	return splats
+}
+
+func TestSpread(t *testing.T) {
+	// The centers left out are made up for as if all were evenly spread, which
+	// overshoots by up to 2% on the planes of a grid.
+	assertAbout := func(name string, got, want geom.Vec3) {
+		t.Helper()
+		for axis := range uint8(3) {
+			if g, w := coordinate(got, axis), coordinate(want, axis); g < w || g > w*1.03 {
+				t.Errorf("%s = %+v, want about %+v", name, got, want)
+				return
+			}
+		}
+	}
+	grid := gridSplats(41, 21, 11)
+	assertAbout("spread of a grid", spread(grid), geom.Vec3{X: 40, Y: 20, Z: 10})
+
+	// A few splats far away, or very large, do not grow the box: 50 of 9471
+	// splats are fewer than the 1% left out at each end.
+	strays := slices.Clone(grid)
+	for i := range 50 {
+		strays[i*100].Center = geom.Vec3{X: 5000, Y: -3000, Z: 800}
+		strays[i*100+1].Scale = geom.Vec3{X: 900, Y: 900, Z: 900}
+	}
+	assertAbout("spread with strays", spread(strays), geom.Vec3{X: 40, Y: 20, Z: 10})
+
+	// Too few splats to leave any out fill the box of their centers.
+	few := []splat.Splat{{Center: geom.Vec3{X: 1, Y: 2, Z: 3}}, {Center: geom.Vec3{X: 4, Y: 0, Z: 3}}, {Center: geom.Vec3{X: 2, Y: 8, Z: 5}}}
+	assertVec3(t, "spread of three splats", spread(few), geom.Vec3{X: 3, Y: 8, Z: 2})
+	if spread(few[:1]) != (geom.Vec3{}) || spread(nil) != (geom.Vec3{}) {
+		t.Error("one splat or none should have no spread")
 	}
 }
 

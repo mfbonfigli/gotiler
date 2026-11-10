@@ -24,17 +24,23 @@ const (
 	lodRatio = 0.5
 
 	// The geometric error of a tile is geometricErrorScale times the spacing
-	// of its splats over its bounds, grown by geometricErrorGrowth for each
-	// level of detail its splats are merged from, and at least
+	// of its splats over the box they fill, grown by geometricErrorGrowth for
+	// each level of detail its splats are merged from, and at least
 	// minErrorGrowth times that of its children.
 	//
-	// The scale is half the one of point clouds: splats cover the space
-	// between their centers, so viewers need fewer of them. On a 106 million
-	// splat aerial scene, it shows the same image as the point cloud scale with
-	// 40% fewer splats up close and 70% fewer from afar.
-	geometricErrorScale  = 2
+	// At this scale, a viewer that refines tiles past 16 pixels of screen
+	// space error replaces a tile by its children when its splats are about
+	// 3 pixels apart. Splats cover the space between their centers, so they
+	// can be farther apart than the points of a point cloud. On a 106 million
+	// splat aerial scene, CesiumJS showed the same image in close views with
+	// the splats this far apart as with them half as far.
+	geometricErrorScale  = 5
 	geometricErrorGrowth = 1.1
 	minErrorGrowth       = 1.001
+
+	// outlierShare is the share of the splats of a tile, at each end of each
+	// axis, that the box the splats fill leaves out.
+	outlierShare = 0.01
 )
 
 // tile is a built tile of the tileset.
@@ -240,7 +246,7 @@ func (b *builder) buildInner(n *node, left, right *tile) (*tile, error) {
 		levels:   max(left.levels, right.levels) + 1,
 		reps:     reps,
 	}
-	t.geometricError = geometricError(bounds, len(content), t.levels, b.geFactor)
+	t.geometricError = geometricError(spread(content), len(content), t.levels, b.geFactor)
 	for _, child := range t.children {
 		t.geometricError = math.Max(t.geometricError, child.geometricError*minErrorGrowth)
 	}
@@ -290,17 +296,44 @@ func lodTarget(count int) int {
 	return max(1, int(math.Ceil(float64(count)*lodRatio)))
 }
 
-// geometricError returns the geometric error of count splats spread over
-// bounds and merged levels times, scaled by factor.
+// geometricError returns the geometric error of count splats that fill a box
+// of the given size and were merged levels times, scaled by factor.
 //
 // Like for point clouds, the error grows with the spacing of the splats over
-// the surface of the bounds, as rendering them stands for the surface they
+// the surface of the box, as rendering them stands for the surface they
 // sample.
-func geometricError(bounds geom.Bounds, count, levels int, factor float64) float64 {
-	size := bounds.Size()
+func geometricError(size geom.Vec3, count, levels int, factor float64) float64 {
 	area := size.X*size.Y + size.X*size.Z + size.Y*size.Z
 	if count <= 0 || area <= 0 {
 		return 0
 	}
 	return math.Sqrt(area/float64(count)) * geometricErrorScale * factor * math.Pow(geometricErrorGrowth, float64(levels))
+}
+
+// spread returns the size of the box that the centers of splats fill, measured
+// between the splats that leave outlierShare of them farther out at each end
+// of each axis, and grown to make up for those.
+//
+// The bounds of a tile would not do: they reach three standard deviations
+// past the splats, so a few large or stray splats, common in trained scenes,
+// make them many times larger than the space the splats fill, and the spacing
+// of the splats over them many times coarser than it is.
+func spread(splats []splat.Splat) geom.Vec3 {
+	if len(splats) < 2 {
+		return geom.Vec3{}
+	}
+	last := len(splats) - 1
+	skip := int(float64(len(splats)) * outlierShare)
+	values := make([]float64, len(splats))
+	var size [3]float64
+	for axis := range size {
+		for i, s := range splats {
+			values[i] = coordinate(s.Center, uint8(axis))
+		}
+		slices.Sort(values)
+		// Evenly spread values span last/(last-2·skip) times as much as the
+		// ones kept.
+		size[axis] = (values[last-skip] - values[skip]) * float64(last) / float64(last-2*skip)
+	}
+	return geom.Vec3{X: size[0], Y: size[1], Z: size[2]}
 }
