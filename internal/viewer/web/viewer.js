@@ -16,6 +16,7 @@ import { api } from './api.js';
 import { setStatus } from './notices.js';
 import { mountPlacementPanel, showUnmovable } from './placement.js';
 import { applyPointSize, mountPointSizeControl } from './pointsize.js';
+import { installMemoryGuard, splatTilesetOptions } from './splats.js';
 
 async function createWidget(config) {
   const widget = new CesiumWidget(document.getElementById('cesium-host'), {
@@ -41,6 +42,19 @@ async function createWidget(config) {
   return widget;
 }
 
+// loadTileset loads the tileset in splat mode or with the point size control.
+// Splats take no point size: CesiumJS 1.146 applies no custom shader to them.
+async function loadTileset(config) {
+  if (config.splats) {
+    const tileset = await Cesium3DTileset.fromUrl(config.tilesetUrl, splatTilesetOptions());
+    installMemoryGuard(tileset);
+    return tileset;
+  }
+  const tileset = await Cesium3DTileset.fromUrl(config.tilesetUrl);
+  applyPointSize(tileset);
+  return tileset;
+}
+
 function frameCamera(widget, tileset) {
   const sphere = tileset.boundingSphere;
   widget.camera.viewBoundingSphere(
@@ -61,10 +75,11 @@ async function start() {
   try {
     const widget = await createWidget(config);
     setStatus('Loading the tileset…');
-    let tileset = widget.scene.primitives.add(await Cesium3DTileset.fromUrl(config.tilesetUrl));
-    applyPointSize(tileset);
+    let tileset = widget.scene.primitives.add(await loadTileset(config));
     frameCamera(widget, tileset);
-    mountPointSizeControl(widget);
+    if (!config.splats) {
+      mountPointSizeControl(widget);
+    }
     setStatus('');
     if (!config.editable) {
       showUnmovable(config.readOnlyReason);
@@ -75,8 +90,7 @@ async function start() {
       startEditing: config.startEditing,
       getTileset: () => tileset,
       async reloadTileset() {
-        const reloaded = await Cesium3DTileset.fromUrl(config.tilesetUrl);
-        applyPointSize(reloaded);
+        const reloaded = await loadTileset(config);
         widget.scene.primitives.remove(tileset);
         tileset = widget.scene.primitives.add(reloaded);
         return tileset;

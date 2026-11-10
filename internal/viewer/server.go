@@ -220,6 +220,8 @@ type configResponse struct {
 	ReadOnlyReason string `json:"readOnlyReason,omitempty"`
 	IonToken       string `json:"ionToken,omitempty"`
 	StartEditing   bool   `json:"startEditing"`
+	// Splats tells the page to show the tileset in splat mode.
+	Splats bool `json:"splats"`
 }
 
 func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
@@ -229,6 +231,7 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		ReadOnlyReason: s.tileset.readOnlyReason,
 		IonToken:       s.ionToken,
 		StartEditing:   s.startEditing,
+		Splats:         s.tileset.splats,
 	})
 }
 

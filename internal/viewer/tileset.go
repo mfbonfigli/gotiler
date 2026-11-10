@@ -46,6 +46,9 @@ type tilesetFile struct {
 	// readOnlyReason explains why the tileset cannot be moved, empty when it
 	// can.
 	readOnlyReason string
+	// splats is set when the tileset holds Gaussian splats that CesiumJS
+	// draws as such.
+	splats bool
 }
 
 // openTileset opens a tileset.json, given its path or the folder holding it.
@@ -111,7 +114,25 @@ func (t *tilesetFile) parse(data []byte) error {
 	case !isInvertibleAffine(t.transform):
 		t.readOnlyReason = "its root transform cannot be inverted"
 	}
+	t.splats = requiresSplatExtensions(t.document)
 	return nil
+}
+
+// requiresSplatExtensions reports whether a tileset requires the glTF
+// extensions of SPZ-compressed Gaussian splats. CesiumJS draws the content as
+// splats only then, and as points otherwise.
+func requiresSplatExtensions(document map[string]json.RawMessage) bool {
+	var extensions struct {
+		ContentGLTF struct {
+			ExtensionsRequired []string `json:"extensionsRequired"`
+		} `json:"3DTILES_content_gltf"`
+	}
+	if err := json.Unmarshal(document["extensions"], &extensions); err != nil {
+		return false
+	}
+	required := extensions.ContentGLTF.ExtensionsRequired
+	return slices.Contains(required, "KHR_gaussian_splatting") &&
+		slices.Contains(required, "KHR_gaussian_splatting_compression_spz_2")
 }
 
 // rootTransform returns the current root transform, the identity when the

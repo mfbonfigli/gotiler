@@ -188,6 +188,15 @@ func TestServerConfig(t *testing.T) {
 			t.Errorf("config = %+v, want %+v", got, want)
 		}
 	})
+	t.Run("splat tileset", func(t *testing.T) {
+		s := newTestServer(t, "tileset.json", splatTileset(splatExtensions), Options{})
+		rec := do(s, "GET", withToken(s, "/api/config"), "")
+		var got configResponse
+		decodeJSONBody(t, rec, &got)
+		if !got.Splats {
+			t.Errorf("config = %+v, want splat mode", got)
+		}
+	})
 	t.Run("starting in edit mode", func(t *testing.T) {
 		s := newTestServer(t, "tileset.json", sampleTileset(""), Options{StartEditing: true})
 		rec := do(s, "GET", withToken(s, "/api/config"), "")

@@ -157,6 +157,39 @@ func TestOpenTilesetReadsTheRootTransform(t *testing.T) {
 	}
 }
 
+// splatTileset is a tileset of Gaussian splats as gotiler writes it, with the
+// given top-level extension fields.
+func splatTileset(extensions string) string {
+	return `{` + extensions + `,` + strings.TrimPrefix(sampleTileset(""), "{")
+}
+
+const splatExtensions = `"extensionsUsed":["3DTILES_content_gltf"],"extensionsRequired":["3DTILES_content_gltf"],` +
+	`"extensions":{"3DTILES_content_gltf":{` +
+	`"extensionsUsed":["KHR_gaussian_splatting","KHR_gaussian_splatting_compression_spz_2"],` +
+	`"extensionsRequired":["KHR_gaussian_splatting","KHR_gaussian_splatting_compression_spz_2"]}}`
+
+func TestOpenTilesetDetectsSplats(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    bool
+	}{
+		{"splats as gotiler writes them", splatTileset(splatExtensions), true},
+		{"points", sampleTileset(""), false},
+		{"splats only used, drawn as points", splatTileset(`"extensions":{"3DTILES_content_gltf":{"extensionsUsed":["KHR_gaussian_splatting","KHR_gaussian_splatting_compression_spz_2"]}}`), false},
+		{"uncompressed splats", splatTileset(`"extensions":{"3DTILES_content_gltf":{"extensionsRequired":["KHR_gaussian_splatting"]}}`), false},
+		{"splat extensions at the top level", splatTileset(`"extensionsRequired":["KHR_gaussian_splatting","KHR_gaussian_splatting_compression_spz_2"]`), false},
+		{"malformed extensions", splatTileset(`"extensions":"none"`), false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := mustOpenTileset(t, writeTilesetFile(t, tc.content)).splats; got != tc.want {
+				t.Errorf("splats = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestOpenTilesetMarksTilesetsThatCannotBeMoved(t *testing.T) {
 	const region = `{"region":[0.1,0.2,0.3,0.4,0,10]}`
 	const box = `{"box":[0,0,0,1,0,0,0,1,0,0,0,1]}`
