@@ -171,7 +171,7 @@ const logo = `
 ╚██████╔╝╚██████╔╝   ██║   ██║███████╗███████╗██║  ██║    ╚██████╗███████╗██║
  ╚═════╝  ╚═════╝    ╚═╝   ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝     ╚═════╝╚══════╝╚═╝
 -----------------------------------------------------------------------------
-A fast OGC 3D Tiles generator for point clouds.
+A fast OGC 3D Tiles generator for point clouds and Gaussian splats.
 Copyright YYYY - Massimo Federico Bonfigli
 build: ZZZZ
 {{end_color}}
@@ -180,7 +180,7 @@ build: ZZZZ
 func DefaultBranding() Branding {
 	return Branding{
 		Name:  "gotiler",
-		Usage: "transforms point cloud files into OGC 3D Tiles 1.0 or 1.1 format",
+		Usage: "converts point clouds and Gaussian splats into OGC 3D Tiles",
 		Logo:  logo,
 		Color: color,
 	}

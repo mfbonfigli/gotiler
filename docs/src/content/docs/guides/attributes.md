@@ -8,8 +8,8 @@ sidebar:
 Per-point attributes are scalar values stored with each point next to its position and color. By default only `intensity` and `classification` are exported. `--attributes` takes a comma-separated list of any attributes the input files expose, matched case-insensitively, or `none`:
 
 ```bash
-gotiler -o ./out --attributes intensity,classification,gps_time,my_custom_field ./input.las
-gotiler -o ./out --attributes none ./input.las
+gotiler pcloud -o ./out --attributes intensity,classification,gps_time,my_custom_field ./input.las
+gotiler pcloud -o ./out --attributes none ./input.las
 ```
 
 ## LAS and LAZ attributes

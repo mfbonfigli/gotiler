@@ -29,7 +29,7 @@ These flags are accepted only with `--crs local`:
 | `--scale`, `-s`             |     `1` | Uniform scale; input units are assumed to be meters.              |
 
 ```bash
-gotiler -o ./out --crs local \
+gotiler pcloud -o ./out --crs local \
   --longitude 12.492 --latitude 41.890 --height 76 \
   --heading 45 --input-up-axis y ./scan.las
 ```
@@ -39,7 +39,7 @@ Heading, pitch and roll follow the CesiumJS convention.
 ## Placing in the viewer
 
 ```bash
-gotiler -o ./out --crs local --input-up-axis y --preview ./model.ply
+gotiler pcloud -o ./out --crs local --input-up-axis y --preview ./model.ply
 ```
 
 When tiling ends, gotiler opens the [viewer](/gotiler/guides/viewer/) in the browser with its position panel and gizmo already shown:

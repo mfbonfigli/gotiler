@@ -12,7 +12,7 @@ This page assumes gotiler is [installed](/gotiler/getting-started/installation/)
 Pass the output folder with `-o` and the input file:
 
 ```bash
-gotiler -o ./out ./input.las
+gotiler pcloud -o ./out ./input.las
 ```
 
 gotiler writes `tileset.json` and its tiles into `./out`. LAS and LAZ files usually carry their coordinate system, which gotiler reads on its own. E57 and PLY files carry none, so pass one with `--crs`: see [Coordinate systems](/gotiler/guides/coordinate-systems/).
@@ -22,8 +22,8 @@ gotiler writes `tileset.json` and its tiles into `./out`. LAS and LAZ files usua
 Pass a folder to tile every point cloud file in it, each into its own tileset in a subfolder of the output named after the file. With `--join` the files are merged into a single tileset, here also packed into one `.3tz` archive:
 
 ```bash
-gotiler -o ./out ./las_folder
-gotiler -o ./out --join --3tz ./las_folder
+gotiler pcloud -o ./out ./las_folder
+gotiler pcloud -o ./out --join --3tz ./las_folder
 ```
 
 Folders are not scanned recursively: files in subfolders are ignored.
@@ -47,6 +47,6 @@ viewer.scene.primitives.add(tileset);
 
 ## Next steps
 
-- `gotiler --help` lists every flag, and `gotiler version` prints the version.
-- The [CLI guides](/gotiler/guides/input-formats/) explain the input formats, coordinate systems, attributes, colors and output options.
+- `gotiler help` lists the commands, `gotiler help pcloud` the flags of one, and `gotiler version` prints the version.
+- The [CLI guides](/gotiler/guides/input-formats/) explain the input formats, coordinate systems, attributes, colors and output options, and [Gaussian splats](/gotiler/guides/gaussian-splats/) the tiling of splat scenes.
 - The [CLI flags](/gotiler/reference/cli-flags/) reference lists every option on one page.

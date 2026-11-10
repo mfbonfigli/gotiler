@@ -115,14 +115,14 @@ func newPointMapper(properties []property, requested model.Attributes) (*pointMa
 
 func rejectGaussianSplats(names []string) error {
 	if slices.Contains(names, "packed_position") {
-		return errors.New("the file is a compressed Gaussian splat PLY: tiling Gaussian splats is not supported yet")
+		return errors.New("the file is a compressed Gaussian splat PLY: export it as a standard splat PLY and tile it with gotiler splat")
 	}
 	for _, name := range []string{"f_dc_0", "opacity", "scale_0", "rot_0"} {
 		if !slices.Contains(names, name) {
 			return nil
 		}
 	}
-	return errors.New("the file is a Gaussian splat PLY: tiling Gaussian splats is not supported yet")
+	return errors.New("the file is a Gaussian splat PLY: tile it with gotiler splat")
 }
 
 // resolveAttributes maps each requested attribute to a property, preferring

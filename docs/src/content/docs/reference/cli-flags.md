@@ -7,14 +7,19 @@ sidebar:
 
 ## Commands
 
-| Command                    | Description                                                                   |
-| -------------------------- | ----------------------------------------------------------------------------- |
-| `gotiler [flags] <input>`  | Tile a point cloud file, or every file of a folder.                           |
-| `gotiler view [flags] <tileset>` | Show a tileset on a 3D globe in the browser and move it into place. |
-| `gotiler version`          | Print the gotiler version.                                                    |
-| `gotiler --help`           | List every flag.                                                              |
+| Command                             | Description                                                          |
+| ----------------------------------- | -------------------------------------------------------------------- |
+| `gotiler pcloud [flags] <input>`    | Tile a point cloud file, or every file of a folder.                  |
+| `gotiler splat [flags] <splats.ply>` | Tile a Gaussian splat PLY file, see [Gaussian splats](/gotiler/guides/gaussian-splats/). |
+| `gotiler view [flags] <tileset>`    | Show a tileset on a 3D globe in the browser and move it into place.  |
+| `gotiler version`                   | Print the gotiler version.                                           |
+| `gotiler help [command]`            | List the commands, or the flags of one command.                      |
 
-## Tiling flags
+`gotiler [flags] <input>`, without a command, runs `gotiler pcloud` and takes its flags, as gotiler did before it had commands.
+
+## Point cloud flags
+
+The flags of `gotiler pcloud`.
 
 | Flag                        | Default                    | Description |
 | --------------------------- | -------------------------- | ----------- |
@@ -55,6 +60,29 @@ Only with `--crs local`, see [Placing ungeoreferenced point clouds](/gotiler/gui
 | `--scale`, `-s`             |     `1` | Uniform scale; input units are assumed to be meters.                |
 | `--input-up-axis`           |     `z` | Input axis treated as up: `x`, `y` or `z`.                          |
 
+## Splat flags
+
+The flags of `gotiler splat`, see [Gaussian splats](/gotiler/guides/gaussian-splats/).
+
+| Flag                        | Default    | Description |
+| --------------------------- | ---------- | ----------- |
+| `--out`, `-o`               | _required_ | Output folder of the tileset. |
+| `--splats-per-tile`         | `20000`    | Most splats a tile holds, from 1,000 to 1,000,000. |
+| `--max-sh-degree`           | `0`        | Highest spherical-harmonic degree to keep, from 0 to 3. Higher degrees keep the colors that change with the view direction, but take much more memory in viewers; `3` keeps the input's. |
+| `--min-opacity`             | `0.05`     | Drop the splats of lower opacity, from 0 to 1; `0` keeps them all. |
+| `--ge-correction`           | `1`        | Multiplier applied to all output geometric errors. |
+| `--input-up-axis`           | `z`        | Input axis that points up: `x`, `y` or `z`, optionally signed, such as `-y`. |
+| `--longitude`, `--latitude` | `0`        | Position of the bottom center of the splats, in EPSG:4326 degrees. |
+| `--height`                  | `0`        | Height of the bottom center in meters above the WGS84 ellipsoid. |
+| `--heading`                 | `0`        | Rotation in degrees from local north, positive eastward. |
+| `--pitch`                   | `0`        | Rotation in degrees from the local east-north plane, positive up. |
+| `--roll`                    | `0`        | Rotation in degrees about the local east axis. |
+| `--scale`, `-s`             | `1`        | Uniform scale of the splats, which makes the input units meters. |
+| `--no-preview`              | `false`    | Do not open the viewer after tiling. Without it, the viewer opens unless the output is not a terminal. |
+| `--port`                    | `0`        | Local port of the viewer; `0` picks a free one. |
+| `--plain`                   | `false`    | Print plain progress messages instead of progress bars. |
+| `--help`, `-h`              |            | Show help. |
+
 ## View flags
 
 `gotiler view` takes the `tileset.json` to show, or the folder that holds it. See [Viewing and positioning](/gotiler/guides/viewer/).
@@ -67,4 +95,4 @@ Only with `--crs local`, see [Placing ungeoreferenced point clouds](/gotiler/gui
 
 | Variable           | Description |
 | ------------------ | ----------- |
-| `CESIUM_ION_TOKEN` | Cesium ion access token for the viewer, used by `gotiler view` and `--preview`: the viewer then shows Cesium World Imagery and World Terrain instead of the default satellite imagery. There is no flag for it, so the token stays out of shell histories and process listings. |
+| `CESIUM_ION_TOKEN` | Cesium ion access token for the viewer, used by `gotiler view`, `--preview` and `gotiler splat`: the viewer then shows Cesium World Imagery and World Terrain instead of the default satellite imagery. There is no flag for it, so the token stays out of shell histories and process listings. |

@@ -21,6 +21,7 @@
 * **LAS, LAZ, E57 and PLY input:** every LAS/LAZ version and point format, E57 scans (experimental) and ASCII or binary PLY.
 * **Automatic reprojection:** reads the CRS from LAS metadata and transforms coordinates with the embedded PROJ library.
 * **3D Tiles 1.0 and 1.1:** `.pnts` or glTF tiles, optionally packed into a single `.3tz` archive.
+* **Gaussian splats:** tiles 3D Gaussian splat PLY scenes into 3D Tiles 1.1 with SPZ compression, with levels of detail that CesiumJS streams.
 * **Per-point attributes:** intensity, classification, GPS time, LAS extra bytes or any other attribute of the input.
 * **Colorization:** 36 color ramps for any attribute or coordinate, or colors from an RGB GeoTIFF orthophoto.
 * **Built-in viewer:** shows tilesets on a local CesiumJS globe, and places ungeoreferenced models by hand.
@@ -68,16 +69,19 @@ Both scripts check the download against the release's checksums and need no admi
 
 ```bash
 # Tile a LAS, LAZ, E57 or PLY file into ./out
-gotiler -o ./out ./input.las
+gotiler pcloud -o ./out ./input.las
 
 # Merge a folder into one tileset, packed as a .3tz archive
-gotiler -o ./out --join --3tz ./las_folder
+gotiler pcloud -o ./out --join --3tz ./las_folder
 
 # Set the input CRS, color points by elevation and open the result on a globe
-gotiler -o ./out -c EPSG:32633 --colorize z:viridis --preview ./input.las
+gotiler pcloud -o ./out -c EPSG:32633 --colorize z:viridis --preview ./input.las
+
+# Tile a Gaussian splat scene, then place it on the globe
+gotiler splat -o ./out --input-up-axis -y ./scene.ply
 ```
 
-`gotiler --help` lists every flag, and the [Quick start](https://mfbonfigli.github.io/gotiler/getting-started/quick-start/) walks through a first tileset.
+`gotiler help` lists the commands, `gotiler help pcloud` the flags of one, and the [Quick start](https://mfbonfigli.github.io/gotiler/getting-started/quick-start/) walks through a first tileset.
 
 ## 📖 Documentation
 

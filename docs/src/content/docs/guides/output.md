@@ -12,7 +12,7 @@ gotiler writes a `tileset.json` and its tiles into the output folder given with 
 `--version` (or `-v`) selects the output format: `1.1` (default) writes glTF (`.glb`) tiles, `1.0` writes `.pnts` tiles for viewers that only read 3D Tiles 1.0.
 
 ```bash
-gotiler -o ./out --version 1.0 ./input.las
+gotiler pcloud -o ./out --version 1.0 ./input.las
 ```
 
 ## Tile size
@@ -40,8 +40,8 @@ Viewers pick which tiles to show from their geometric error, which gotiler deriv
 `--meshopt-khr` uses `KHR_meshopt_compression` instead, the Khronos successor of the EXT extension, whose improved codec produces smaller tiles at the same quality. Viewer support is still limited (CesiumJS added it in version 1.143), so EXT remains the default.
 
 ```bash
-gotiler -o ./out --compression none ./input.las
-gotiler -o ./out --meshopt-khr ./input.las
+gotiler pcloud -o ./out --compression none ./input.las
+gotiler pcloud -o ./out --meshopt-khr ./input.las
 ```
 
 ## 3TZ archives
@@ -49,7 +49,7 @@ gotiler -o ./out --meshopt-khr ./input.las
 `--3tz` writes each tileset as a single OGC 3D Tiles Archive, `<out>/tileset.3tz`, instead of loose tile files. Folder inputs without `--join` get one archive per file, in `<out>/<name>/tileset.3tz`.
 
 ```bash
-gotiler -o ./out --3tz ./input.las
+gotiler pcloud -o ./out --3tz ./input.las
 ```
 
 ## Subsampling
@@ -57,7 +57,7 @@ gotiler -o ./out --3tz ./input.las
 `--subsample` keeps a random percentage of the points, in (0, 100], thinning huge datasets while tiling. Points are dropped uniformly at random while reading.
 
 ```bash
-gotiler -o ./out --subsample 25 ./input.las
+gotiler pcloud -o ./out --subsample 25 ./input.las
 ```
 
 ## Progress output

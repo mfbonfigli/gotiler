@@ -11,13 +11,15 @@ sidebar:
 gotiler view ./out
 ```
 
-gotiler opens the viewer in the default browser and prints its address, which carries a random access token, in case the browser cannot be opened. Add `--preview` to a tiling command to open the viewer on the result as soon as tiling ends:
+gotiler opens the viewer in the default browser and prints its address, which carries a random access token, in case the browser cannot be opened. Add `--preview` to a point cloud tiling command to open the viewer on the result as soon as tiling ends. [`gotiler splat`](/gotiler/guides/gaussian-splats/) opens it by default:
 
 ```bash
-gotiler -o ./out --crs local --input-up-axis y --preview ./model.ply
+gotiler pcloud -o ./out --crs local --input-up-axis y --preview ./model.ply
 ```
 
 The viewer only listens on `127.0.0.1` and stops when its page is closed, or with Ctrl+C; reloading the page keeps it running. Points are drawn 3 pixels wide; the **−** and **+** buttons in the top-left corner change their size from 1 to 14 pixels.
+
+Gaussian splat tilesets show as splats, without the point size buttons. To keep the memory of large scenes in check, the viewer loads their tiles with a smaller cache than for point clouds, and lowers the detail when they take more memory than the cache allows.
 
 ## Moving a tileset
 

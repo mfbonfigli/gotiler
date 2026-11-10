@@ -97,13 +97,13 @@ import Split from '../../components/home/Split.astro';
 
    ```bash
    # Tile a LAS, LAZ, E57 or PLY file into ./out
-   gotiler -o ./out ./input.las
+   gotiler pcloud -o ./out ./input.las
 
    # Tile every file of a folder into its own tileset
-   gotiler -o ./out ./las_folder
+   gotiler pcloud -o ./out ./las_folder
 
    # Merge a folder into one tileset, packed as a .3tz archive
-   gotiler -o ./out --join --3tz ./las_folder
+   gotiler pcloud -o ./out --join --3tz ./las_folder
    ```
 
    </TabItem>
@@ -111,7 +111,7 @@ import Split from '../../components/home/Split.astro';
 
    ```bash
    # Set the input CRS, here with a vertical datum
-   gotiler -o ./out -c EPSG:32633+3855 ./input.las
+   gotiler pcloud -o ./out -c EPSG:32633+3855 ./input.las
    ```
 
    </TabItem>
@@ -119,10 +119,10 @@ import Split from '../../components/home/Split.astro';
 
    ```bash
    # Color points by elevation
-   gotiler -o ./out --colorize z:viridis ./input.las
+   gotiler pcloud -o ./out --colorize z:viridis ./input.las
 
    # Color by intensity on a reversed, 8-band turbo ramp
-   gotiler -o ./out --colorize intensity:turbo:reverse:steps=8 ./input.las
+   gotiler pcloud -o ./out --colorize intensity:turbo:reverse:steps=8 ./input.las
    ```
 
    </TabItem>
@@ -130,13 +130,24 @@ import Split from '../../components/home/Split.astro';
 
    ```bash
    # Tile, then check the result on a globe
-   gotiler -o ./out --preview ./input.las
+   gotiler pcloud -o ./out --preview ./input.las
 
    # Tile a Y-up model without a CRS, then move it into place
-   gotiler -o ./out --crs local --input-up-axis y --preview ./model.ply
+   gotiler pcloud -o ./out --crs local --input-up-axis y --preview ./model.ply
 
    # Open an existing tileset
    gotiler view ./out
+   ```
+
+   </TabItem>
+   <TabItem label="Gaussian Splats">
+
+   ```bash
+   # Tile a Gaussian splat scene, then place it on the globe
+   gotiler splat -o ./out ./scene.ply
+
+   # A scene trained with OpenCV axes, placed in Rome
+   gotiler splat -o ./out --input-up-axis -y --longitude 12.4924 --latitude 41.8902 ./scene.ply
    ```
 
    </TabItem>
