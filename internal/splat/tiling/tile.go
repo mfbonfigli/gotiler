@@ -65,7 +65,9 @@ func DefaultOptions() Options {
 	}
 }
 
-func (o Options) validate() error {
+// Validate reports the first option out of range. Tile validates its options
+// too, before writing anything.
+func (o Options) Validate() error {
 	switch {
 	case o.SplatsPerTile < 1:
 		return fmt.Errorf("the splats per tile must be at least 1, not %d", o.SplatsPerTile)
@@ -118,7 +120,7 @@ type Result struct {
 // does not need to fit in memory, and removes them before returning, even
 // after an error or cancellation.
 func Tile(ctx context.Context, source Source, dir string, opts Options) (Result, error) {
-	if err := opts.validate(); err != nil {
+	if err := opts.Validate(); err != nil {
 		return Result{}, err
 	}
 	dataDir := filepath.Join(dir, dataDirName)

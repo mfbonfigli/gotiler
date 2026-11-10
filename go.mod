@@ -9,6 +9,7 @@ require (
 	github.com/mfbonfigli/golaz v0.2.2
 	github.com/mfbonfigli/golibe57 v0.2.1
 	github.com/qmuntal/gltf v0.28.0
+	github.com/rivo/uniseg v0.4.7
 	github.com/schollz/progressbar/v3 v3.19.0
 	github.com/twpayne/go-proj/v10 v10.5.0
 	github.com/ulikunitz/xz v0.5.15
@@ -29,6 +30,5 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.21 // indirect
 	github.com/aws/smithy-go v1.24.2 // indirect
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
-	github.com/rivo/uniseg v0.4.7 // indirect
 	golang.org/x/sys v0.42.0 // indirect
 )

@@ -217,6 +217,7 @@ func NewApp(opts Options) *cli.Command {
 			},
 		},
 		newViewCommand(),
+		newSplatCommand(),
 	}
 	var appFlags []cli.Flag
 	var appAction cli.ActionFunc
