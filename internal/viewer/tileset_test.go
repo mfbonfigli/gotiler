@@ -265,9 +265,6 @@ func TestSaveRootTransformRejectsChangesOtherThanMovesAndRotations(t *testing.T)
 			if data, _ := os.ReadFile(path); string(data) != content {
 				t.Error("a rejected save changed the file")
 			}
-			if _, err := os.Stat(path + ".bak"); !errors.Is(err, fs.ErrNotExist) {
-				t.Error("a rejected save wrote a backup")
-			}
 		})
 	}
 }
@@ -284,26 +281,21 @@ func TestSaveRootTransformRefusesTilesetsThatCannotBeMoved(t *testing.T) {
 	}
 }
 
-func TestSaveRootTransformBacksUpTheOriginalOnce(t *testing.T) {
-	original := sampleTileset(transformJSON(placedTransform))
-	path := writeTilesetFile(t, original)
+func TestSaveRootTransformSavesOverThePreviousSave(t *testing.T) {
+	path := writeTilesetFile(t, sampleTileset(transformJSON(placedTransform)))
 	ts := mustOpenTileset(t, path)
 	for i, degrees := range []float64{10, 20} {
 		moved := columnMajor(rotationZ(degrees).Mul(linearPart(placedTransform)), 4517590.9, 1096950.6, 4382030.8)
 		if err := ts.saveRootTransform(moved); err != nil {
 			t.Fatalf("save %d: %v", i+1, err)
 		}
-		backup, err := os.ReadFile(path + ".bak")
-		if err != nil {
-			t.Fatalf("after save %d: %v", i+1, err)
-		}
-		if string(backup) != original {
-			t.Errorf("after save %d the backup is not the original file", i+1)
+		if got := mustOpenTileset(t, path).rootTransform(); got != moved {
+			t.Errorf("after save %d the file holds the transform %v, want %v", i+1, got, moved)
 		}
 	}
 }
 
-func TestSaveRootTransformLeavesOnlyTheTilesetAndItsBackup(t *testing.T) {
+func TestSaveRootTransformLeavesOnlyTheTileset(t *testing.T) {
 	path := writeTilesetFile(t, sampleTileset(transformJSON(placedTransform)))
 	before, err := os.Stat(path)
 	if err != nil {
@@ -323,7 +315,8 @@ func TestSaveRootTransformLeavesOnlyTheTilesetAndItsBackup(t *testing.T) {
 		names = append(names, e.Name())
 	}
 	slices.Sort(names)
-	if want := []string{"tileset.json", "tileset.json.bak"}; !reflect.DeepEqual(names, want) {
+	// No backup and no temporary file stay behind.
+	if want := []string{"tileset.json"}; !reflect.DeepEqual(names, want) {
 		t.Errorf("folder holds %v, want %v", names, want)
 	}
 	after, err := os.Stat(path)

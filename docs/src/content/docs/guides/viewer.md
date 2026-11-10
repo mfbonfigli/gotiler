@@ -26,7 +26,7 @@ The viewer only listens on `127.0.0.1` and stops when its page is closed, or wit
 - search an address, or click **Pick position** and then the globe, to move the cloud's center there
 - drag the arrows of the gizmo drawn on the tileset to move it along its axes, or its rings to rotate it about them
 - fine-tune it with offsets along the local east, north and up axes (X, Y, Z, in meters) and rotations about them (RX, RY, RZ, in degrees)
-- **Save position** writes the new root transform into `tileset.json`, keeping the original as `tileset.json.bak`; the tiles themselves are not rewritten
+- **Save position** writes the new root transform into `tileset.json`, replacing the previous one; the tiles themselves are not rewritten
 
 Tilesets using `region` bounding volumes are shown but cannot be moved, since the root transform does not apply to them.
 

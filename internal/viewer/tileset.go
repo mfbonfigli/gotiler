@@ -124,8 +124,7 @@ func (t *tilesetFile) rootTransform() [16]float64 {
 
 // saveRootTransform writes transform as the new root transform. It accepts
 // only transforms that move and rotate the tileset relative to its current
-// root transform. The first save keeps a copy of the original file as
-// tileset.json.bak.
+// root transform.
 func (t *tilesetFile) saveRootTransform(transform [16]float64) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -153,9 +152,6 @@ func (t *tilesetFile) saveRootTransform(transform [16]float64) error {
 		return err
 	}
 
-	if err := backupOnce(t.path); err != nil {
-		return fmt.Errorf("backing up %s: %w", t.path, err)
-	}
 	if err := writeFileAtomically(t.path, data); err != nil {
 		return fmt.Errorf("writing %s: %w", t.path, err)
 	}
@@ -175,25 +171,8 @@ func encodeJSON(v any) ([]byte, error) {
 	return bytes.TrimSuffix(buf.Bytes(), []byte("\n")), nil
 }
 
-func backupOnce(path string) error {
-	original, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	backup, err := os.OpenFile(path+".bak", os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
-	if errors.Is(err, fs.ErrExist) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	if _, err := backup.Write(original); err != nil {
-		backup.Close() //nolint:errcheck
-		return err
-	}
-	return backup.Close()
-}
-
+// writeFileAtomically replaces path with data through a temporary file, so
+// that a failed write leaves the previous file intact.
 func writeFileAtomically(path string, data []byte) error {
 	info, err := os.Stat(path)
 	if err != nil {
