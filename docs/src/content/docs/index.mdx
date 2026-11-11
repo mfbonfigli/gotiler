@@ -5,7 +5,7 @@ template: splash
 editUrl: false
 hero:
   title: <span class="gt-gradient">gotiler</span>
-  tagline: gotiler is a <strong>fast</strong>, <strong>lightweight</strong> and <strong>portable</strong> converter to transform massive point clouds or Gaussian splat datasets into OGC 3D Tiles.
+  tagline: gotiler is a <strong>fast</strong>, <strong>lightweight</strong> and <strong>portable</strong> converter to transform massive <strong>point clouds</strong> or <strong>Gaussian splat</strong> datasets into OGC 3D Tiles.
   actions:
     - text: Install
       link: '#quick-start'
@@ -36,6 +36,32 @@ import Split from '../../components/home/Split.astro';
 />
 
 <Features />
+
+</Band>
+
+<Band tone="base">
+
+<SectionHeading
+	id="point-cloud-tiling"
+	eyebrow="Point cloud tiling"
+	title={'Fast, <span style="white-space: nowrap">feature-rich</span> tiler for <span class="gt-gradient"><span style="white-space: nowrap">billion-point</span> clouds</span>.'}
+	lead="Reproject, colorize and compress your LAS, LAZ, E57 and PLY point clouds, all in one self-contained tool."
+/>
+
+<Features grid="point-clouds" />
+
+</Band>
+
+<Band tone="teal">
+
+<SectionHeading
+	id="gaussian-splat-tiling"
+	eyebrow="Gaussian splat tiling"
+	title={'3D <span class="gt-gradient">Gaussian splat tiler</span> for <span style="white-space: nowrap">high-fidelity</span> visualization.'}
+	lead="Transform your massive PLY Gaussian splat datasets into georeferenced, compressed and streamable 3D Tiles with hierarchical levels of detail."
+/>
+
+<Features grid="gaussian-splats" />
 
 </Band>
 

@@ -1,9 +1,15 @@
 ---
-// The feature grids, one tile per feature, joined by hairlines: the general
-// features, whose last two tiles lead to the grids of point cloud and Gaussian
-// splat tiling below.
+// A feature grid, one tile per feature, joined by hairlines: the general
+// features, whose last two tiles lead to the point cloud and Gaussian splat
+// sections below, or the features of one of those sections.
 import { Icon } from '@astrojs/starlight/components';
 import PaletteIcon from './PaletteIcon.astro';
+
+interface Props {
+	grid?: 'general' | 'point-clouds' | 'gaussian-splats';
+}
+
+const { grid = 'general' } = Astro.props;
 
 interface Feature {
 	icon: string;
@@ -37,104 +43,78 @@ const general: Feature[] = [
 	},
 ];
 
-const groups: { id: string; title: string; features: Feature[] }[] = [
+const pointClouds: Feature[] = [
 	{
-		id: 'point-cloud-tiling',
-		title: 'Point cloud tiling',
-		features: [
-			{
-				icon: 'document',
-				title: 'LAS, LAZ, E57 and PLY',
-				text: 'Reads LAS, LAZ, E57 and ASCII or binary PLY inputs.',
-			},
-			{
-				icon: 'database',
-				title: 'Compressed by default',
-				text: 'Compresses 3D Tiles 1.1 point clouds with meshopt compression and quantization, cutting tileset size by up to 70% or more.',
-			},
-			{
-				icon: 'random',
-				title: 'Automatic reprojection',
-				text: 'Reads the CRS from LAS GeoTIFF or WKT metadata and transforms coordinates with the embedded PROJ library.',
-			},
-			{
-				icon: 'puzzle',
-				title: '3D Tiles 1.0 and 1.1',
-				text: '3D Tiles 1.0 and 1.1, optionally packed into a single .3tz archive.',
-			},
-			{
-				icon: 'list-format',
-				title: 'Per-point attributes',
-				text: 'Export intensity, classification, GPS time, LAS extra bytes or any other attribute of the input.',
-			},
-			{
-				icon: 'palette',
-				title: 'Colorization',
-				text: 'Colorize point clouds from their attributes with 36 embedded ramps, or directly from an RGB GeoTIFF orthophoto. No extra tooling required.',
-			},
-		],
+		icon: 'document',
+		title: 'LAS, LAZ, E57 and PLY',
+		text: 'Reads LAS, LAZ, E57 and ASCII or binary PLY inputs.',
 	},
 	{
-		id: 'gaussian-splat-tiling',
-		title: 'Gaussian splat tiling',
-		features: [
-			{
-				icon: 'code-branch',
-				title: 'Cutting edge algorithms',
-				text: "Builds every level of detail without retraining: splats merge in pairs as in NanoGS, chosen by Runnalls' closed-form bound for Gaussian mixture reduction.",
-			},
-			{
-				icon: 'document',
-				title: 'PLY input format',
-				text: 'Reads ASCII or binary PLY files of 3D Gaussian splats, as trainers and editors export them, with spherical harmonics up to degree 3.',
-			},
-			{
-				icon: 'database',
-				title: 'SPZ compression',
-				text: 'Writes the splats of every tile as SPZ-compressed glTF, with the KHR_gaussian_splatting extensions that CesiumJS reads.',
-			},
-			{
-				icon: 'setting',
-				title: 'Configurable SH and opacity threshold',
-				text: 'Choose the spherical-harmonic degree to keep and the opacity below which splats are dropped, to stream lighter tilesets.',
-			},
-		],
+		icon: 'database',
+		title: 'Compressed by default',
+		text: 'Compresses 3D Tiles 1.1 point clouds with meshopt compression and quantization, cutting tileset size by up to 70% or more.',
+	},
+	{
+		icon: 'random',
+		title: 'Automatic reprojection',
+		text: 'Reads the CRS from LAS GeoTIFF or WKT metadata and transforms coordinates with the embedded PROJ library.',
+	},
+	{
+		icon: 'puzzle',
+		title: '3D Tiles 1.0 and 1.1',
+		text: '3D Tiles 1.0 and 1.1, optionally packed into a single .3tz archive.',
+	},
+	{
+		icon: 'list-format',
+		title: 'Per-point attributes',
+		text: 'Export intensity, classification, GPS time, LAS extra bytes or any other attribute of the input.',
+	},
+	{
+		icon: 'palette',
+		title: 'Colorization',
+		text: 'Colorize point clouds from their attributes with 36 embedded ramps, or directly from an RGB GeoTIFF orthophoto. No extra tooling required.',
 	},
 ];
+
+const gaussianSplats: Feature[] = [
+	{
+		icon: 'code-branch',
+		title: 'Cutting edge algorithms',
+		text: "Builds every level of detail without retraining: splats merge in pairs as in NanoGS, chosen by Runnalls' closed-form bound for Gaussian mixture reduction.",
+	},
+	{
+		icon: 'document',
+		title: 'PLY input format',
+		text: 'Reads ASCII or binary PLY files of 3D Gaussian splats, as trainers and editors export them, with spherical harmonics up to degree 3.',
+	},
+	{
+		icon: 'database',
+		title: 'SPZ compression',
+		text: 'Writes the splats of every tile as SPZ-compressed glTF, with the KHR_gaussian_splatting extensions that CesiumJS reads.',
+	},
+	{
+		icon: 'setting',
+		title: 'Configurable SH and opacity threshold',
+		text: 'Choose the spherical-harmonic degree to keep and the opacity below which splats are dropped, to stream lighter tilesets.',
+	},
+];
+
+const features = { general, 'point-clouds': pointClouds, 'gaussian-splats': gaussianSplats }[grid];
 ---
 
 <ul class="features not-content">
 	{
-		general.map((feature) => (
+		features.map(({ icon, title, text, href }) => (
 			<li>
 				<span class="icon">
-					<Icon name={feature.icon as any} size="1.25rem" />
+					{icon === 'palette' ? <PaletteIcon size="1.25rem" /> : <Icon name={icon as any} size="1.25rem" />}
 				</span>
-				<h3>{feature.href ? <a href={feature.href}>{feature.title}</a> : feature.title}</h3>
-				<p>{feature.text}</p>
+				<h3>{href ? <a href={href}>{title}</a> : title}</h3>
+				<p>{text}</p>
 			</li>
 		))
 	}
 </ul>
-
-{
-	groups.map(({ id, title, features }) => (
-		<section class="group not-content">
-			<h3 id={id}>{title}</h3>
-			<ul class="features">
-				{features.map(({ icon, title, text }) => (
-					<li>
-						<span class="icon">
-							{icon === 'palette' ? <PaletteIcon size="1.25rem" /> : <Icon name={icon as any} size="1.25rem" />}
-						</span>
-						<h3>{title}</h3>
-						<p>{text}</p>
-					</li>
-				))}
-			</ul>
-		</section>
-	))
-}
 
 <style>
 	.features {
@@ -205,11 +185,6 @@ const groups: { id: string; title: string; features: Feature[] }[] = [
 		text-decoration: underline;
 	}
 
-	.group > h3 {
-		margin-block: 3rem 1.25rem;
-		font-size: var(--sl-text-2xl);
-		scroll-margin-top: calc(var(--sl-nav-height) + 1.5rem);
-	}
 
 	p {
 		color: var(--sl-color-gray-3);
