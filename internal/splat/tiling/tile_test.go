@@ -496,7 +496,7 @@ func TestTileReportsProgress(t *testing.T) {
 func TestGeometricError(t *testing.T) {
 	size := geom.Vec3{X: 2, Y: 3, Z: 4}
 	// The surface is 2·3 + 2·4 + 3·4 = 26.
-	want := math.Sqrt(26.0/100) * 5 * 1.5 * math.Pow(1.1, 3)
+	want := math.Sqrt(26.0/100) * 10 * 1.5 * math.Pow(1.1, 3)
 	if got := geometricError(size, 100, 3, 1.5); !closeTo(got, want) {
 		t.Errorf("geometric error %v, want %v", got, want)
 	}

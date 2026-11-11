@@ -25,6 +25,7 @@ const tilesetOptions = {
 
 const memoryLimit = tilesetOptions.cacheBytes + tilesetOptions.maximumCacheOverflowBytes;
 const largestScreenSpaceError = 160;
+const errorStep = 1.35;
 
 /** Returns the options of Cesium3DTileset.fromUrl for a splat tileset. */
 export function splatTilesetOptions() {
@@ -33,25 +34,32 @@ export function splatTilesetOptions() {
 
 /**
  * Lowers the detail of a splat tileset, at most once a second, while its
- * memory is over the cache budget.
+ * memory is over the cache budget, and raises it back toward the starting
+ * detail once the memory falls under half the budget. The gap between the
+ * two keeps the detail from going back and forth.
  */
 export function installMemoryGuard(tileset) {
+  const startingError = tileset.maximumScreenSpaceError;
   let lastAdjustment = 0;
-  const relax = () => {
+  const adjust = () => {
     const now = performance.now();
-    if (now - lastAdjustment < 1000 || tileset.totalMemoryUsageInBytes <= memoryLimit) {
+    if (now - lastAdjustment < 1000) {
+      return;
+    }
+    const memory = tileset.totalMemoryUsageInBytes;
+    const error = tileset.maximumScreenSpaceError;
+    if (memory > memoryLimit && error < largestScreenSpaceError) {
+      tileset.maximumScreenSpaceError = Math.min(largestScreenSpaceError, Math.ceil(error * errorStep));
+      tileset.trimLoadedTiles();
+    } else if (memory < memoryLimit / 2 && error > startingError) {
+      tileset.maximumScreenSpaceError = Math.max(startingError, Math.floor(error / errorStep));
+    } else {
       return;
     }
     lastAdjustment = now;
-    tileset.maximumScreenSpaceError = Math.min(
-      largestScreenSpaceError,
-      Math.ceil(tileset.maximumScreenSpaceError * 1.35),
-    );
-    tileset.trimLoadedTiles();
-    console.warn(
-      `The splats are over the memory budget: the maximum screen space error is now ${tileset.maximumScreenSpaceError}.`,
-    );
+    console.info(`Splat memory ${Math.round(memory / 1048576)} MB: the maximum screen space error is now ${tileset.maximumScreenSpaceError}.`);
   };
-  tileset.tileLoad.addEventListener(relax);
-  tileset.tileUnload.addEventListener(relax);
+  tileset.tileLoad.addEventListener(adjust);
+  tileset.tileUnload.addEventListener(adjust);
+  tileset.allTilesLoaded.addEventListener(adjust);
 }

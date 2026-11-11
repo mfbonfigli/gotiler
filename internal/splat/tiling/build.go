@@ -30,11 +30,10 @@ const (
 	//
 	// At this scale, a viewer that refines tiles past 16 pixels of screen
 	// space error replaces a tile by its children when its splats are about
-	// 3 pixels apart. Splats cover the space between their centers, so they
-	// can be farther apart than the points of a point cloud. On a 106 million
-	// splat aerial scene, CesiumJS showed the same image in close views with
-	// the splats this far apart as with them half as far.
-	geometricErrorScale  = 5
+	// 1.6 pixels apart. On a 259 million splat aerial scene, CesiumJS showed
+	// visibly blurrier close views at half this scale, with about a third of
+	// the splats.
+	geometricErrorScale  = 10
 	geometricErrorGrowth = 1.1
 	minErrorGrowth       = 1.001
 

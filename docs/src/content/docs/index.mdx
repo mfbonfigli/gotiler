@@ -1,11 +1,11 @@
 ---
-title: Point clouds to 3D Tiles, fast
-description: gotiler converts LAS, LAZ, E57 and PLY point clouds into streaming-ready OGC 3D Tiles 1.0 and 1.1, ready for CesiumJS and other 3D Tiles viewers.
+title: Point clouds and Gaussian splats to 3D Tiles, fast
+description: gotiler converts LAS, LAZ, E57 and PLY point clouds and Gaussian splat scenes into streaming-ready OGC 3D Tiles, ready for CesiumJS and other 3D Tiles viewers.
 template: splash
 editUrl: false
 hero:
   title: <span class="gt-gradient">gotiler</span>
-  tagline: gotiler is a <strong>fast</strong>, <strong>lightweight</strong> and <strong>portable</strong> converter to transform massive LAS, LAZ, E57 and PLY datasets into OGC 3D Tiles.
+  tagline: gotiler is a <strong>fast</strong>, <strong>lightweight</strong> and <strong>portable</strong> converter to transform massive point clouds or Gaussian splat datasets into OGC 3D Tiles.
   actions:
     - text: Install
       link: '#quick-start'
@@ -32,7 +32,7 @@ import Split from '../../components/home/Split.astro';
 	id="features"
 	eyebrow="Features"
 	title={'Turn massive scans into <span class="gt-gradient">streaming 3D Tiles</span> in seconds.'}
-	lead="Built for huge datasets and simple workflows: point gotiler at a file or a folder, and get a tileset any 3D Tiles viewer can stream."
+	lead="Built for huge datasets and simple workflows: point gotiler at a point cloud, a folder of them or a Gaussian splat scene, and get a tileset that CesiumJS and other 3D Tiles viewers can stream."
 />
 
 <Features />
@@ -107,6 +107,17 @@ import Split from '../../components/home/Split.astro';
    ```
 
    </TabItem>
+   <TabItem label="Gaussian Splats">
+
+   ```bash
+   # Tile a Gaussian splat scene, then place it on the globe
+   gotiler splat -o ./out ./scene.ply
+
+   # A scene trained with OpenCV axes, placed in Rome
+   gotiler splat -o ./out --input-up-axis -y --longitude 12.4924 --latitude 41.8902 ./scene.ply
+   ```
+
+   </TabItem>
    <TabItem label="Custom CRS">
 
    ```bash
@@ -137,17 +148,6 @@ import Split from '../../components/home/Split.astro';
 
    # Open an existing tileset
    gotiler view ./out
-   ```
-
-   </TabItem>
-   <TabItem label="Gaussian Splats">
-
-   ```bash
-   # Tile a Gaussian splat scene, then place it on the globe
-   gotiler splat -o ./out ./scene.ply
-
-   # A scene trained with OpenCV axes, placed in Rome
-   gotiler splat -o ./out --input-up-axis -y --longitude 12.4924 --latitude 41.8902 ./scene.ply
    ```
 
    </TabItem>

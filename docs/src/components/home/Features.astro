@@ -1,65 +1,140 @@
 ---
-// The feature grid: one tile per feature, joined by hairlines.
+// The feature grids, one tile per feature, joined by hairlines: the general
+// features, whose last two tiles lead to the grids of point cloud and Gaussian
+// splat tiling below.
 import { Icon } from '@astrojs/starlight/components';
 import PaletteIcon from './PaletteIcon.astro';
 
-const features = [
+interface Feature {
+	icon: string;
+	title: string;
+	text: string;
+	href?: string;
+}
+
+const general: Feature[] = [
 	{
 		icon: 'rocket',
 		title: 'Fast and out-of-core',
-		text: 'Uses every CPU core and fast NVMe drives, and tiles billion-point clouds without running out of RAM.',
-	},
-	{
-		icon: 'database',
-		title: 'Compressed by default',
-		text: 'Compresses 3D Tiles 1.1 point clouds with meshopt compression and quantization, cutting tileset size by up to 70% or more.',
-	},
-	{
-		icon: 'document',
-		title: 'LAS, LAZ, E57 and PLY',
-		text: 'Reads LAS, LAZ, E57 and ASCII or binary PLY inputs.',
-	},
-	{
-		icon: 'random',
-		title: 'Automatic reprojection',
-		text: 'Reads the CRS from LAS GeoTIFF or WKT metadata and transforms coordinates with the embedded PROJ library.',
-	},
-	{
-		icon: 'puzzle',
-		title: '3D Tiles 1.0 and 1.1',
-		text: '3D Tiles 1.0 and 1.1, optionally packed into a single .3tz archive.',
-	},
-	{
-		icon: 'list-format',
-		title: 'Per-point attributes',
-		text: 'Export intensity, classification, GPS time, LAS extra bytes or any other attribute of the input.',
-	},
-	{
-		icon: 'palette',
-		title: 'Colorization',
-		text: 'Colorize point clouds from their attributes with 36 embedded ramps, or directly from an RGB GeoTIFF orthophoto. No extra tooling required.',
+		text: 'Uses every CPU core and fast NVMe drives, and tiles billion-point clouds and scenes of hundreds of millions of splats without running out of RAM.',
 	},
 	{
 		icon: 'laptop',
 		title: 'Self-contained',
 		text: 'One executable and its bundled data folder, for Linux, macOS and Windows. Nothing else to install to run it.',
 	},
-] as const;
+	{
+		icon: 'analytics',
+		title: 'Point cloud tiling',
+		text: 'LAS, LAZ, E57 and PLY point clouds into compressed 3D Tiles 1.0 or 1.1, reprojected, colored and with their attributes.',
+		href: '#point-cloud-tiling',
+	},
+	{
+		icon: 'star',
+		title: 'Gaussian splat tiling',
+		text: 'Trained 3D Gaussian splat scenes into 3D Tiles 1.1 with levels of detail, for CesiumJS to stream.',
+		href: '#gaussian-splat-tiling',
+	},
+];
+
+const groups: { id: string; title: string; features: Feature[] }[] = [
+	{
+		id: 'point-cloud-tiling',
+		title: 'Point cloud tiling',
+		features: [
+			{
+				icon: 'document',
+				title: 'LAS, LAZ, E57 and PLY',
+				text: 'Reads LAS, LAZ, E57 and ASCII or binary PLY inputs.',
+			},
+			{
+				icon: 'database',
+				title: 'Compressed by default',
+				text: 'Compresses 3D Tiles 1.1 point clouds with meshopt compression and quantization, cutting tileset size by up to 70% or more.',
+			},
+			{
+				icon: 'random',
+				title: 'Automatic reprojection',
+				text: 'Reads the CRS from LAS GeoTIFF or WKT metadata and transforms coordinates with the embedded PROJ library.',
+			},
+			{
+				icon: 'puzzle',
+				title: '3D Tiles 1.0 and 1.1',
+				text: '3D Tiles 1.0 and 1.1, optionally packed into a single .3tz archive.',
+			},
+			{
+				icon: 'list-format',
+				title: 'Per-point attributes',
+				text: 'Export intensity, classification, GPS time, LAS extra bytes or any other attribute of the input.',
+			},
+			{
+				icon: 'palette',
+				title: 'Colorization',
+				text: 'Colorize point clouds from their attributes with 36 embedded ramps, or directly from an RGB GeoTIFF orthophoto. No extra tooling required.',
+			},
+		],
+	},
+	{
+		id: 'gaussian-splat-tiling',
+		title: 'Gaussian splat tiling',
+		features: [
+			{
+				icon: 'code-branch',
+				title: 'Cutting edge algorithms',
+				text: "Builds every level of detail without retraining: splats merge in pairs as in NanoGS, chosen by Runnalls' closed-form bound for Gaussian mixture reduction.",
+			},
+			{
+				icon: 'document',
+				title: 'PLY input format',
+				text: 'Reads ASCII or binary PLY files of 3D Gaussian splats, as trainers and editors export them, with spherical harmonics up to degree 3.',
+			},
+			{
+				icon: 'database',
+				title: 'SPZ compression',
+				text: 'Writes the splats of every tile as SPZ-compressed glTF, with the KHR_gaussian_splatting extensions that CesiumJS reads.',
+			},
+			{
+				icon: 'setting',
+				title: 'Configurable SH and opacity threshold',
+				text: 'Choose the spherical-harmonic degree to keep and the opacity below which splats are dropped, to stream lighter tilesets.',
+			},
+		],
+	},
+];
 ---
 
 <ul class="features not-content">
 	{
-		features.map(({ icon, title, text }) => (
+		general.map((feature) => (
 			<li>
 				<span class="icon">
-					{icon === 'palette' ? <PaletteIcon size="1.25rem" /> : <Icon name={icon} size="1.25rem" />}
+					<Icon name={feature.icon as any} size="1.25rem" />
 				</span>
-				<h3>{title}</h3>
-				<p>{text}</p>
+				<h3>{feature.href ? <a href={feature.href}>{feature.title}</a> : feature.title}</h3>
+				<p>{feature.text}</p>
 			</li>
 		))
 	}
 </ul>
+
+{
+	groups.map(({ id, title, features }) => (
+		<section class="group not-content">
+			<h3 id={id}>{title}</h3>
+			<ul class="features">
+				{features.map(({ icon, title, text }) => (
+					<li>
+						<span class="icon">
+							{icon === 'palette' ? <PaletteIcon size="1.25rem" /> : <Icon name={icon as any} size="1.25rem" />}
+						</span>
+						<h3>{title}</h3>
+						<p>{text}</p>
+					</li>
+				))}
+			</ul>
+		</section>
+	))
+}
 
 <style>
 	.features {
@@ -114,6 +189,26 @@ const features = [
 		color: var(--sl-color-white);
 		font-size: var(--sl-text-base);
 		font-weight: 700;
+	}
+
+	h3 a {
+		color: inherit;
+		text-decoration: none;
+	}
+
+	h3 a::after {
+		content: ' →';
+		color: var(--sl-color-accent-high);
+	}
+
+	h3 a:hover {
+		text-decoration: underline;
+	}
+
+	.group > h3 {
+		margin-block: 3rem 1.25rem;
+		font-size: var(--sl-text-2xl);
+		scroll-margin-top: calc(var(--sl-nav-height) + 1.5rem);
 	}
 
 	p {

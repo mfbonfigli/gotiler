@@ -30,11 +30,41 @@ export default defineConfig({
 				Footer: './src/components/Footer.astro',
 				SocialIcons: './src/components/SocialIcons.astro',
 			},
-			// each group lists its folder's pages, ordered by their sidebar.order
+			// The point cloud and Gaussian splat guides, and the guides shared by
+			// both under Reference, are listed by hand, so that each page keeps
+			// its URL. The other groups list their folder's pages, ordered by
+			// their sidebar.order.
 			sidebar: [
 				{ label: 'Getting started', items: [{ autogenerate: { directory: 'getting-started' } }] },
-				{ label: 'CLI guides', items: [{ autogenerate: { directory: 'guides' } }] },
-				{ label: 'Reference', items: [{ autogenerate: { directory: 'reference' } }] },
+				{
+					label: 'Point clouds',
+					items: [
+						'guides/input-formats',
+						'guides/coordinate-systems',
+						'guides/attributes',
+						'guides/colorizing',
+						'guides/output',
+						'guides/examples',
+					],
+				},
+				{
+					label: 'Gaussian splats',
+					items: [
+						'guides/gaussian-splats/input-and-placement',
+						'guides/gaussian-splats/size-and-detail',
+						'guides/gaussian-splats/output',
+						'guides/gaussian-splats/examples',
+					],
+				},
+				{
+					label: 'Reference',
+					items: [
+						'reference/cli-flags',
+						'reference/color-ramps',
+						'guides/viewer',
+						'guides/placing-ungeoreferenced-clouds',
+					],
+				},
 				{ label: 'Go library', items: [{ autogenerate: { directory: 'library' } }] },
 				{ label: 'Project', items: [{ autogenerate: { directory: 'project' } }] },
 			],

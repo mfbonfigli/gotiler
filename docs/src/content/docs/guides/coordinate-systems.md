@@ -21,7 +21,7 @@ gotiler pcloud -o ./out --crs EPSG:32633 ./scan.e57
 gotiler pcloud -o ./out -c EPSG:32633+3855 ./input.las
 ```
 
-For clouds that have no geographic coordinate system at all, such as scans in a scanner frame or models from photogrammetry or CAD, use `--crs local`: see [Placing ungeoreferenced point clouds](/gotiler/guides/placing-ungeoreferenced-clouds/).
+For clouds that have no geographic coordinate system at all, such as scans in a scanner frame or models from photogrammetry or CAD, use `--crs local`: see [Placing ungeoreferenced assets](/gotiler/guides/placing-ungeoreferenced-clouds/).
 
 ## Heights
 

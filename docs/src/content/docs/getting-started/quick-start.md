@@ -48,5 +48,5 @@ viewer.scene.primitives.add(tileset);
 ## Next steps
 
 - `gotiler help` lists the commands, `gotiler help pcloud` the flags of one, and `gotiler version` prints the version.
-- The [CLI guides](/gotiler/guides/input-formats/) explain the input formats, coordinate systems, attributes, colors and output options, and [Gaussian splats](/gotiler/guides/gaussian-splats/) the tiling of splat scenes.
+- The [Point clouds](/gotiler/guides/input-formats/) guides explain the input formats, coordinate systems, attributes, colors and output options, and the [Gaussian splats](/gotiler/guides/gaussian-splats/input-and-placement/) guides the tiling of splat scenes.
 - The [CLI flags](/gotiler/reference/cli-flags/) reference lists every option on one page.

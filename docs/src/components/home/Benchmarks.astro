@@ -48,6 +48,29 @@ const charts = [
 	with <a href="https://github.com/mfbonfigli/gotiler/blob/v3/scripts/benchmark.sh">scripts/benchmark.sh</a>.
 </p>
 
+<section class="splats not-content">
+	<h3>259 million Gaussian splats in <span class="gt-gradient">under 6 minutes</span>.</h3>
+	<dl class="stats">
+		<div>
+			<dt>Splats</dt>
+			<dd>258,951,032</dd>
+		</div>
+		<div>
+			<dt>Input PLY</dt>
+			<dd>16.3 GB</dd>
+		</div>
+		<div>
+			<dt>Execution time</dt>
+			<dd>5m 50s</dd>
+		</div>
+	</dl>
+	<p class="footnote">
+		The <a href="https://superspl.at/scene/2f1ddf5f">Lublin, Poland</a> scene by Andrii Shramko,
+		tiled by <code>gotiler splat</code> with its default options on a desktop with an Intel Core i5-13600K
+		(14 cores, 20 threads), 32 GB of RAM and a Samsung 980 PRO NVMe SSD, running Windows 11.
+	</p>
+</section>
+
 <style>
 	.charts {
 		display: grid;
@@ -135,5 +158,57 @@ const charts = [
 		margin-top: 1rem;
 		color: var(--sl-color-gray-3);
 		font-size: var(--sl-text-sm);
+	}
+
+	.splats {
+		margin-top: 3rem;
+	}
+
+	.splats h3 {
+		margin-bottom: 1.25rem;
+		color: var(--sl-color-white);
+		font-size: var(--sl-text-2xl);
+		font-weight: 700;
+	}
+
+	.stats {
+		display: grid;
+		gap: 1px;
+		margin: 0;
+		overflow: hidden;
+		border: 1px solid var(--sl-color-gray-5);
+		border-radius: 1rem;
+		background: var(--sl-color-gray-5);
+	}
+
+	@media (min-width: 40rem) {
+		.stats {
+			grid-template-columns: repeat(3, 1fr);
+		}
+	}
+
+	.stats > div {
+		padding: 1.25rem 1.5rem;
+		background: var(--sl-color-bg);
+	}
+
+	dt {
+		color: var(--sl-color-gray-3);
+		font-size: var(--sl-text-sm);
+	}
+
+	dd {
+		margin: 0.25rem 0 0;
+		color: var(--sl-color-white);
+		font-size: var(--sl-text-2xl);
+		font-weight: 700;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.stats > div:last-child dd {
+		background: var(--gt-gradient);
+		-webkit-background-clip: text;
+		background-clip: text;
+		color: transparent;
 	}
 </style>

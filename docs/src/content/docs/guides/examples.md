@@ -1,6 +1,6 @@
 ---
 title: Examples
-description: Ready-to-run gotiler commands for common tiling jobs.
+description: Ready-to-run gotiler pcloud commands for common point cloud tiling jobs.
 sidebar:
   order: 9
 ---
@@ -65,4 +65,4 @@ gotiler pcloud -o ./out --crs local \
 gotiler pcloud -o ./out --crs local --input-up-axis y --preview ./model.ply
 ```
 
-See [Placing ungeoreferenced point clouds](/gotiler/guides/placing-ungeoreferenced-clouds/).
+See [Placing ungeoreferenced assets](/gotiler/guides/placing-ungeoreferenced-clouds/).
