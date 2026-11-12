@@ -1,0 +1,18 @@
+---
+// Starlight's head, plus the Cloudflare Web Analytics beacon, which counts page
+// views without cookies. Only built pages load it, so visits to the dev
+// server are not counted.
+import Default from '@astrojs/starlight/components/Head.astro';
+---
+
+<Default />
+{
+	import.meta.env.PROD && (
+		<script
+			is:inline
+			type="module"
+			src="https://static.cloudflareinsights.com/beacon.min.js"
+			data-cf-beacon='{"token": "74ded0464e284ab38adc7fbdabefd0e1"}'
+		></script>
+	)
+}

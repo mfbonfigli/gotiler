@@ -13,6 +13,7 @@
 
 <p align="center">
   <a href="https://mfbonfigli.github.io/gotiler/"><b>📖 Documentation</b></a> ·
+  <a href="https://mfbonfigli.github.io/gotiler/demo/"><b>🚀 Live demo</b></a> ·
   <a href="https://mfbonfigli.github.io/gotiler/getting-started/installation/">Installation</a> ·
   <a href="https://mfbonfigli.github.io/gotiler/getting-started/quick-start/">Quick start</a> ·
   <a href="https://mfbonfigli.github.io/gotiler/reference/cli-flags/">CLI flags</a> ·
@@ -47,7 +48,7 @@
 
 *15.9M points from a thinned [Helsinki dataset](https://doi.org/10.5281/zenodo.5578198), tiled in 3.7 seconds on an Intel Core i5-13600K with a Samsung 980 PRO NVMe SSD.*
 
-Browse tilesets generated with **gotiler** on the [preview website](https://d39maarsub1d2t.cloudfront.net/index.html).
+Fly through point clouds tiled by **gotiler** in the [live demo](https://mfbonfigli.github.io/gotiler/demo/).
 
 ## Benchmarks
 

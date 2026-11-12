@@ -26,6 +26,7 @@ export default defineConfig({
 			editLink: { baseUrl: 'https://github.com/mfbonfigli/gotiler/edit/v3/docs/' },
 			customCss: ['./src/styles/theme.css'],
 			components: {
+				Head: './src/components/Head.astro',
 				Hero: './src/components/Hero.astro',
 				Footer: './src/components/Footer.astro',
 				SocialIcons: './src/components/SocialIcons.astro',
