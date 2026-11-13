@@ -82,7 +82,7 @@ func Simplify(splats []splat.Splat, target int) ([]splat.Splat, error) {
 	}
 	result := make([]splat.Splat, len(current))
 	copy(result, current)
-	slices.SortStableFunc(result, func(a, b splat.Splat) int { return cmp.Compare(a.SourceIndex, b.SourceIndex) })
+	splat.SortBySourceIndex(result)
 	return result, nil
 }
 

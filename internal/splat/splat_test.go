@@ -1,8 +1,10 @@
 package splat
 
 import (
+	"cmp"
 	"math"
 	"math/rand/v2"
+	"slices"
 	"testing"
 
 	"github.com/mfbonfigli/gotiler/v3/internal/geom"
@@ -144,5 +146,31 @@ func TestBaseColor(t *testing.T) {
 			s.SH0 = tt.sh0
 			assertVec3(t, "base color", s.BaseColor(), tt.want)
 		})
+	}
+}
+
+func TestSortBySourceIndex(t *testing.T) {
+	rng := rand.New(rand.NewPCG(5, 6))
+	for _, test := range []struct {
+		name  string
+		index func(i int) int
+	}{
+		{"shuffled", func(int) int { return rng.IntN(1_000_000) - 500_000 }},
+		{"repeated", func(int) int { return rng.IntN(10) }},
+		{"sorted", func(i int) int { return i }},
+		{"reversed", func(i int) int { return -i }},
+	} {
+		splats := make([]Splat, 1000)
+		for i := range splats {
+			splats[i] = Splat{SourceIndex: test.index(i), Opacity: float64(i)}
+		}
+		want := slices.Clone(splats)
+		slices.SortStableFunc(want, func(a, b Splat) int { return cmp.Compare(a.SourceIndex, b.SourceIndex) })
+		SortBySourceIndex(splats)
+		for i := range splats {
+			if splats[i].SourceIndex != want[i].SourceIndex || splats[i].Opacity != want[i].Opacity {
+				t.Fatalf("%s: splat %d has index %d and opacity %v, want %d and %v", test.name, i, splats[i].SourceIndex, splats[i].Opacity, want[i].SourceIndex, want[i].Opacity)
+			}
+		}
 	}
 }

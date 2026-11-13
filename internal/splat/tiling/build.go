@@ -1,7 +1,6 @@
 package tiling
 
 import (
-	"cmp"
 	"context"
 	"errors"
 	"math"
@@ -175,7 +174,7 @@ func (b *builder) buildLeaf(n *node) (*tile, error) {
 	if err != nil {
 		return nil, err
 	}
-	sortBySourceIndex(splats)
+	splat.SortBySourceIndex(splats)
 	if err := b.writeContent(n.id, splats); err != nil {
 		return nil, err
 	}
@@ -216,7 +215,7 @@ func (b *builder) buildInner(n *node, left, right *tile) (*tile, error) {
 		}
 		// The store of a leaf holds its splats in the order of routing: order
 		// them, so that the merge does not depend on it.
-		sortBySourceIndex(reps)
+		splat.SortBySourceIndex(reps)
 		splats = append(splats, reps...)
 	}
 	content, err := lod.Simplify(splats, lodTarget(left.count)+lodTarget(right.count))
@@ -281,10 +280,6 @@ func (b *builder) writeReps(id string, splats []splat.Splat) (string, error) {
 		return "", errors.Join(err, w.Close())
 	}
 	return path, w.Close()
-}
-
-func sortBySourceIndex(splats []splat.Splat) {
-	slices.SortFunc(splats, func(a, b splat.Splat) int { return cmp.Compare(a.SourceIndex, b.SourceIndex) })
 }
 
 // contentName returns the name of the content file of the tile id.

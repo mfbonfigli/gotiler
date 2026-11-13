@@ -3,10 +3,13 @@
 package splat
 
 import (
+	"cmp"
 	"errors"
 	"math"
+	"slices"
 
 	"github.com/mfbonfigli/gotiler/v3/internal/geom"
+	"github.com/mfbonfigli/gotiler/v3/internal/radix"
 )
 
 // shBasisDegree0 is the value of the degree-0 spherical harmonic basis
@@ -124,3 +127,38 @@ func (s Splat) BaseColor() geom.Vec3 {
 }
 
 func clamp01(x float64) float64 { return math.Min(math.Max(x, 0), 1) }
+
+// SortBySourceIndex orders splats by SourceIndex, keeping splats with the same
+// index in their order.
+//
+// It sorts the indices alone and then moves each splat once, to its place,
+// which costs less than moving the splats at every step of a sort.
+func SortBySourceIndex(splats []Splat) {
+	if slices.IsSortedFunc(splats, func(a, b Splat) int { return cmp.Compare(a.SourceIndex, b.SourceIndex) }) {
+		return
+	}
+	order := make([]radix.Item, len(splats))
+	for i, s := range splats {
+		// Flipping the sign bit orders the keys like the signed indices.
+		order[i] = radix.Item{Key: uint64(s.SourceIndex) ^ 1<<63, Value: uint64(i)}
+	}
+	radix.Sort(order, nil)
+	// The splat at order[i].Value goes to i. Following those moves from one
+	// place to the next, around each cycle they form, moves every splat once.
+	for start := range order {
+		if int(order[start].Value) == start {
+			continue
+		}
+		held := splats[start]
+		for i := start; ; {
+			from := int(order[i].Value)
+			order[i].Value = uint64(i)
+			if from == start {
+				splats[i] = held
+				break
+			}
+			splats[i] = splats[from]
+			i = from
+		}
+	}
+}
