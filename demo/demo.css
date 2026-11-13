@@ -1,0 +1,465 @@
+/* The live demo: dark glass panels over a full-window CesiumJS globe. */
+
+:root {
+  --panel: rgba(16, 21, 30, 0.82);
+  --border: rgba(120, 170, 230, 0.22);
+  --text: #e8eef6;
+  --muted: #93a8bf;
+  --accent: #3f8cff;
+  --accent-soft: rgba(63, 140, 255, 0.18);
+  --error: #ff8a80;
+  --gradient: linear-gradient(100deg, #5b95ff 0%, #22b8c4 50%, #4bc96f 100%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #0d1117;
+  color: var(--text);
+  font: 13px/1.4 'Segoe UI', system-ui, sans-serif;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+#globe {
+  position: absolute;
+  inset: 0;
+}
+
+#globe.flying canvas {
+  cursor: crosshair;
+}
+
+.glass {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel);
+  box-shadow: 0 8px 30px rgb(0 0 0 / 0.35);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+kbd {
+  display: inline-block;
+  min-width: 20px;
+  padding: 1px 6px;
+  border: 1px solid rgb(255 255 255 / 0.25);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: rgb(255 255 255 / 0.06);
+  font: 600 11px/1.5 ui-monospace, monospace;
+  text-align: center;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* top left: the name and the datasets */
+#datasets {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  max-width: calc(100% - 32px);
+  padding: 6px;
+}
+
+.brand {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  justify-content: center;
+  margin-right: 4px;
+  padding: 4px 14px 4px 10px;
+  border-right: 1px solid var(--border);
+}
+
+.brand b {
+  background: var(--gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.brand span {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dataset-list {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.dataset {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 7px 14px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.dataset:hover {
+  background: rgb(255 255 255 / 0.06);
+}
+
+.dataset[aria-pressed='true'] {
+  border-color: rgba(63, 140, 255, 0.55);
+  background: var(--accent-soft);
+}
+
+.dataset strong {
+  font-size: 14px;
+}
+
+.dataset small {
+  color: var(--muted);
+}
+
+/* top right: the toolbar, as wide as the settings panel under it */
+#toolbar {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  width: 300px;
+  padding: 6px;
+}
+
+.segmented {
+  display: flex;
+  flex: 1;
+  margin-right: 4px;
+  padding: 2px;
+  border-radius: 10px;
+  background: rgb(0 0 0 / 0.35);
+}
+
+.segmented button {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.segmented button[aria-pressed='true'] {
+  background: var(--accent);
+  color: #fff;
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.icon:hover,
+.icon[aria-pressed='true'] {
+  background: rgb(255 255 255 / 0.08);
+  color: var(--text);
+}
+
+/* right: the settings panel, above Cesium's credits */
+#panel {
+  position: absolute;
+  top: 70px;
+  right: 16px;
+  bottom: 40px;
+  width: 300px;
+  padding: 4px 16px 16px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+#panel section {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+#panel section:last-child {
+  border-bottom: 0;
+}
+
+h2 {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.choices {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 2px;
+  border-radius: 10px;
+  background: rgb(0 0 0 / 0.35);
+}
+
+.choices button {
+  padding: 6px 4px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.choices button[aria-pressed='true'] {
+  background: rgb(255 255 255 / 0.12);
+  color: var(--text);
+}
+
+.choices button:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.sub {
+  margin-top: 12px;
+}
+
+.ramps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.ramp {
+  height: 26px;
+  border: 2px solid transparent;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.ramp[aria-pressed='true'] {
+  border-color: #fff;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.row output {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+input[type='range'] {
+  width: 100%;
+  margin: 6px 0 0;
+  accent-color: var(--accent);
+}
+
+.switch {
+  position: relative;
+  flex: none;
+  width: 34px;
+  height: 20px;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.18);
+  cursor: pointer;
+}
+
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s;
+}
+
+.switch[aria-checked='true'] {
+  background: var(--accent);
+}
+
+.switch[aria-checked='true']::after {
+  transform: translateX(14px);
+}
+
+.switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.legend {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.class {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 7px;
+  background: rgb(255 255 255 / 0.04);
+  cursor: pointer;
+  text-align: left;
+}
+
+.class i {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.class[aria-pressed='false'] {
+  opacity: 0.4;
+  text-decoration: line-through;
+}
+
+.note {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* bottom: the fly mode keys, above Cesium's credits */
+#hint {
+  position: absolute;
+  bottom: 44px;
+  left: 50%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 16px;
+  max-width: calc(100% - 32px);
+  padding: 10px 16px;
+  translate: -50%;
+}
+
+#hint .speed {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+#hint .lead {
+  width: 100%;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+#status {
+  position: absolute;
+  top: 84px;
+  left: 50%;
+  max-width: calc(100% - 32px);
+  padding: 10px 16px;
+  translate: -50%;
+}
+
+#status.is-error {
+  color: var(--error);
+}
+
+/* Cesium's credits, readable on the imagery */
+.cesium-widget-credits {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 0.45);
+}
+
+.cesium-credit-textContainer a {
+  color: inherit;
+}
+
+/* phones and narrow frames: the datasets scroll sideways, and the panel
+   drops under the toolbar across the width */
+@media (max-width: 760px) {
+  #datasets {
+    right: 16px;
+  }
+
+  .brand {
+    display: none;
+  }
+
+  #toolbar {
+    top: 76px;
+    width: auto;
+  }
+
+  #panel {
+    top: 136px;
+    left: 16px;
+    width: auto;
+    bottom: 40px;
+  }
+
+  #hint {
+    display: none !important;
+  }
+}
