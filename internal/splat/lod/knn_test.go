@@ -100,15 +100,15 @@ func TestSelectNth(t *testing.T) {
 			points := make([]kdPoint, n)
 			for i := range points {
 				// Few distinct values, so that many points tie on the axis.
-				points[i] = kdPoint{center: geom.Vec3{Y: float64(rng.IntN(5))}, index: int32(i)}
+				points[i] = kdPoint{center: [3]float64{1: float64(rng.IntN(5))}, index: int32(i)}
 			}
 			if trial%2 == 1 {
 				slices.SortFunc(points, func(a, b kdPoint) int { return int(b.index - a.index) })
 			}
 			sorted := slices.Clone(points)
 			slices.SortFunc(sorted, func(a, b kdPoint) int {
-				if a.center.Y != b.center.Y {
-					return int(a.center.Y - b.center.Y)
+				if a.center[1] != b.center[1] {
+					return int(a.center[1] - b.center[1])
 				}
 				return int(a.index - b.index)
 			})
@@ -118,7 +118,7 @@ func TestSelectNth(t *testing.T) {
 				t.Fatalf("n %d: point %d is %+v, want %+v", n, nth, points[nth], sorted[nth])
 			}
 			for i, p := range points {
-				before := p.center.Y < points[nth].center.Y || p.center.Y == points[nth].center.Y && p.index < points[nth].index
+				before := p.center[1] < points[nth].center[1] || p.center[1] == points[nth].center[1] && p.index < points[nth].index
 				if before != (i < nth) && i != nth {
 					t.Fatalf("n %d: point %d, %+v, is on the wrong side of %+v", n, i, p, points[nth])
 				}

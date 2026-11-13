@@ -163,8 +163,9 @@ func (ws *workspace) pass(splats []splat.Splat, target int) ([]splat.Splat, erro
 func (ws *workspace) collectEdges(splats []splat.Splat, maxDistance float64) []edge {
 	ws.neighbors = resize(ws.neighbors, len(splats)*neighborCount)
 	ws.counts = resize(ws.counts, len(splats))
-	for i, s := range splats {
-		ws.found = ws.tree.nearest(s.Center, int32(i), neighborCount, maxDistance*maxDistance, ws.found)
+	for _, p := range ws.tree.points {
+		i := int(p.index)
+		ws.found = ws.tree.nearest(splats[i].Center, p.index, neighborCount, maxDistance*maxDistance, ws.found)
 		ws.counts[i] = uint8(len(ws.found))
 		for j, n := range ws.found {
 			ws.neighbors[i*neighborCount+j] = n.index

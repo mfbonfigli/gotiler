@@ -5,16 +5,24 @@ import (
 	"github.com/mfbonfigli/gotiler/v3/internal/splat"
 )
 
+// leafSize is the most points a leaf of the tree holds. Scanning a few points
+// costs less than splitting them down to single points and recursing into
+// each.
+const leafSize = 8
+
 // kdTree finds the nearest splat centers to a point. It is an implicit tree:
-// each range of points has its node at the middle, the points before it on
-// one side of the node's splitting plane and the points after it on the
-// other.
+// a range of more than leafSize points has its node at the middle, the points
+// before it on one side of the node's splitting plane and the points after it
+// on the other, while a smaller range is a leaf, searched point by point.
+//
+// The search is exact, so the shape of the tree changes how fast queries run,
+// never what they find.
 type kdTree struct {
 	points []kdPoint
 }
 
 type kdPoint struct {
-	center geom.Vec3
+	center [3]float64
 	index  int32
 	axis   uint8
 }
@@ -25,37 +33,53 @@ type neighbor struct {
 	index           int32
 }
 
+// kdBox bounds a range of points of the tree.
+type kdBox struct {
+	min, max [3]float64
+}
+
 // build makes the tree hold the centers of splats, reusing its memory.
 func (t *kdTree) build(splats []splat.Splat) {
 	t.points = resize(t.points, len(splats))
+	var bounds kdBox
 	for i, s := range splats {
-		t.points[i] = kdPoint{center: s.Center, index: int32(i)}
+		c := [3]float64{s.Center.X, s.Center.Y, s.Center.Z}
+		t.points[i] = kdPoint{center: c, index: int32(i)}
+		for axis := range 3 {
+			if i == 0 || c[axis] < bounds.min[axis] {
+				bounds.min[axis] = c[axis]
+			}
+			if i == 0 || c[axis] > bounds.max[axis] {
+				bounds.max[axis] = c[axis]
+			}
+		}
 	}
-	t.split(t.points)
+	t.split(t.points, bounds)
 }
 
-// split arranges points into a subtree, splitting it along its longest side.
-func (t *kdTree) split(points []kdPoint) {
-	if len(points) < 2 {
+// split arranges points, within bounds, into a subtree, splitting it along
+// the longest side of bounds. The two halves are bounded by bounds cut at the
+// node: looser than measuring each half, which would read every point at
+// every level, but as good for choosing the splitting axes.
+func (t *kdTree) split(points []kdPoint, bounds kdBox) {
+	if len(points) <= leafSize {
 		return
 	}
-	var bounds geom.Bounds
-	for _, p := range points {
-		bounds.IncludePoint(p.center)
-	}
-	size := bounds.Size()
 	axis := uint8(0)
-	if size.Y > size.X {
+	if bounds.max[1]-bounds.min[1] > bounds.max[0]-bounds.min[0] {
 		axis = 1
 	}
-	if size.Z > coordinate(size, axis) {
+	if bounds.max[2]-bounds.min[2] > bounds.max[axis]-bounds.min[axis] {
 		axis = 2
 	}
 	middle := len(points) / 2
 	selectNth(points, middle, axis)
 	points[middle].axis = axis
-	t.split(points[:middle])
-	t.split(points[middle+1:])
+	cut := points[middle].center[axis]
+	low, high := bounds, bounds
+	low.max[axis], high.min[axis] = cut, cut
+	t.split(points[:middle], low)
+	t.split(points[middle+1:], high)
 }
 
 // nearest appends to found[:0] the k points nearest to query, at most
@@ -67,13 +91,13 @@ func (t *kdTree) split(points []kdPoint) {
 // the same few neighbors among the pile: they pick the next ones instead, so
 // that most of them can merge in pairs at once.
 func (t *kdTree) nearest(query geom.Vec3, self int32, k int, maxDistanceSquared float64, found []neighbor) []neighbor {
-	search := kdSearch{query: query, self: self, k: k, limit: maxDistanceSquared, found: found[:0]}
+	search := kdSearch{query: [3]float64{query.X, query.Y, query.Z}, self: self, k: k, limit: maxDistanceSquared, found: found[:0]}
 	search.visit(t.points)
 	return search.found
 }
 
 type kdSearch struct {
-	query geom.Vec3
+	query [3]float64
 	self  int32
 	k     int
 	limit float64
@@ -81,17 +105,16 @@ type kdSearch struct {
 }
 
 func (s *kdSearch) visit(points []kdPoint) {
-	if len(points) == 0 {
+	if len(points) <= leafSize {
+		for i := range points {
+			s.consider(&points[i])
+		}
 		return
 	}
 	middle := len(points) / 2
-	node := points[middle]
-	if node.index != s.self {
-		if d := node.center.Sub(s.query).LengthSquared(); d <= s.limit {
-			s.insert(neighbor{distanceSquared: d, index: node.index})
-		}
-	}
-	offset := coordinate(s.query, node.axis) - coordinate(node.center, node.axis)
+	node := &points[middle]
+	s.consider(node)
+	offset := s.query[node.axis] - node.center[node.axis]
 	near, far := points[:middle], points[middle+1:]
 	if offset > 0 {
 		near, far = far, near
@@ -100,6 +123,17 @@ func (s *kdSearch) visit(points []kdPoint) {
 	// Points beyond the splitting plane are at least offset away.
 	if offset*offset <= s.limit {
 		s.visit(far)
+	}
+}
+
+// consider adds p to the found neighbors if it is within the search limit.
+func (s *kdSearch) consider(p *kdPoint) {
+	if p.index == s.self {
+		return
+	}
+	dx, dy, dz := p.center[0]-s.query[0], p.center[1]-s.query[1], p.center[2]-s.query[2]
+	if d := dx*dx + dy*dy + dz*dz; d <= s.limit {
+		s.insert(neighbor{distanceSquared: d, index: p.index})
 	}
 }
 
@@ -134,8 +168,8 @@ func (s *kdSearch) closer(a, b neighbor) bool {
 // along axis, then by index, would put it, with no point after it that sorts
 // before it and none before it that sorts after it.
 func selectNth(points []kdPoint, n int, axis uint8) {
-	less := func(a, b kdPoint) bool {
-		ca, cb := coordinate(a.center, axis), coordinate(b.center, axis)
+	less := func(a, b *kdPoint) bool {
+		ca, cb := a.center[axis], b.center[axis]
 		if ca != cb {
 			return ca < cb
 		}
@@ -146,22 +180,22 @@ func selectNth(points []kdPoint, n int, axis uint8) {
 		// Hoare partition around the median of three, which keeps the
 		// selection fast on points that are already sorted.
 		mid := lo + (hi-lo)/2
-		if less(points[mid], points[lo]) {
+		if less(&points[mid], &points[lo]) {
 			points[mid], points[lo] = points[lo], points[mid]
 		}
-		if less(points[hi], points[lo]) {
+		if less(&points[hi], &points[lo]) {
 			points[hi], points[lo] = points[lo], points[hi]
 		}
-		if less(points[hi], points[mid]) {
+		if less(&points[hi], &points[mid]) {
 			points[hi], points[mid] = points[mid], points[hi]
 		}
 		pivot := points[mid]
 		i, j := lo, hi
 		for i <= j {
-			for less(points[i], pivot) {
+			for less(&points[i], &pivot) {
 				i++
 			}
-			for less(pivot, points[j]) {
+			for less(&pivot, &points[j]) {
 				j--
 			}
 			if i <= j {
@@ -178,16 +212,5 @@ func selectNth(points []kdPoint, n int, axis uint8) {
 		default:
 			return
 		}
-	}
-}
-
-func coordinate(v geom.Vec3, axis uint8) float64 {
-	switch axis {
-	case 1:
-		return v.Y
-	case 2:
-		return v.Z
-	default:
-		return v.X
 	}
 }
