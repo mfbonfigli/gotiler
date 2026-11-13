@@ -44,6 +44,7 @@ export default defineConfig({
 						'guides/coordinate-systems',
 						'guides/attributes',
 						'guides/colorizing',
+						'reference/color-ramps',
 						'guides/output',
 						'guides/examples',
 					],
@@ -61,7 +62,6 @@ export default defineConfig({
 					label: 'Reference',
 					items: [
 						'reference/cli-flags',
-						'reference/color-ramps',
 						'guides/viewer',
 						'guides/placing-ungeoreferenced-clouds',
 					],

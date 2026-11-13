@@ -14,13 +14,22 @@ gotiler ships as a self-contained archive: one executable plus a `share` folder 
 On Linux (x86_64 or ARM64), macOS (Apple Silicon, macOS 12 or later) and 64-bit Windows, one command installs the latest release:
 
 <Tabs syncKey="install">
-<TabItem label="Linux and macOS">
+<TabItem label="Linux">
 
 ```bash
 curl -fsSL https://github.com/mfbonfigli/gotiler/releases/latest/download/install.sh | sh
 ```
 
-The script installs gotiler in `~/.local/share/gotiler` and links the executable from `~/.local/bin`. If that folder is not on your `PATH`, it prints the line to add to your shell profile. It needs only tools that Linux and macOS ship: `curl` or `wget`, `tar`, `gzip`, `awk` and a SHA-256 tool.
+The script installs gotiler in `~/.local/share/gotiler` and links the executable from `~/.local/bin`. If that folder is not on your `PATH`, it prints the line to add to your shell profile. It needs only tools that Linux distributions ship: `curl` or `wget`, `tar`, `gzip`, `awk` and a SHA-256 tool.
+
+</TabItem>
+<TabItem label="macOS">
+
+```bash
+curl -fsSL https://github.com/mfbonfigli/gotiler/releases/latest/download/install.sh | sh
+```
+
+The script installs gotiler in `~/.local/share/gotiler` and links the executable from `~/.local/bin`. If that folder is not on your `PATH`, it prints the line to add to your shell profile. It needs only tools that macOS ships.
 
 </TabItem>
 <TabItem label="Windows">
@@ -57,7 +66,14 @@ The scripts read these environment variables:
 They never replace a folder they did not install: if the install folder already holds other files, they stop and ask you to pick another one. To install a given release:
 
 <Tabs syncKey="install">
-<TabItem label="Linux and macOS">
+<TabItem label="Linux">
+
+```bash
+curl -fsSL https://github.com/mfbonfigli/gotiler/releases/latest/download/install.sh | GOTILER_VERSION=v3.1.0 sh
+```
+
+</TabItem>
+<TabItem label="macOS">
 
 ```bash
 curl -fsSL https://github.com/mfbonfigli/gotiler/releases/latest/download/install.sh | GOTILER_VERSION=v3.1.0 sh
@@ -77,7 +93,16 @@ irm https://github.com/mfbonfigli/gotiler/releases/latest/download/install.ps1 |
 ### Uninstall
 
 <Tabs syncKey="install">
-<TabItem label="Linux and macOS">
+<TabItem label="Linux">
+
+Delete the install folder and the link to the executable:
+
+```bash
+rm -rf ~/.local/share/gotiler ~/.local/bin/gotiler
+```
+
+</TabItem>
+<TabItem label="macOS">
 
 Delete the install folder and the link to the executable:
 
@@ -110,7 +135,7 @@ Each [GitHub release](https://github.com/mfbonfigli/gotiler/releases/latest) has
 | macOS Apple Silicon | `gotiler-darwin-arm64-<version>.tar.gz` |
 | Windows x86_64      | `gotiler-windows-amd64-<version>.zip`   |
 
-<Tabs syncKey="os">
+<Tabs syncKey="install">
 <TabItem label="Linux">
 
 <Steps>
@@ -183,7 +208,7 @@ The executable must stay next to its `share` folder, which holds the PROJ data. 
 
 The install scripts check their download on their own. For a manual download, compare the archive's checksum with the one listed in the release's `SHA256SUMS` file:
 
-<Tabs syncKey="os">
+<Tabs syncKey="install">
 <TabItem label="Linux">
 
 ```bash

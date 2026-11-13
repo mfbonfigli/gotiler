@@ -1,6 +1,6 @@
 ---
 title: Quick start
-description: Tile a first point cloud with gotiler and look at the result on a 3D globe.
+description: Tile a first point cloud or Gaussian splat scene with gotiler and look at the result on a 3D globe.
 sidebar:
   order: 2
 ---
@@ -28,6 +28,12 @@ gotiler pcloud -o ./out --join --3tz ./las_folder
 
 Folders are not scanned recursively: files in subfolders are ignored.
 
+## Tile a Gaussian splat scene
+
+```bash
+gotiler splats -o ./out ./scene.ply
+```
+
 ## Look at the result
 
 `gotiler view` opens a tileset on a 3D globe in the browser:
@@ -36,7 +42,7 @@ Folders are not scanned recursively: files in subfolders are ignored.
 gotiler view ./out
 ```
 
-Add `--preview` to a tiling command to open the viewer as soon as tiling ends. See [Viewing and positioning](/gotiler/guides/viewer/) for what the viewer can do.
+Add `--preview` to `gotiler pcloud` to open the viewer as soon as tiling ends; `gotiler splats` opens it on its own. See [Viewing and positioning](/gotiler/guides/viewer/) for what the viewer can do.
 
 To show the tileset in your own CesiumJS application, serve the output folder over HTTP and load its `tileset.json`:
 

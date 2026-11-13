@@ -13,7 +13,7 @@ After tiling, the [viewer](/gotiler/guides/viewer/) opens on the result with the
 
 ## Input
 
-The PLY file holds one vertex per splat with the properties that the reference 3D Gaussian Splatting implementation writes, and that most trainers and editors export:
+gotiler reads the PLY layout that the reference 3D Gaussian Splatting implementation writes, and that most trainers and editors export. Each vertex is a splat, with these properties:
 
 - `x`, `y`, `z`: the center
 - `f_dc_0` to `f_dc_2`: the base color, as degree-0 spherical harmonics
@@ -22,14 +22,14 @@ The PLY file holds one vertex per splat with the properties that the reference 3
 - `rot_0` to `rot_3`: the rotation, as a quaternion in W, X, Y, Z order
 - `f_rest_0` and up, optionally: 9, 24 or 45 coefficients for spherical harmonics of degree 1, 2 or 3
 
-ASCII and binary PLY files are read. Vertices with non-finite values are skipped, and the summary at the end counts them. Compressed splat PLY files, with packed properties, are not supported yet: export the scene as a standard splat PLY.
+Both ASCII and binary PLY files work. Splats with invalid values are skipped, and the summary at the end says how many. Compressed splat PLY files, with packed properties, are not supported yet: export the scene as a standard splat PLY.
 
 ## Placement
 
-Trained scenes carry no coordinate system, so gotiler places them on the globe through the root transform of the tileset, with the placement flags or in the viewer: see [Placing ungeoreferenced assets](/gotiler/guides/placing-ungeoreferenced-clouds/). `--input-up-axis` names the input axis that points up, optionally signed. Scenes trained with OpenCV or COLMAP conventions point down their Y axis, and usually need `-y`:
+Trained scenes have no coordinate system, so you place them on the globe yourself, with the placement flags or in the viewer: see [Placing ungeoreferenced assets](/gotiler/guides/placing-ungeoreferenced-clouds/). `--input-up-axis` names the input axis that points up, optionally signed. Scenes trained with OpenCV or COLMAP conventions point down their Y axis, and usually need `-y`:
 
 ```bash
 gotiler splats -o ./out --input-up-axis -y --longitude 12.4924 --latitude 41.8902 --height 20 ./scene.ply
 ```
 
-Since the position lives only in the root transform, the viewer can move the tileset after tiling without rewriting its tiles, then or later with `gotiler view ./out`.
+You can move the scene again at any time with `gotiler view ./out`, without tiling it again.

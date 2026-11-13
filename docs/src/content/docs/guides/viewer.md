@@ -5,32 +5,34 @@ sidebar:
   order: 7
 ---
 
-`gotiler view` opens a tileset in a local web viewer that shows it on a CesiumJS globe and lets you move it into place. Pass the `tileset.json`, or the folder that holds it:
+`gotiler view` shows a tileset on a 3D globe in your browser and lets you move it into place. Pass the `tileset.json`, or the folder that holds it:
 
 ```bash
 gotiler view ./out
 ```
 
-gotiler opens the viewer in the default browser and prints its address, which carries a random access token, in case the browser cannot be opened. Add `--preview` to a point cloud tiling command to open the viewer on the result as soon as tiling ends. [`gotiler splats`](/gotiler/guides/gaussian-splats/input-and-placement/) opens it by default:
+The viewer opens in your default browser; if it can't, open the address gotiler prints. To see a point cloud as soon as tiling ends, add `--preview` to `gotiler pcloud`. [`gotiler splats`](/gotiler/guides/gaussian-splats/input-and-placement/) opens the viewer on its own:
 
 ```bash
 gotiler pcloud -o ./out --crs local --input-up-axis y --preview ./model.ply
 ```
 
-The viewer only listens on `127.0.0.1` and stops when its page is closed, or with Ctrl+C; reloading the page keeps it running. Points are drawn 3 pixels wide; the **−** and **+** buttons in the top-left corner change their size from 1 to 14 pixels.
+Close the page, or press Ctrl+C in the terminal, to stop the viewer; reloading the page keeps it running. Only your own computer can reach it.
 
-Gaussian splat tilesets show as splats, without the point size buttons. To keep the memory of large scenes in check, the viewer loads their tiles with a smaller cache than for point clouds, and lowers the detail while they take more memory than the cache allows, until they take less than half of it again.
+The **−** and **+** buttons in the top-left corner make points smaller or larger. On large Gaussian splat scenes, the viewer lowers the detail when the browser runs short of memory, and raises it again once there is room.
 
 ## Moving a tileset
 
-`gotiler view` opens as a plain viewer: click **Edit position** to show the position panel and the gizmo, and **Done** to hide them again, discarding unsaved changes. `--preview` opens with them already shown. The position panel moves the tileset:
+Click **Edit position** to show the position panel and the gizmo; `--preview` and `gotiler splats` open the viewer with them already shown. Then:
 
-- search an address, or click **Pick position** and then the globe, to move the cloud's center there
-- drag the arrows of the gizmo drawn on the tileset to move it along its axes, or its rings to rotate it about them
-- fine-tune it with offsets along the local east, north and up axes (X, Y, Z, in meters) and rotations about them (RX, RY, RZ, in degrees)
-- **Save position** writes the new root transform into `tileset.json`, replacing the previous one; the tiles themselves are not rewritten
+- search an address, or click **Pick position** and then the globe, to move the tileset's center there
+- drag the gizmo's arrows to move the tileset, or its rings to rotate it
+- fine-tune the position with offsets toward east, north and up (X, Y, Z, in meters) and rotations about those directions (RX, RY, RZ, in degrees)
+- click **Save position** to store the new position in `tileset.json`: saving takes no time, as the tiles stay as they are
 
-Tilesets using `region` bounding volumes are shown but cannot be moved, since the root transform does not apply to them.
+**Done** hides the panel and the gizmo again, and discards the changes you did not save.
+
+Tilesets from other tools whose bounding volumes are geographic regions can be viewed but not moved.
 
 ## Options
 
@@ -40,4 +42,4 @@ Tilesets using `region` bounding volumes are shown but cannot be moved, since th
 
 To show Cesium World Imagery and World Terrain instead of the default VersaTiles satellite imagery, so picked positions follow the terrain, set the `CESIUM_ION_TOKEN` environment variable to a [Cesium ion](https://ion.cesium.com/) access token. The viewer page needs the token to load the imagery, so use one limited to the `assets:read` scope.
 
-The viewer page loads CesiumJS and the map imagery from the internet, and address search uses [Nominatim](https://nominatim.org/).
+The viewer needs an internet connection: it loads CesiumJS and the map imagery online, and searches addresses with [Nominatim](https://nominatim.org/).

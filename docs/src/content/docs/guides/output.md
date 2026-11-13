@@ -28,7 +28,7 @@ Viewers pick which tiles to show from their geometric error, which gotiler deriv
 
 ## Large tilesets
 
-Viewers read the whole `tileset.json` before showing anything, and a cloud of billions of points has tens of thousands of tiles. A tileset of more than `--max-tiles-per-tileset` tiles (default 2,000) keeps only the top levels of its tree in `tileset.json`, and each subtree below them moves into an external tileset in the `data` folder, named after the tile it starts from, such as `data/0101d.json`. Viewers then read a small `tileset.json` first, and each external tileset only once the camera gets close to its tiles.
+Viewers read the whole `tileset.json` before showing anything, and a cloud of billions of points has tens of thousands of tiles. A tileset of more than `--max-tiles-per-tileset` tiles (default 2,000) is split: `tileset.json` keeps the top levels of the tree, and each subtree below them goes into an external tileset in the `data` folder, such as `data/0101d.json`. The cloud then shows sooner, as viewers fetch each subtree only once the camera gets close to it.
 
 Smaller tilesets keep a single `tileset.json`, and `--max-tiles-per-tileset 0` always writes one. External tilesets are part of the 3D Tiles standard, so CesiumJS and other 3D Tiles viewers read them.
 
@@ -60,7 +60,7 @@ gotiler pcloud -o ./out --3tz ./input.las
 
 ## Subsampling
 
-`--subsample` keeps a random percentage of the points, in (0, 100], thinning huge datasets while tiling. Points are dropped uniformly at random while reading.
+`--subsample` keeps the given percentage of the points, picked at random, to thin out huge datasets.
 
 ```bash
 gotiler pcloud -o ./out --subsample 25 ./input.las
