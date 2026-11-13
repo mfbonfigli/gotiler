@@ -18,4 +18,4 @@ const tileset = await Cesium.Cesium3DTileset.fromUrl('https://example.com/out/ti
 viewer.scene.primitives.add(tileset);
 ```
 
-CesiumJS needs to support the `KHR_gaussian_splatting_compression_spz_2` extension; the gotiler viewer uses CesiumJS 1.146.
+CesiumJS needs to support the `KHR_gaussian_splatting_compression_spz_2` extension; the gotiler viewer uses CesiumJS 1.147.

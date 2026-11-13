@@ -43,7 +43,7 @@ async function createWidget(config) {
 }
 
 // loadTileset loads the tileset in splat mode or with the point size control.
-// Splats take no point size: CesiumJS 1.146 applies no custom shader to them.
+// Splats take no point size: CesiumJS 1.147 applies no custom shader to them.
 async function loadTileset(config) {
   if (config.splats) {
     const tileset = await Cesium3DTileset.fromUrl(config.tilesetUrl, splatTilesetOptions());
