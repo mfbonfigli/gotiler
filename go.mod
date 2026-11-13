@@ -6,7 +6,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.41.5
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.97.3
 	github.com/klauspost/compress v1.19.0
-	github.com/mfbonfigli/golaz v0.2.2
+	github.com/mfbonfigli/golaz v0.3.1
 	github.com/mfbonfigli/golibe57 v0.2.1
 	github.com/qmuntal/gltf v0.28.0
 	github.com/rivo/uniseg v0.4.7
