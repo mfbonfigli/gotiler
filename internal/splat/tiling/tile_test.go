@@ -128,7 +128,7 @@ func TestTileWritesATileset(t *testing.T) {
 	if ts.Root.Transform == nil || *ts.Root.Transform != transform {
 		t.Errorf("root transform %v, want %v", ts.Root.Transform, transform)
 	}
-	if ts.GeometricError != ts.Root.GeometricError || ts.GeometricError != res.GeometricError || res.GeometricError <= 0 {
+	if ts.GeometricError != ts.Root.GeometricError || !closeToStored(ts.GeometricError, res.GeometricError) || res.GeometricError <= 0 {
 		t.Errorf("geometric errors: tileset %v, root %v, result %v", ts.GeometricError, ts.Root.GeometricError, res.GeometricError)
 	}
 
@@ -149,7 +149,8 @@ func TestTileWritesATileset(t *testing.T) {
 				t.Errorf("tile %s reaches out of its parent", tile.Content.URI)
 			}
 		}
-		if tile.Refine != "REPLACE" || !strings.HasPrefix(tile.Content.URI, "data/tile_0") {
+		// The root states the refine, which its descendants inherit.
+		if (parent == nil && tile.Refine != "REPLACE") || (parent != nil && tile.Refine != "") || !strings.HasPrefix(tile.Content.URI, "data/tile_0") {
 			t.Errorf("tile %s refines by %q", tile.Content.URI, tile.Refine)
 		}
 		c := readContent(t, dir, tile.Content.URI)
@@ -314,11 +315,11 @@ func TestTileOptions(t *testing.T) {
 		walk(&baseTileset.Root, func(tile, _ *tileJSON) { want = append(want, tile.GeometricError*2.5) })
 		walk(&ts.Root, func(tile, _ *tileJSON) { got = append(got, tile.GeometricError) })
 		for i := range want {
-			if !closeTo(got[i], want[i]) {
+			if !closeToStored(got[i], want[i]) {
 				t.Fatalf("tile %d has a geometric error of %v, want %v", i, got[i], want[i])
 			}
 		}
-		if !closeTo(res.GeometricError, baseRes.GeometricError*2.5) || !closeTo(ts.GeometricError, res.GeometricError) {
+		if !closeTo(res.GeometricError, baseRes.GeometricError*2.5) || !closeToStored(ts.GeometricError, res.GeometricError) {
 			t.Errorf("root error %v, want %v", res.GeometricError, baseRes.GeometricError*2.5)
 		}
 	})

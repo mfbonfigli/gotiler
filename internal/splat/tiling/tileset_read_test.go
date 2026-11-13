@@ -1,5 +1,14 @@
 package tiling
 
+import "math"
+
+// closeToStored reports whether a geometric error read from a tileset file
+// matches the computed one: the files keep 5 significant digits, so a
+// product of two rounded errors can be off by 1e-4 of its value.
+func closeToStored(got, want float64) bool {
+	return math.Abs(got-want) <= 1e-4*math.Max(math.Abs(got), math.Abs(want))
+}
+
 // The JSON of a splat tileset file, as the tests read it back.
 
 type tilesetJSON struct {

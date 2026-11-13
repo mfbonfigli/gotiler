@@ -41,9 +41,10 @@ func TestTileSplitsLargeTilesetsIntoExternalTilesets(t *testing.T) {
 			t.Errorf("%s has the root transform %v", name, ts.Root.Transform)
 		}
 		dir := path.Dir(name)
-		walk(&ts.Root, func(tile, _ *tileJSON) {
-			if tile.Refine != "REPLACE" {
-				t.Errorf("a tile of %s refines by %q", name, tile.Refine)
+		// Every file's root states the refine, which the rest inherit.
+		walk(&ts.Root, func(tile, parent *tileJSON) {
+			if want := map[bool]string{true: "REPLACE", false: ""}[parent == nil]; tile.Refine != want {
+				t.Errorf("a tile of %s refines by %q, want %q", name, tile.Refine, want)
 			}
 			uri := path.Join(dir, tile.Content.URI)
 			if strings.HasSuffix(uri, ".json") {

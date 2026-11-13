@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
+	"math/rand/v2"
 	"path"
 	"strings"
 	"testing"
@@ -326,5 +328,103 @@ func TestRelative(t *testing.T) {
 		if got := relative(c.dir, c.target); got != c.want {
 			t.Errorf("relative(%q, %q) = %q, want %q", c.dir, c.target, got, c.want)
 		}
+	}
+}
+
+func TestRoundBoxGrowsOutwardAndKeepsChildrenInside(t *testing.T) {
+	rng := rand.New(rand.NewPCG(1, 2))
+	scale := gridScale([12]float64{0, 0, 0, 150, 0, 0, 0, 120, 0, 0, 0, 40}) // a 300 m root
+	if scale != 1e4 {
+		t.Fatalf("grid scale %v, want 1e4", scale)
+	}
+	for range 10_000 {
+		var parent, child [12]float64
+		for axis, half := range [3]int{3, 7, 11} {
+			parent[axis] = rng.Float64()*300 - 150
+			parent[half] = rng.Float64() * 100
+			// a child inside the parent, sometimes sharing a face with it
+			lo, hi := parent[axis]-parent[half], parent[axis]+parent[half]
+			a, b := lo+rng.Float64()*(hi-lo), lo+rng.Float64()*(hi-lo)
+			if rng.IntN(4) == 0 {
+				a = lo
+			}
+			child[axis], child[half] = (a+b)/2, math.Abs(b-a)/2
+		}
+		rp, rc := roundBox(parent, scale), roundBox(child, scale)
+		// faces are compared as viewers compute them, center minus or plus
+		// half, which may differ in the last bit when they are shared
+		const epsilon = 1e-9
+		for axis, half := range [3]int{3, 7, 11} {
+			if rp[axis]-rp[half] > parent[axis]-parent[half]+epsilon || rp[axis]+rp[half] < parent[axis]+parent[half]-epsilon {
+				t.Fatalf("rounded box %v does not hold %v", rp, parent)
+			}
+			if rc[axis]-rc[half] < rp[axis]-rp[half]-epsilon || rc[axis]+rc[half] > rp[axis]+rp[half]+epsilon {
+				t.Fatalf("rounded child %v reaches out of rounded parent %v", rc, rp)
+			}
+			if growth := rp[half] - parent[half]; growth > 1/scale {
+				t.Fatalf("box grew by %v", growth)
+			}
+		}
+	}
+	// Rounded values print short: faces on the grid, centers and halves on
+	// the grid or halfway between two steps.
+	data, _ := json.Marshal(roundBox([12]float64{89.40999984741211, 120.57673835754395, 70.00825905799866, 136.75468826293945, 0, 0, 0, 163.34071159362793, 0, 0, 0, 74.20632529258728}, scale))
+	if string(data) != "[89.41,120.57675,70.00825,136.7547,0,0,0,163.34075,0,0,0,74.20635]" {
+		t.Errorf("rounded box %s", data)
+	}
+}
+
+func TestGridScaleFollowsTheDatasetSize(t *testing.T) {
+	box := func(half float64) [12]float64 {
+		return [12]float64{0, 0, 0, half, 0, 0, 0, half / 2, 0, 0, 0, half / 4}
+	}
+	for _, c := range []struct {
+		box  [12]float64
+		want float64
+	}{
+		{box(150), 1e4},   // 300 m: a tenth of a millimeter
+		{box(5000), 1e2},  // 10 km: a centimeter
+		{box(0.001), 1e9}, // 2 mm: at most a nanometer
+		{box(1e9), 1},     // larger than the Earth: a meter
+		{[12]float64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, 1e6}, // flat on X and Y, 2 m on Z
+		{[12]float64{}, 0}, // no size: left as is
+		{[12]float64{0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1}, 0}, // not axis-aligned
+	} {
+		if got := gridScale(c.box); got != c.want {
+			t.Errorf("gridScale(%v) = %v, want %v", c.box, got, c.want)
+		}
+	}
+	rotated := [12]float64{1.23456789, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1}
+	if roundBox(rotated, 1e4) != rotated {
+		t.Error("a box that is not axis-aligned was rounded")
+	}
+}
+
+func TestRoundErrorKeepsFiveSignificantDigits(t *testing.T) {
+	for _, c := range []struct{ in, want float64 }{
+		{127.72339392235129, 127.72},
+		{0.012345678, 0.012346},
+		{5584.594950530971, 5584.6},
+		{0, 0},
+	} {
+		if got := roundError(c.in); got != c.want {
+			t.Errorf("roundError(%v) = %v, want %v", c.in, got, c.want)
+		}
+	}
+}
+
+func TestWriteStatesRefineOnlyWhereItChanges(t *testing.T) {
+	root := &Tile{Refine: "ADD", Content: "data/r.glb", Children: []*Tile{
+		{Refine: "ADD", Content: "data/a.glb"},
+		{Refine: "REPLACE", Content: "data/b.glb", Children: []*Tile{{Refine: "REPLACE", Content: "data/c.glb"}}},
+	}}
+	f := newFiles()
+	if _, err := Write(f.create, root, Header{Version: "1.1"}, RootOnly{}, Options{}); err != nil {
+		t.Fatal(err)
+	}
+	file := readTileset(t, f).parsed[RootFilename]
+	a, b := file.Root.Children[0], file.Root.Children[1]
+	if file.Root.Refine != "ADD" || a.Refine != "" || b.Refine != "REPLACE" || b.Children[0].Refine != "" {
+		t.Errorf("refines %q, %q, %q, %q", file.Root.Refine, a.Refine, b.Refine, b.Children[0].Refine)
 	}
 }
