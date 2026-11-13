@@ -219,7 +219,8 @@ func NewApp(opts Options) *cli.Command {
 				return tilePointClouds(cmd, cli.ShowSubcommandHelp)
 			},
 		},
-		newSplatCommand(),
+		newSplatCommand(splatsCommandName),
+		hidden(newSplatCommand(legacySplatsCommandName)),
 		newViewCommand(),
 		{
 			Name:  "version",
@@ -255,6 +256,12 @@ func NewApp(opts Options) *cli.Command {
 		Commands:              commands,
 		EnableShellCompletion: true,
 	}
+}
+
+// hidden returns cmd left out of the help.
+func hidden(cmd *cli.Command) *cli.Command {
+	cmd.Hidden = true
+	return cmd
 }
 
 // rootOnly hides flags from the help and keeps them from the subcommands.

@@ -37,7 +37,7 @@ gotiler pcloud -o ./out --crs local --latitude 41.89 --longitude 12.49 --input-u
 Colors come from the `red`/`green`/`blue` properties, or `diffuse_red`/`diffuse_green`/`diffuse_blue`, scaled to 8 bits according to their type. Any other vertex property can be exported with `--attributes`, keeping its PLY type. CloudCompare's `scalar_` prefix is optional (`intensity` finds `scalar_Intensity`), and normals can be requested as `nx` or `normal_x`. Vertices with non-finite coordinates are skipped.
 
 :::note
-Gaussian splat PLY files are not point clouds: tile them with `gotiler splat`, see [Gaussian splats](/gotiler/guides/gaussian-splats/input-and-placement/).
+Gaussian splat PLY files are not point clouds: tile them with `gotiler splats`, see [Gaussian splats](/gotiler/guides/gaussian-splats/input-and-placement/).
 :::
 
 ## Folders

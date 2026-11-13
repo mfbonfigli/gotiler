@@ -122,7 +122,7 @@ For Ubuntu-like environments, follow the Dockerfile steps:
 Every command takes `--profile cpu` or `--profile memory`, before or after the command name, to write a pprof profile of its run, and `--profile-output` to choose the file, `pprof_cpu.prof` or `pprof_memory.prof` in the current folder by default. The help does not list them. A CPU profile covers the whole command; a memory profile is a heap snapshot taken when it ends.
 
 ```bash
-gotiler splat --profile cpu --profile-output splat.prof --no-preview -o ./out ./scene.ply
+gotiler splats --profile cpu --profile-output splat.prof --no-preview -o ./out ./scene.ply
 go tool pprof -top splat.prof
 ```
 

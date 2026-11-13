@@ -98,12 +98,12 @@ func TestPointMapperRejectsGaussianSplats(t *testing.T) {
 		{
 			"standard layout",
 			floatProps("x", "y", "z", "nx", "ny", "nz", "f_dc_0", "f_dc_1", "f_dc_2", "f_rest_0", "opacity", "scale_0", "scale_1", "scale_2", "rot_0", "rot_1", "rot_2", "rot_3"),
-			"the file is a Gaussian splat PLY: tile it with gotiler splat",
+			"the file is a Gaussian splat PLY: tile it with gotiler splats",
 		},
 		{
 			"compressed layout",
 			[]property{scalarProp("packed_position", uint32Type), scalarProp("packed_rotation", uint32Type), scalarProp("packed_scale", uint32Type), scalarProp("packed_color", uint32Type)},
-			"the file is a compressed Gaussian splat PLY: export it as a standard splat PLY and tile it with gotiler splat",
+			"the file is a compressed Gaussian splat PLY: export it as a standard splat PLY and tile it with gotiler splats",
 		},
 	}
 	for _, tc := range tests {

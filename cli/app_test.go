@@ -164,7 +164,7 @@ func TestRootHelpListsTheCommands(t *testing.T) {
 			names = append(names, strings.TrimSuffix(fields[0], ","))
 		}
 	}
-	if want := []string{"pcloud", "splat", "view", "version", "help"}; !reflect.DeepEqual(names, want) {
+	if want := []string{"pcloud", "splats", "view", "version", "help"}; !reflect.DeepEqual(names, want) {
 		t.Errorf("the help lists the commands %v, want %v:\n%s", names, want, out)
 	}
 	if want := "Without a command, gotiler runs pcloud: see gotiler pcloud --help."; !strings.Contains(out, want) {
@@ -178,7 +178,7 @@ func TestRootHelpListsTheCommands(t *testing.T) {
 }
 
 func TestCommandHelpHasNoGlobalOptions(t *testing.T) {
-	for _, command := range []string{"pcloud", "splat", "view", "version"} {
+	for _, command := range []string{"pcloud", "splats", "view", "version"} {
 		app := NewApp(Options{})
 		buf := &bytes.Buffer{}
 		app.Writer = buf
@@ -193,9 +193,9 @@ func TestCommandHelpHasNoGlobalOptions(t *testing.T) {
 
 func TestCommandsRejectPointCloudFlags(t *testing.T) {
 	for _, args := range [][]string{
-		{"splat", "--crs", "EPSG:4326", "-o", "out", "scene.ply"},
-		{"splat", "--8-bit", "-o", "out", "scene.ply"},
-		{"splat", "--3tz", "-o", "out", "scene.ply"},
+		{"splats", "--crs", "EPSG:4326", "-o", "out", "scene.ply"},
+		{"splats", "--8-bit", "-o", "out", "scene.ply"},
+		{"splats", "--3tz", "-o", "out", "scene.ply"},
 		{"view", "--crs", "EPSG:4326", "tileset.json"},
 	} {
 		app := NewApp(Options{})

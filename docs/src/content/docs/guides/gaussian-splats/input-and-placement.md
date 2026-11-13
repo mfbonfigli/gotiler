@@ -1,12 +1,12 @@
 ---
 title: Input formats and placement
-description: Tile 3D Gaussian splat PLY files into 3D Tiles 1.1 for CesiumJS with gotiler splat, and place them on the globe.
+description: Tile 3D Gaussian splat PLY files into 3D Tiles 1.1 for CesiumJS with gotiler splats, and place them on the globe.
 ---
 
-`gotiler splat` tiles a PLY file of 3D Gaussian splats into a 3D Tiles 1.1 tileset, which CesiumJS streams and draws as splats:
+`gotiler splats` tiles a PLY file of 3D Gaussian splats into a 3D Tiles 1.1 tileset, which CesiumJS streams and draws as splats:
 
 ```bash
-gotiler splat -o ./out ./scene.ply
+gotiler splats -o ./out ./scene.ply
 ```
 
 After tiling, the [viewer](/gotiler/guides/viewer/) opens on the result with the position panel shown, to check the tileset and move it into place. `--no-preview` skips it, and it does not open when the output is not a terminal, as in scripts and containers.
@@ -29,7 +29,7 @@ ASCII and binary PLY files are read. Vertices with non-finite values are skipped
 Trained scenes carry no coordinate system, so gotiler places them on the globe through the root transform of the tileset, with the placement flags or in the viewer: see [Placing ungeoreferenced assets](/gotiler/guides/placing-ungeoreferenced-clouds/). `--input-up-axis` names the input axis that points up, optionally signed. Scenes trained with OpenCV or COLMAP conventions point down their Y axis, and usually need `-y`:
 
 ```bash
-gotiler splat -o ./out --input-up-axis -y --longitude 12.4924 --latitude 41.8902 --height 20 ./scene.ply
+gotiler splats -o ./out --input-up-axis -y --longitude 12.4924 --latitude 41.8902 --height 20 ./scene.ply
 ```
 
 Since the position lives only in the root transform, the viewer can move the tileset after tiling without rewriting its tiles, then or later with `gotiler view ./out`.

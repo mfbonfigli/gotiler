@@ -11,7 +11,7 @@ sidebar:
 gotiler view ./out
 ```
 
-gotiler opens the viewer in the default browser and prints its address, which carries a random access token, in case the browser cannot be opened. Add `--preview` to a point cloud tiling command to open the viewer on the result as soon as tiling ends. [`gotiler splat`](/gotiler/guides/gaussian-splats/input-and-placement/) opens it by default:
+gotiler opens the viewer in the default browser and prints its address, which carries a random access token, in case the browser cannot be opened. Add `--preview` to a point cloud tiling command to open the viewer on the result as soon as tiling ends. [`gotiler splats`](/gotiler/guides/gaussian-splats/input-and-placement/) opens it by default:
 
 ```bash
 gotiler pcloud -o ./out --crs local --input-up-axis y --preview ./model.ply

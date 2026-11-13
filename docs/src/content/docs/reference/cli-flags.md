@@ -10,7 +10,7 @@ sidebar:
 | Command                             | Description                                                          |
 | ----------------------------------- | -------------------------------------------------------------------- |
 | `gotiler pcloud [flags] <input>`    | Tile a point cloud file, or every file of a folder.                  |
-| `gotiler splat [flags] <splats.ply>` | Tile a Gaussian splat PLY file, see [Gaussian splats](/gotiler/guides/gaussian-splats/input-and-placement/). |
+| `gotiler splats [flags] <splats.ply>` | Tile a Gaussian splat PLY file, see [Gaussian splats](/gotiler/guides/gaussian-splats/input-and-placement/). |
 | `gotiler view [flags] <tileset>`    | Show a tileset on a 3D globe in the browser and move it into place.  |
 | `gotiler version`                   | Print the gotiler version.                                           |
 | `gotiler help [command]`            | List the commands, or the flags of one command.                      |
@@ -63,7 +63,7 @@ Only with `--crs local`, see [Placing ungeoreferenced assets](/gotiler/guides/pl
 
 ## Splat flags
 
-The flags of `gotiler splat`, see [Gaussian splats](/gotiler/guides/gaussian-splats/input-and-placement/).
+The flags of `gotiler splats`, see [Gaussian splats](/gotiler/guides/gaussian-splats/input-and-placement/).
 
 | Flag                        | Default    | Description |
 | --------------------------- | ---------- | ----------- |
@@ -97,4 +97,4 @@ The flags of `gotiler splat`, see [Gaussian splats](/gotiler/guides/gaussian-spl
 
 | Variable           | Description |
 | ------------------ | ----------- |
-| `CESIUM_ION_TOKEN` | Cesium ion access token for the viewer, used by `gotiler view`, `--preview` and `gotiler splat`: the viewer then shows Cesium World Imagery and World Terrain instead of the default satellite imagery. There is no flag for it, so the token stays out of shell histories and process listings. |
+| `CESIUM_ION_TOKEN` | Cesium ion access token for the viewer, used by `gotiler view`, `--preview` and `gotiler splats`: the viewer then shows Cesium World Imagery and World Terrain instead of the default satellite imagery. There is no flag for it, so the token stays out of shell histories and process listings. |

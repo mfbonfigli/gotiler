@@ -30,10 +30,10 @@ func TestProfileFlagsProfileTheSplatCommand(t *testing.T) {
 	for name, args := range map[string]func(profile string) []string{
 		// the flags work on either side of the command name
 		"after the command": func(profile string) []string {
-			return []string{"splat", "--no-preview", "--profile", "cpu", "--profile-output", profile, "-o", filepath.Join(dir, "out"), input}
+			return []string{"splats", "--no-preview", "--profile", "cpu", "--profile-output", profile, "-o", filepath.Join(dir, "out"), input}
 		},
 		"before the command": func(profile string) []string {
-			return []string{"--profile", "memory", "--profile-output", profile, "splat", "--no-preview", "-o", filepath.Join(dir, "out"), input}
+			return []string{"--profile", "memory", "--profile-output", profile, "splats", "--no-preview", "-o", filepath.Join(dir, "out"), input}
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -67,7 +67,7 @@ func TestProfileFlagsProfileThePointCloudCommand(t *testing.T) {
 
 func TestProfileFlagRejectsUnknownProfiles(t *testing.T) {
 	profile := filepath.Join(t.TempDir(), "disk.prof")
-	err := splatRun()("--profile", "disk", "--profile-output", profile, "splat", "--no-preview", "-o", t.TempDir(), "scene.ply")
+	err := splatRun()("--profile", "disk", "--profile-output", profile, "splats", "--no-preview", "-o", t.TempDir(), "scene.ply")
 	if err == nil || !strings.Contains(err.Error(), "--profile") {
 		t.Fatalf("error %v, want one about --profile", err)
 	}

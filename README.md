@@ -35,7 +35,7 @@
 * **Per-point attributes:** intensity, classification, GPS time, LAS extra bytes or any other attribute of the input.
 * **Colorization:** 36 color ramps to colorize based on any attribute or coordinate. You can even colorize from an RGB GeoTIFF orthophoto.
 
-### Gaussian splats, with `gotiler splat`
+### Gaussian splats, with `gotiler splats`
 
 * **PLY input:** reads splat scenes in PLY format, with spherical harmonics up to degree 3.
 * **SPZ compression:** SPZ-compressed glTF tiles with the `KHR_gaussian_splatting` extensions that CesiumJS reads.
@@ -60,7 +60,7 @@ Time and peak memory to tile the [Helsinki point cloud](https://zenodo.org/recor
 | [py3dtiles 12.1.1](https://gitlab.com/py3dtiles/py3dtiles) | 7m 11s | 2.56 GB |
 | [mago 3d tiler 1.15.4](https://github.com/Gaia3D/mago-3d-tiler) | 14m 17s | 16.81 GB |
 
-`gotiler splat` tiles the [Lublin, Poland](https://superspl.at/scene/2f1ddf5f) scene, 259M Gaussian splats in a 16.3 GB PLY file, in **5m 50s** with its default options, on a desktop with an Intel Core i5-13600K, 32 GB of RAM and a Samsung 980 PRO NVMe SSD running Windows 11.
+`gotiler splats` tiles the [Lublin, Poland](https://superspl.at/scene/2f1ddf5f) scene, 259M Gaussian splats in a 16.3 GB PLY file, in **5m 50s** with its default options, on a desktop with an Intel Core i5-13600K, 32 GB of RAM and a Samsung 980 PRO NVMe SSD running Windows 11.
 
 ## Installation
 
@@ -91,7 +91,7 @@ gotiler pcloud -o ./out --join --3tz ./las_folder
 gotiler pcloud -o ./out -c EPSG:32633 --colorize z:viridis --preview ./input.las
 
 # Tile a Gaussian splat scene, then place it on the globe
-gotiler splat -o ./out --input-up-axis -y ./scene.ply
+gotiler splats -o ./out --input-up-axis -y ./scene.ply
 ```
 
 `gotiler help` lists the commands, `gotiler help pcloud` the flags of one, and the [Quick start](https://mfbonfigli.github.io/gotiler/getting-started/quick-start/) walks through a first tileset.

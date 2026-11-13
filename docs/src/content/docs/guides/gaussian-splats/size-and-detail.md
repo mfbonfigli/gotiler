@@ -3,7 +3,7 @@ title: Size and detail
 description: Choose the spherical-harmonic degree, the opacity threshold, the tile size and the geometric errors of a Gaussian splat tileset.
 ---
 
-Large scenes run out of viewer memory before they run out of detail, so the defaults of `gotiler splat` keep what shows from afar:
+Large scenes run out of viewer memory before they run out of detail, so the defaults of `gotiler splats` keep what shows from afar:
 
 - `--max-sh-degree` defaults to `0`, which keeps the base color of each splat and drops the colors that change with the view direction, such as reflections. CesiumJS takes 32 bytes per splat for everything else, plus 24 bytes at degree 1 and 120 bytes at degree 3. `--max-sh-degree 3` keeps whatever the input holds.
 - `--min-opacity` defaults to `0.05`, which drops the almost invisible splats. In one trained scene of a million splats they were a quarter of the splats, but covered less than 1% of the area that the splats cover. `--min-opacity 0` keeps them all.

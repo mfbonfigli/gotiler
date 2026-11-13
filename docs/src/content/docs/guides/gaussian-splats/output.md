@@ -1,6 +1,6 @@
 ---
 title: Output
-description: The tileset that gotiler splat writes, and how to show it in CesiumJS.
+description: The tileset that gotiler splats writes, and how to show it in CesiumJS.
 ---
 
 The output folder holds `tileset.json` and the tiles in its `data` folder. Each tile is a glTF file of SPZ-compressed splats, with the `KHR_gaussian_splatting` and `KHR_gaussian_splatting_compression_spz_2` extensions. The tileset declares both as required, since CesiumJS draws the tiles as splats only then, and as points otherwise.

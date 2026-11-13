@@ -77,10 +77,17 @@ func defaultSplatOptions() *splatOptions {
 	}
 }
 
-func newSplatCommand() *cli.Command {
+// splatsCommandName is the command that tiles Gaussian splats.
+// legacySplatsCommandName runs it too, without showing in the help.
+const (
+	splatsCommandName       = "splats"
+	legacySplatsCommandName = "splat"
+)
+
+func newSplatCommand(name string) *cli.Command {
 	o := defaultSplatOptions()
 	return &cli.Command{
-		Name:      "splat",
+		Name:      name,
 		Usage:     "convert a 3D Gaussian splat PLY file into 3D Tiles",
 		ArgsUsage: "<splats.ply>",
 		Description: "Tiles a PLY file of 3D Gaussian splats, as trainers like the reference 3DGS implementation write them, " +
@@ -191,7 +198,7 @@ func (o *splatOptions) validate(input string) error {
 	case err != nil:
 		return fmt.Errorf("the input %s is not accessible: %w", input, err)
 	case info.IsDir():
-		return fmt.Errorf("the input %s is a folder: the splat command tiles a single .ply file", input)
+		return fmt.Errorf("the input %s is a folder: the splats command tiles a single .ply file", input)
 	case !strings.EqualFold(filepath.Ext(input), ".ply"):
 		return fmt.Errorf("the input %s is not a .ply file", input)
 	}

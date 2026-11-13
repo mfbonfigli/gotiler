@@ -143,7 +143,7 @@ func TestSplatCommandTilesAPLY(t *testing.T) {
 	fakeInteractive(t, false)
 	var err error
 	stderr := captureStderr(t, func() {
-		err = splatRun()("splat", "-o", out, "--splats-per-tile", "1000", "--plain", input)
+		err = splatRun()("splats", "-o", out, "--splats-per-tile", "1000", "--plain", input)
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -181,7 +181,7 @@ func TestSplatCommandPassesTheFlags(t *testing.T) {
 	writeSplatPLY(t, input, 10, 2)
 	calls := fakeTile(t, false)
 	captureStderr(t, func() {
-		err := splatRun()("splat", "-o", "out", "--no-preview",
+		err := splatRun()("splats", "-o", "out", "--no-preview",
 			"--splats-per-tile", "5000", "--max-sh-degree", "1", "--min-opacity", "0.2", "--ge-correction", "1.5",
 			"--max-tiles-per-tileset", "50",
 			"--input-up-axis", "-y", "--longitude", "12.5", "--latitude", "41.9", "--height", "30",
@@ -205,12 +205,28 @@ func TestSplatCommandPassesTheFlags(t *testing.T) {
 	}
 }
 
+// TestSplatRunsTheSplatsCommand checks that the singular name still tiles,
+// with the same flags, though the help lists only splats.
+func TestSplatRunsTheSplatsCommand(t *testing.T) {
+	input := filepath.Join(t.TempDir(), "scene.ply")
+	writeSplatPLY(t, input, 10, 0)
+	calls := fakeTile(t, false)
+	captureStderr(t, func() {
+		if err := splatRun()("splat", "-o", "out", "--no-preview", "--splats-per-tile", "5000", input); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if len(*calls) != 1 || (*calls)[0].opts.SplatsPerTile != 5000 {
+		t.Fatalf("tilings %+v, want one with 5000 splats per tile", *calls)
+	}
+}
+
 func TestSplatCommandDefaults(t *testing.T) {
 	input := filepath.Join(t.TempDir(), "scene.ply")
 	writeSplatPLY(t, input, 10, 0)
 	calls := fakeTile(t, false)
 	captureStderr(t, func() {
-		if err := splatRun()("splat", "-o", "out", "--no-preview", input); err != nil {
+		if err := splatRun()("splats", "-o", "out", "--no-preview", input); err != nil {
 			t.Fatal(err)
 		}
 	})
@@ -234,7 +250,7 @@ func TestSplatSummaryBoxLinesUp(t *testing.T) {
 	fakeTile(t, false)
 	out := strings.Repeat("long-folder-name/", 8) + "out"
 	stderr := captureStderr(t, func() {
-		if err := splatRun()("splat", "-o", out, "--no-preview", input); err != nil {
+		if err := splatRun()("splats", "-o", out, "--no-preview", input); err != nil {
 			t.Fatal(err)
 		}
 	})
@@ -267,7 +283,7 @@ func TestSplatCommandOpensTheViewer(t *testing.T) {
 	fakeInteractive(t, true)
 	views := fakeViewer(t, nil)
 	captureStderr(t, func() {
-		if err := splatRun()("splat", "-o", "out", "--port", "9001", input); err != nil {
+		if err := splatRun()("splats", "-o", "out", "--port", "9001", input); err != nil {
 			t.Fatal(err)
 		}
 	})
@@ -285,13 +301,13 @@ func TestSplatCommandSkipsTheViewer(t *testing.T) {
 
 	fakeInteractive(t, true)
 	captureStderr(t, func() {
-		if err := splatRun()("splat", "-o", "out", "--no-preview", input); err != nil {
+		if err := splatRun()("splats", "-o", "out", "--no-preview", input); err != nil {
 			t.Fatal(err)
 		}
 	})
 	fakeInteractive(t, false)
 	stderr := captureStderr(t, func() {
-		if err := splatRun()("splat", "-o", "out", input); err != nil {
+		if err := splatRun()("splats", "-o", "out", input); err != nil {
 			t.Fatal(err)
 		}
 	})
@@ -311,7 +327,7 @@ func TestSplatCommandReturnsViewerErrors(t *testing.T) {
 	viewErr := errors.New("port taken")
 	fakeViewer(t, viewErr)
 	var err error
-	captureStderr(t, func() { err = splatRun()("splat", "-o", "out", input) })
+	captureStderr(t, func() { err = splatRun()("splats", "-o", "out", input) })
 	if !errors.Is(err, viewErr) {
 		t.Errorf("error %v, want the viewer's", err)
 	}
@@ -352,7 +368,7 @@ func TestSplatCommandRejectsBadInput(t *testing.T) {
 			original := os.Stdout
 			os.Stdout, _ = os.Open(os.DevNull) // the help that missing inputs print
 			defer func() { os.Stdout = original }()
-			err = splatRun()(append([]string{"splat", "--no-preview"}, test.args...)...)
+			err = splatRun()(append([]string{"splats", "--no-preview"}, test.args...)...)
 		})
 		if err == nil || !strings.Contains(err.Error(), test.want) {
 			t.Errorf("%s: error %v, want one mentioning %q", test.name, err, test.want)
@@ -391,7 +407,7 @@ func TestSplatCommandHelpListsTheFlags(t *testing.T) {
 	app := NewApp(Options{})
 	var out bytes.Buffer
 	app.Writer = &out
-	if err := app.Run(context.Background(), []string{"gotiler", "splat", "--help"}); err != nil {
+	if err := app.Run(context.Background(), []string{"gotiler", "splats", "--help"}); err != nil {
 		t.Fatal(err)
 	}
 	for _, flag := range []string{"--out", "--splats-per-tile", "--max-sh-degree", "--min-opacity", "--ge-correction", "--input-up-axis", "--longitude", "--scale", "--no-preview", "--port", "--plain"} {
@@ -415,7 +431,7 @@ func TestSplatCommandReportsDroppedSplats(t *testing.T) {
 	fakeInteractive(t, false)
 	var err error
 	stderr := captureStderr(t, func() {
-		err = splatRun()("splat", "-o", filepath.Join(t.TempDir(), "out"), "--min-opacity", "0.5", "--plain", input)
+		err = splatRun()("splats", "-o", filepath.Join(t.TempDir(), "out"), "--min-opacity", "0.5", "--plain", input)
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -436,7 +452,7 @@ func TestSplatCommandReturnsTilingErrors(t *testing.T) {
 	}
 	t.Cleanup(func() { tileSplats = original })
 	var err error
-	captureStderr(t, func() { err = splatRun()("splat", "-o", "out", "--no-preview", input) })
+	captureStderr(t, func() { err = splatRun()("splats", "-o", "out", "--no-preview", input) })
 	if err == nil || err.Error() != "disk full" {
 		t.Errorf("error %v, want the tiling's", err)
 	}
