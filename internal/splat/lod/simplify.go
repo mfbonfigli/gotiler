@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	"github.com/mfbonfigli/gotiler/v3/internal/geom"
+	"github.com/mfbonfigli/gotiler/v3/internal/radix"
 	"github.com/mfbonfigli/gotiler/v3/internal/splat"
 )
 
@@ -96,15 +97,24 @@ type workspace struct {
 	found     []neighbor
 	neighbors []int32
 	counts    []uint8
-	edges     []edge
+	edges     []radix.Item
+	sorting   []radix.Item
 	used      []bool
 }
 
-// edge is a candidate merge of the splats at indices a and b, with a < b.
-type edge struct {
-	a, b int32
-	cost float64
+// newEdge returns a candidate merge of the splats at indices a and b, with
+// a < b, as an item for radix.Sort. Its key is the bits of cost, which order
+// like the costs, as these are never negative, and its value holds a in its
+// upper half and b in its lower one, which orders like the pairs.
+//
+// A NaN cost, which only splats so large that their covariances overflow can
+// give, has the highest key: those merges come last.
+func newEdge(a, b int32, cost float64) radix.Item {
+	return radix.Item{Key: math.Float64bits(cost), Value: uint64(a)<<32 | uint64(b)}
 }
+
+// edgeSplats returns the indices of the splats of the edge e.
+func edgeSplats(e radix.Item) (a, b int32) { return int32(e.Value >> 32), int32(uint32(e.Value)) }
 
 // pass merges the cheapest pairs of splats, up to the number needed to reach
 // target, and returns the merged splats followed by the unmerged ones.
@@ -115,15 +125,7 @@ func (ws *workspace) pass(splats []splat.Splat, target int) ([]splat.Splat, erro
 	}
 	ws.tree.build(splats)
 	edges := ws.collectEdges(splats, mergeDistance(splats, target))
-	slices.SortFunc(edges, func(x, y edge) int {
-		if c := cmp.Compare(x.cost, y.cost); c != 0 {
-			return c
-		}
-		if c := cmp.Compare(x.a, y.a); c != 0 {
-			return c
-		}
-		return cmp.Compare(x.b, y.b)
-	})
+	ws.sortEdges(edges)
 
 	pairs := min(len(splats)-target, len(splats)/2)
 	used := resize(ws.used, len(splats))
@@ -134,17 +136,18 @@ func (ws *workspace) pass(splats []splat.Splat, target int) ([]splat.Splat, erro
 		if len(next) == pairs {
 			break
 		}
-		if used[e.a] || used[e.b] {
+		a, b := edgeSplats(e)
+		if used[a] || used[b] {
 			continue
 		}
 		var acc accumulator
-		acc.add(splats[e.a])
-		acc.add(splats[e.b])
+		acc.add(splats[a])
+		acc.add(splats[b])
 		merged, err := acc.finish()
 		if err != nil {
 			return nil, err
 		}
-		used[e.a], used[e.b] = true, true
+		used[a], used[b] = true, true
 		next = append(next, merged)
 	}
 	for i, s := range splats {
@@ -160,9 +163,11 @@ func (ws *workspace) pass(splats []splat.Splat, target int) ([]splat.Splat, erro
 // collectEdges returns an edge for every pair of splats where one is among
 // the nearest neighbors of the other, at most maxDistance apart, with its
 // merge cost.
-func (ws *workspace) collectEdges(splats []splat.Splat, maxDistance float64) []edge {
+func (ws *workspace) collectEdges(splats []splat.Splat, maxDistance float64) []radix.Item {
 	ws.neighbors = resize(ws.neighbors, len(splats)*neighborCount)
 	ws.counts = resize(ws.counts, len(splats))
+	// Querying in the order of the tree, rather than of the splats, keeps
+	// consecutive queries in the same branches, which stay in the cache.
 	for _, p := range ws.tree.points {
 		i := int(p.index)
 		ws.found = ws.tree.nearest(splats[i].Center, p.index, neighborCount, maxDistance*maxDistance, ws.found)
@@ -179,11 +184,28 @@ func (ws *workspace) collectEdges(splats []splat.Splat, maxDistance float64) []e
 				continue
 			}
 			a, b := min(int32(i), j), max(int32(i), j)
-			edges = append(edges, edge{a: a, b: b, cost: mergeCost(splats[a], splats[b], ws.infos[a], ws.infos[b])})
+			edges = append(edges, newEdge(a, b, mergeCost(splats[a], splats[b], ws.infos[a], ws.infos[b])))
 		}
 	}
 	ws.edges = edges
 	return edges
+}
+
+// sortEdges orders edges by cost, then by their splats.
+func (ws *workspace) sortEdges(edges []radix.Item) {
+	ws.sorting = radix.Sort(edges, ws.sorting)
+	// The sort keeps edges of the same cost in the order they were collected:
+	// order those by their splats.
+	for first := 0; first < len(edges); {
+		last := first + 1
+		for last < len(edges) && edges[last].Key == edges[first].Key {
+			last++
+		}
+		if last-first > 1 {
+			slices.SortFunc(edges[first:last], func(x, y radix.Item) int { return cmp.Compare(x.Value, y.Value) })
+		}
+		first = last
+	}
 }
 
 func (ws *workspace) neighborsOf(i int) []int32 {

@@ -1,7 +1,9 @@
 package lod
 
 import (
+	"cmp"
 	"math"
+	"math/rand/v2"
 	"reflect"
 	"slices"
 	"strings"
@@ -9,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/mfbonfigli/gotiler/v3/internal/geom"
+	"github.com/mfbonfigli/gotiler/v3/internal/radix"
 	"github.com/mfbonfigli/gotiler/v3/internal/splat"
 )
 
@@ -294,6 +297,43 @@ func TestMergeDistance(t *testing.T) {
 	// ...and so does the extent of the splats.
 	assertClose(t, "many splats", mergeDistance(line(100), 10), 100*extentDistanceFactor)
 	assertClose(t, "coincident splats", mergeDistance(line(0), 1), minCellSize*cellDistanceFactor)
+}
+
+// TestSortEdges checks that edges sort by cost and then by their splats,
+// costs that tie included, like the comparison sort they replaced.
+func TestSortEdges(t *testing.T) {
+	rng := rand.New(rand.NewPCG(3, 4))
+	costs := []float64{0, 5e-324, 1e-9, 0.5, 1, 3, math.MaxFloat64, math.Inf(1)}
+	type pair struct {
+		a, b int32
+		cost float64
+	}
+	var pairs []pair
+	for a := range int32(300) {
+		for b := a + 1; b < 300; b += 1 + int32(rng.IntN(20)) {
+			cost := rng.Float64() * 10
+			if rng.IntN(2) == 0 {
+				cost = costs[rng.IntN(len(costs))]
+			}
+			pairs = append(pairs, pair{a, b, cost})
+		}
+	}
+	rng.Shuffle(len(pairs), func(i, j int) { pairs[i], pairs[j] = pairs[j], pairs[i] })
+	edges := make([]radix.Item, len(pairs))
+	for i, p := range pairs {
+		edges[i] = newEdge(p.a, p.b, p.cost)
+	}
+	slices.SortFunc(pairs, func(x, y pair) int {
+		return cmp.Or(cmp.Compare(x.cost, y.cost), cmp.Compare(x.a, y.a), cmp.Compare(x.b, y.b))
+	})
+	ws := new(workspace)
+	ws.sortEdges(edges)
+	for i, e := range edges {
+		a, b := edgeSplats(e)
+		if got, want := (pair{a, b, math.Float64frombits(e.Key)}), pairs[i]; got != want {
+			t.Fatalf("edge %d of %d is %+v, want %+v", i, len(edges), got, want)
+		}
+	}
 }
 
 func BenchmarkSimplify(b *testing.B) {
