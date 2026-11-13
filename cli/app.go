@@ -196,6 +196,8 @@ func NewApp(opts Options) *cli.Command {
 		opts.TilerProvider = DefaultTilerProvider
 	}
 	c := defaultCliOptions()
+	prof := &profiler{}
+	c.profiler = prof
 	cmdCtx := Context{
 		BuildInfo: opts.BuildInfo,
 		Branding:  opts.Branding,
@@ -241,8 +243,12 @@ func NewApp(opts Options) *cli.Command {
 		Version:     opts.BuildInfo.VersionString(),
 		HideVersion: true,
 		// The root takes the point cloud flags for backward compatibility,
-		// but neither lists them nor passes them on to the commands.
-		Flags: rootOnly(getPointCloudFlags(c)),
+		// but neither lists them nor passes them on to the commands. The
+		// profiling flags are global: every command takes them, and the
+		// root profiles whichever command runs.
+		Flags:  append(rootOnly(getPointCloudFlags(c)), prof.flags()...),
+		Before: prof.start,
+		After:  prof.after,
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			return tilePointClouds(cmd, cli.ShowAppHelp)
 		},
@@ -475,20 +481,6 @@ func getFlags(c *cliOpts) []cli.Flag {
 			Usage:       "disable progress bars and print only milestone updates as plain text",
 			Destination: &c.plain,
 		},
-		&cli.StringFlag{
-			Name:        "profile",
-			Value:       c.profile,
-			Usage:       "Enable pprof profiling. Values: 'cpu' for CPU profile, 'memory' for heap profile. Empty = disabled.",
-			Destination: &c.profile,
-			Hidden:      true,
-		},
-		&cli.StringFlag{
-			Name:        "profile-output",
-			Value:       c.profileOutput,
-			Usage:       "Output file path for profile data. Defaults to 'pprof_<type>.prof' in the current directory.",
-			Destination: &c.profileOutput,
-			Hidden:      true,
-		},
 	}
 }
 
@@ -504,8 +496,6 @@ type cliOpts struct {
 	viewerPort            int
 	version               string
 	plain                 bool
-	profile               string
-	profileOutput         string
 	initialGeometricError float64
 	geCorrection          float64
 	maxTilesPerTileset    int
@@ -527,6 +517,8 @@ type cliOpts struct {
 	subsample       float64
 	geoTIFFColorize string
 	threeTZ         bool
+	// profiler is the global profile, which launch stops before exiting
+	profiler *profiler
 }
 
 func defaultCliOptions() *cliOpts {
@@ -539,8 +531,6 @@ func defaultCliOptions() *cliOpts {
 		version:               "1.1",
 		refineMode:            "add",
 		plain:                 false,
-		profile:               "",
-		profileOutput:         "",
 		initialGeometricError: 0,
 		geCorrection:          1.0,
 		maxTilesPerTileset:    tileset.DefaultMaxTiles,
@@ -575,9 +565,6 @@ func (c *cliOpts) validate() {
 	}
 	if _, ok := version.Parse(c.version); !ok {
 		log.Fatal("invalid tileset version, the only allowed values are '1.0' and '1.1'")
-	}
-	if c.profile != "" && c.profile != "cpu" && c.profile != "memory" {
-		log.Fatal("invalid profile type, the only allowed values are 'cpu' and 'memory'")
 	}
 	if c.initialGeometricError < 0 {
 		log.Fatal("initial-geometric-error must be greater than or equal to 0")
@@ -1257,8 +1244,6 @@ func packageTileset(outputFolder string) error {
 }
 
 func launch(opts *cliOpts, function func(ctx context.Context) error) {
-	stopProfile := setupProfiling(opts)
-
 	ctx, _ := signal.NotifyContext(context.Background(), os.Interrupt)
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
@@ -1269,20 +1254,14 @@ func launch(opts *cliOpts, function func(ctx context.Context) error) {
 	}()
 	wg.Wait()
 
-	if stopProfile != nil {
-		stopProfile()
-	}
 	if runErr != nil {
+		// exiting skips the root command's After hook, which would write
+		// the profile
+		opts.profiler.finish()
 		fmt.Fprintf(os.Stderr, "\nError: %v\n", runErr)
 		os.Exit(1)
 	}
 	printDonationMessage()
-}
-
-// setupProfiling starts the requested pprof profile.
-// Returns a cleanup function that stops profiling and closes the output file.
-func setupProfiling(opts *cliOpts) func() {
-	return SetupProfiling(opts.profile, opts.profileOutput)
 }
 
 func SetupProfiling(profile string, output string) func() {

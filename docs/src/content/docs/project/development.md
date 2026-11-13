@@ -117,6 +117,15 @@ For Ubuntu-like environments, follow the Dockerfile steps:
 5. Export `PKG_CONFIG_PATH`, `CGO_ENABLED`, `CGO_LDFLAGS`, and `PROJ_DATA`.
 6. Run `go test ./...`.
 
+## Profiling
+
+Every command takes `--profile cpu` or `--profile memory`, before or after the command name, to write a pprof profile of its run, and `--profile-output` to choose the file, `pprof_cpu.prof` or `pprof_memory.prof` in the current folder by default. The help does not list them. A CPU profile covers the whole command; a memory profile is a heap snapshot taken when it ends.
+
+```bash
+gotiler splat --profile cpu --profile-output splat.prof --no-preview -o ./out ./scene.ply
+go tool pprof -top splat.prof
+```
+
 ## Third-party licenses
 
 `scripts/3p-license-gen.sh` generates `THIRD-PARTY-LICENSES.md` from the actual build inputs: the Go toolchain, every Go module linked into `./cmd` for the target `GOOS`/`GOARCH` (read from the module cache, nested license files of vendored code included), the native libraries passed with `--notice`, and the hand-maintained attributions for embedded data and ported code in `scripts/third-party-notices.md`.
