@@ -237,39 +237,62 @@ func (o *splatOptions) run(ctx context.Context, input string) error {
 	return nil
 }
 
+// summaryRow is one row of the summary: its label in the boxes, its shorter
+// label with --plain, and its value.
+type summaryRow struct {
+	label, plainLabel, value string
+}
+
+// printSummary prints the setup of the tiling as the point cloud command
+// does: the input and output, then the processing options, in two boxes, or
+// as plain lines with --plain.
 func (o *splatOptions) printSummary(input string, reader *ply.SplatReader, preview bool) {
 	placement := o.placement()
 	shDegree := fmt.Sprintf("%d", reader.SHDegree())
 	if o.maxSHDegree < reader.SHDegree() {
 		shDegree = fmt.Sprintf("%d, capped to %d", reader.SHDegree(), o.maxSHDegree)
 	}
-	rows := [][2]string{
-		{"Input", input},
-		{"Output", o.output},
-		{"Splats", formatComma(reader.NumberOfSplats())},
-		{"SH Degree", shDegree},
-		{"Splats/Tile", formatComma(o.splatsPerTile)},
-		{"Tiles/File", tilesPerFileDisp(o.maxTilesPerTileset)},
-		{"Min Opacity", fmt.Sprintf("%g", o.minOpacity)},
-		{"GE Correction", fmt.Sprintf("%gx", o.geCorrection)},
-		{"Up Axis", o.upAxis},
-		{"Lon/Lat", fmt.Sprintf("%g, %g", placement.Longitude, placement.Latitude)},
-		{"Height", fmt.Sprintf("%gm", placement.Height)},
-		{"H/P/R", fmt.Sprintf("%g/%g/%g", placement.Heading, placement.Pitch, placement.Roll)},
-		{"Scale", fmt.Sprintf("%g", placement.Scale)},
-		{"Viewer", capitalize(fmt.Sprintf("%v", preview))},
+	inputs := []summaryRow{
+		{"Input Source", "Input", input},
+		{"Output Destination", "Output", o.output},
+		{"Splats in Input", "Splats", formatComma(reader.NumberOfSplats())},
+		{"SH Degree", "SH Degree", shDegree},
+	}
+	processing := []summaryRow{
+		{"Splats/Tile", "Splats/Tile", formatComma(o.splatsPerTile)},
+		{"Min Opacity", "Min Opacity", fmt.Sprintf("%g", o.minOpacity)},
+		{"GE Correction", "GE Corr", fmt.Sprintf("%gx", o.geCorrection)},
+		{"Max Tiles/File", "Tiles/File", tilesPerFileDisp(o.maxTilesPerTileset)},
+		{"Input Up Axis", "Up Axis", o.upAxis},
+		{"Placement Lon/Lat", "Placement Lon/Lat", fmt.Sprintf("%g, %g", placement.Longitude, placement.Latitude)},
+		{"Placement Height", "Placement Height", fmt.Sprintf("%gm", placement.Height)},
+		{"Placement H/P/R", "Placement H/P/R", fmt.Sprintf("%g/%g/%g", placement.Heading, placement.Pitch, placement.Roll)},
+		{"Placement Scale", "Placement Scale", fmt.Sprintf("%g", placement.Scale)},
+		{"Viewer Preview", "Preview", capitalize(fmt.Sprintf("%v", preview))},
 	}
 	if o.plain {
-		for _, row := range rows {
-			fmt.Fprintf(os.Stderr, "%-14s %s\n", row[0]+":", row[1])
+		for _, row := range append(inputs, processing...) {
+			// the widths of the point cloud command's plain summary
+			width := 11
+			if strings.HasPrefix(row.plainLabel, "Placement") {
+				width = 19
+			}
+			fmt.Fprintf(os.Stderr, "%-*s %s\n", width, row.plainLabel+":", row.value)
 		}
 		fmt.Fprintln(os.Stderr)
 		return
 	}
-	fmt.Fprintln(os.Stderr, boxHeader("💫 Gaussian Splats "))
+	printSummaryBox("📥 Inputs & Outputs ", inputs)
+	printSummaryBox("📊 Processing Options ", processing)
+}
+
+// printSummaryBox prints rows in a box, their values lined up as in the
+// point cloud command's summary, long ones cut on the left.
+func printSummaryBox(title string, rows []summaryRow) {
+	fmt.Fprintln(os.Stderr, boxHeader(title))
 	for _, row := range rows {
-		label := "• " + padToWidth(row[0]+":", 20) + " "
-		fmt.Fprintln(os.Stderr, boxRow(label, truncLeft(row[1], boxInnerWidth-visualWidth(label))))
+		label := "• " + padToWidth(row.label+":", 19) + " "
+		fmt.Fprintln(os.Stderr, boxRow(label, truncLeft(row.value, boxInnerWidth-visualWidth(label))))
 	}
 	fmt.Fprintln(os.Stderr, boxFooter())
 	fmt.Fprintln(os.Stderr)

@@ -169,7 +169,7 @@ func TestSplatCommandTilesAPLY(t *testing.T) {
 	if len(ts.Root.Children) != 2 || len(tiles) < 3 {
 		t.Errorf("the root has %d children and there are %d tile files, want a tree", len(ts.Root.Children), len(tiles))
 	}
-	for _, want := range []string{"Splats:        3,000", "SH Degree:     1, capped to 0", "Min Opacity:   0.05", "[1/3] Reading", "[3/3] Building", "Tiled 3,000 splats into", "spherical harmonics of degree 0."} {
+	for _, want := range []string{"Splats:     3,000", "SH Degree:  1, capped to 0", "Min Opacity: 0.05", "Placement Lon/Lat:  0, 0", "[1/3] Reading", "[3/3] Building", "Tiled 3,000 splats into", "spherical harmonics of degree 0."} {
 		if !strings.Contains(stderr, want) {
 			t.Errorf("the output does not mention %q:\n%s", want, stderr)
 		}
@@ -238,12 +238,21 @@ func TestSplatSummaryBoxLinesUp(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-	start, end := strings.Index(stderr, "┌"), strings.Index(stderr, "┘")
+	// the two boxes of the point cloud command's summary
+	for _, title := range []string{"📥 Inputs & Outputs", "📊 Processing Options"} {
+		if !strings.Contains(stderr, title) {
+			t.Errorf("the summary has no %q box:\n%s", title, stderr)
+		}
+	}
+	start, end := strings.Index(stderr, "┌"), strings.LastIndex(stderr, "┘")
 	if start < 0 || end < start {
 		t.Fatalf("no summary box in the output:\n%s", stderr)
 	}
 	// uniseg measures the columns a terminal draws, emoji included.
 	for _, line := range strings.Split(stderr[start:end+len("┘")], "\n") {
+		if line == "" {
+			continue // between the boxes
+		}
 		if got := uniseg.StringWidth(line); got != boxTotalWidth {
 			t.Errorf("%q is %d columns wide, want %d", line, got, boxTotalWidth)
 		}
