@@ -13,13 +13,6 @@ export default defineConfig({
 			title: 'gotiler',
 			description:
 				'gotiler converts LAS, LAZ, E57 and PLY point clouds into streaming-ready OGC 3D Tiles 1.0 and 1.1, ready for CesiumJS and other 3D Tiles viewers.',
-			// the gopher and the "gotiler" lettering of the banner, side by side
-			logo: {
-				light: './src/assets/logo-light.png',
-				dark: './src/assets/logo-dark.png',
-				alt: 'gotiler',
-				replacesTitle: true,
-			},
 			// the emblem of the logo, also for phone home screens
 			favicon: '/favicon.png',
 			head: [{ tag: 'link', attrs: { rel: 'apple-touch-icon', href: '/gotiler/apple-touch-icon.png' } }],
@@ -29,6 +22,7 @@ export default defineConfig({
 				Head: './src/components/Head.astro',
 				Hero: './src/components/Hero.astro',
 				Footer: './src/components/Footer.astro',
+				SiteTitle: './src/components/SiteTitle.astro',
 				SocialIcons: './src/components/SocialIcons.astro',
 			},
 			// The point cloud and Gaussian splat guides, and the guides shared by
