@@ -5,8 +5,8 @@
 ##################################
 FROM public.ecr.aws/lts/ubuntu:24.04 AS builder-base
 
-ARG GO_VERSION="1.26.4"
-ARG PROJ_VERSION="proj-9.8.1"
+ARG GO_VERSION="1.27.4"
+ARG PROJ_VERSION="proj-9.9.0"
 ARG PROJECT_FOLDER="/usr/src/gotiler"
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --fix-missing --no-install-recommends \
