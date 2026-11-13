@@ -67,7 +67,7 @@ The flags of `gotiler splat`, see [Gaussian splats](/gotiler/guides/gaussian-spl
 | Flag                        | Default    | Description |
 | --------------------------- | ---------- | ----------- |
 | `--out`, `-o`               | _required_ | Output folder of the tileset. |
-| `--splats-per-tile`         | `20000`    | Most splats a tile holds, from 1,000 to 1,000,000. |
+| `--splats-per-tile`         | `40000`    | Most splats a tile holds, from 1,000 to 1,000,000. |
 | `--max-sh-degree`           | `0`        | Highest spherical-harmonic degree to keep, from 0 to 3. Higher degrees keep the colors that change with the view direction, but take much more memory in viewers; `3` keeps the input's. |
 | `--min-opacity`             | `0.05`     | Drop the splats of lower opacity, from 0 to 1; `0` keeps them all. |
 | `--ge-correction`           | `1`        | Multiplier applied to all output geometric errors. |

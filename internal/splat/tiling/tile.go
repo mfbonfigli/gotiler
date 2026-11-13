@@ -52,12 +52,12 @@ type Options struct {
 	Progress tree.ProgressReporter
 }
 
-// DefaultOptions returns the default options: 20,000 splats per tile, every
+// DefaultOptions returns the default options: 40,000 splats per tile, every
 // splat and spherical-harmonic degree kept, Z up, no root transform, SPZ
 // version 2 and one worker per CPU.
 func DefaultOptions() Options {
 	return Options{
-		SplatsPerTile: 20_000,
+		SplatsPerTile: 40_000,
 		MaxSHDegree:   3,
 		GECorrection:  1,
 		SPZVersion:    spz.DefaultVersion,

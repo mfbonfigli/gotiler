@@ -7,7 +7,7 @@ Large scenes run out of viewer memory before they run out of detail, so the defa
 
 - `--max-sh-degree` defaults to `0`, which keeps the base color of each splat and drops the colors that change with the view direction, such as reflections. CesiumJS takes 32 bytes per splat for everything else, plus 24 bytes at degree 1 and 120 bytes at degree 3. `--max-sh-degree 3` keeps whatever the input holds.
 - `--min-opacity` defaults to `0.05`, which drops the almost invisible splats. In one trained scene of a million splats they were a quarter of the splats, but covered less than 1% of the area that the splats cover. `--min-opacity 0` keeps them all.
-- `--splats-per-tile` sets the most splats a tile holds, 20,000 by default.
+- `--splats-per-tile` sets the most splats a tile holds, 40,000 by default.
 - `--ge-correction` scales the geometric errors of the tiles: values above 1 make viewers switch to finer tiles from farther away, sharper but heavier, and values below 1 only up close.
 
 ## Levels of detail
