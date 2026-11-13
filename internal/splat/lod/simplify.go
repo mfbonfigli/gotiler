@@ -262,8 +262,11 @@ func mergeCost(a, b splat.Splat, ia, ib splatInfo) float64 {
 	merged := ia.covariance.MulScalar(ia.weight / total).
 		Add(ib.covariance.MulScalar(ib.weight / total)).
 		Add(geom.Outer(d, d).MulScalar(ia.weight * ib.weight / (total * total)))
-	// The bound is not negative in exact arithmetic: drop rounding errors.
-	shape := math.Max(0, (total*logDeterminant(merged)-ia.weight*ia.logDeterminant-ib.weight*ib.logDeterminant)/2)
+	// The bound is not negative in exact arithmetic: drop rounding errors. The
+	// conversions round each product before it is subtracted, which arm64 would
+	// otherwise fuse into one instruction: copies of a splat then cost exactly 0
+	// on every platform.
+	shape := math.Max(0, (float64(total*logDeterminant(merged))-float64(ia.weight*ia.logDeterminant)-float64(ib.weight*ib.logDeterminant))/2)
 	return shape + colorWeight*total*ia.color.Sub(ib.color).LengthSquared()
 }
 
