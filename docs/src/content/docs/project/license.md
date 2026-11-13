@@ -17,5 +17,6 @@ If the AGPLv3 terms don't fit your use case, for example to embed the engine in 
 
 ## Acknowledgments
 
-- [Photorealistic and classified urban point cloud dataset (Helsinki)](https://doi.org/10.5281/zenodo.5578198) by Julin, A., & Rantanen, T. (2021), used for the benchmarks and, thinned, for the demo animation. Licensed under [CC-BY-4.0](https://creativecommons.org).
+- [Photorealistic and classified urban point cloud dataset (Helsinki)](https://doi.org/10.5281/zenodo.5578198) by Julin, A., & Rantanen, T. (2021), used for the benchmarks and, thinned, for the demo animation. Licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+- The Lublin, Poland Gaussian splat scene, used for the splat benchmark: 3D scanning data created and provided by [Andrii Shramko](https://www.linkedin.com/in/andrii-shramko/), [Teleportour](https://www.linkedin.com/company/teleportour/) · [teleportour.com](https://teleportour.com).
 - The Go gopher mascot was originally designed by Renee French and is licensed under the Creative Commons 4.0 Attribution License.
