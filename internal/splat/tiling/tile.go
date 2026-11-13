@@ -11,6 +11,7 @@ import (
 
 	"github.com/mfbonfigli/gotiler/v3/internal/geom"
 	"github.com/mfbonfigli/gotiler/v3/internal/splat/spz"
+	"github.com/mfbonfigli/gotiler/v3/internal/tileset"
 	"github.com/mfbonfigli/gotiler/v3/tiler/tree"
 )
 
@@ -45,6 +46,11 @@ type Options struct {
 	RootTransform *[16]float64
 	// SPZVersion is the version of the SPZ payloads of the tiles.
 	SPZVersion spz.Version
+	// MaxTilesPerTileset is the most tiles a tileset JSON file holds: larger
+	// tilesets move subtrees into external tilesets in the data folder, so
+	// viewers read only the top of the tree first. 0 writes a single
+	// tileset.json.
+	MaxTilesPerTileset int
 	// Workers is how many splats or tiles are processed in parallel.
 	Workers int
 	// Progress receives the progress of the phases listed in Phases. It can
@@ -54,14 +60,15 @@ type Options struct {
 
 // DefaultOptions returns the default options: 40,000 splats per tile, every
 // splat and spherical-harmonic degree kept, Z up, no root transform, SPZ
-// version 2 and one worker per CPU.
+// version 2, 2,000 tiles per tileset file and one worker per CPU.
 func DefaultOptions() Options {
 	return Options{
-		SplatsPerTile: 40_000,
-		MaxSHDegree:   3,
-		GECorrection:  1,
-		SPZVersion:    spz.DefaultVersion,
-		Workers:       runtime.NumCPU(),
+		SplatsPerTile:      40_000,
+		MaxSHDegree:        3,
+		GECorrection:       1,
+		SPZVersion:         spz.DefaultVersion,
+		MaxTilesPerTileset: tileset.DefaultMaxTiles,
+		Workers:            runtime.NumCPU(),
 	}
 }
 
@@ -79,6 +86,8 @@ func (o Options) Validate() error {
 		return fmt.Errorf("the geometric error correction must be positive, not %v", o.GECorrection)
 	case o.SPZVersion != spz.Version2 && o.SPZVersion != spz.Version3:
 		return fmt.Errorf("the SPZ version must be 2 or 3, not %d", o.SPZVersion)
+	case o.MaxTilesPerTileset < 0:
+		return fmt.Errorf("the most tiles per tileset file must be 0 or more, not %d", o.MaxTilesPerTileset)
 	case o.Workers < 1:
 		return fmt.Errorf("the workers must be at least 1, not %d", o.Workers)
 	}
@@ -176,7 +185,7 @@ func Tile(ctx context.Context, source Source, dir string, opts Options) (Result,
 	}
 	// Leaves hold their splats out to boundsSigmas, so the root bounds hold
 	// all the input.
-	if err := writeTileset(dir, root, opts.RootTransform); err != nil {
+	if err := writeTileset(dir, root, opts.RootTransform, opts.MaxTilesPerTileset); err != nil {
 		return Result{}, err
 	}
 	building.milestone("wrote tileset.json")

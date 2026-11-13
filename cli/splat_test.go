@@ -183,6 +183,7 @@ func TestSplatCommandPassesTheFlags(t *testing.T) {
 	captureStderr(t, func() {
 		err := splatRun()("splat", "-o", "out", "--no-preview",
 			"--splats-per-tile", "5000", "--max-sh-degree", "1", "--min-opacity", "0.2", "--ge-correction", "1.5",
+			"--max-tiles-per-tileset", "50",
 			"--input-up-axis", "-y", "--longitude", "12.5", "--latitude", "41.9", "--height", "30",
 			"--heading", "45", "--pitch", "1", "--roll", "2", "--scale", "0.5", input)
 		if err != nil {
@@ -195,6 +196,7 @@ func TestSplatCommandPassesTheFlags(t *testing.T) {
 	got := (*calls)[0]
 	want := tiling.DefaultOptions()
 	want.SplatsPerTile, want.MaxSHDegree, want.MinOpacity, want.GECorrection, want.UpAxis = 5000, 1, 0.2, 1.5, "-y"
+	want.MaxTilesPerTileset = 50
 	transform := placementTransform(t, tiler.Placement{Longitude: 12.5, Latitude: 41.9, Height: 30, Heading: 45, Pitch: 1, Roll: 2, Scale: 0.5})
 	want.RootTransform = &transform
 	want.Progress = got.opts.Progress
@@ -334,6 +336,7 @@ func TestSplatCommandRejectsBadInput(t *testing.T) {
 		{"up axis", []string{"-o", "out", "--input-up-axis", "w", input}, "up axis"},
 		{"latitude", []string{"-o", "out", "--latitude", "95", input}, "latitude"},
 		{"scale", []string{"-o", "out", "--scale", "0", input}, "--scale"},
+		{"tiles per tileset", []string{"-o", "out", "--max-tiles-per-tileset", "-1", input}, "--max-tiles-per-tileset"},
 	} {
 		var err error
 		captureStderr(t, func() {

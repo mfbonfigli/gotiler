@@ -478,16 +478,14 @@ func TestWriterSquashTilesetContent(t *testing.T) {
 		t.Errorf("expected refine to be ADD, got %v", tileset.Refine)
 	}
 
-	if tileset.Content == nil {
-		t.Errorf("expected root tile to have content")
-	} else if tileset.Content.Url != "data/d.pnts" {
-		t.Errorf("expected content URL to be 'data/d.pnts', got %v", tileset.Content.Url)
+	if tileset.Content != "data/d.pnts" {
+		t.Errorf("expected content URL to be 'data/d.pnts', got %q", tileset.Content)
 	}
 
 	// Verify bounding box
 	expectedBox := []float64{1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0, 0}
-	if len(tileset.BoundingVolume.Box) != len(expectedBox) {
-		t.Errorf("expected bounding box length %d, got %d", len(expectedBox), len(tileset.BoundingVolume.Box))
+	if len(tileset.Box) != len(expectedBox) {
+		t.Errorf("expected bounding box length %d, got %d", len(expectedBox), len(tileset.Box))
 	}
 
 	// Verify children exist
@@ -502,10 +500,8 @@ func TestWriterSquashTilesetContent(t *testing.T) {
 			t.Errorf("expected child geometric error 10.0, got %v", childTile.GeometricError)
 		}
 
-		if childTile.Content == nil {
-			t.Errorf("expected child tile to have content")
-		} else if childTile.Content.Url != "data/1d.pnts" {
-			t.Errorf("expected child content URL to be 'data/1d.pnts', got %v", childTile.Content.Url)
+		if childTile.Content != "data/1d.pnts" {
+			t.Errorf("expected child content URL to be 'data/1d.pnts', got %q", childTile.Content)
 		}
 	}
 }

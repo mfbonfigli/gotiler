@@ -7,6 +7,8 @@ The output folder holds `tileset.json` and the tiles in its `data` folder. Each 
 
 Tiles refine by replacement: a tile's children replace it when seen up close. The placement on the globe lives only in the root transform, which the [viewer](/gotiler/guides/viewer/) rewrites when it saves a new position.
 
+A tileset of more than `--max-tiles-per-tileset` tiles (default 2,000) keeps only the top levels of its tree in `tileset.json`, and each subtree below them moves into an external tileset in the `data` folder, such as `data/tile_0101.json`. Viewers then read a small `tileset.json` before showing the scene, and each external tileset only once the camera gets close to its tiles. Every file declares the splat extensions, though CesiumJS reads them from `tileset.json` only. `--max-tiles-per-tileset 0` always writes a single `tileset.json`.
+
 The input does not need to fit in memory: gotiler works on temporary files in the output folder and removes them when it ends, even after an error or Ctrl+C.
 
 ## Showing the tileset in CesiumJS

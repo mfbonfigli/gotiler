@@ -1,13 +1,14 @@
 package tiling
 
 import (
-	"encoding/json"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
 
 	"github.com/mfbonfigli/gotiler/v3/internal/geom"
 	"github.com/mfbonfigli/gotiler/v3/internal/splat/glb"
+	"github.com/mfbonfigli/gotiler/v3/internal/tileset"
 )
 
 // contentGLTF is the 3D Tiles extension for glTF content, which declares the
@@ -15,73 +16,46 @@ import (
 // lists the splat extensions as required.
 const contentGLTF = "3DTILES_content_gltf"
 
-type tilesetJSON struct {
-	Asset              assetJSON           `json:"asset"`
-	ExtensionsUsed     []string            `json:"extensionsUsed"`
-	ExtensionsRequired []string            `json:"extensionsRequired"`
-	Extensions         map[string]gltfJSON `json:"extensions"`
-	GeometricError     float64             `json:"geometricError"`
-	Root               tileJSON            `json:"root"`
-}
-
-type assetJSON struct {
-	Version string `json:"version"`
-}
-
-type gltfJSON struct {
+// contentGLTFExtension is the 3DTILES_content_gltf object of a tileset.
+type contentGLTFExtension struct {
 	ExtensionsUsed     []string `json:"extensionsUsed"`
 	ExtensionsRequired []string `json:"extensionsRequired"`
 }
 
-type tileJSON struct {
-	BoundingVolume boundingVolumeJSON `json:"boundingVolume"`
-	GeometricError float64            `json:"geometricError"`
-	Refine         string             `json:"refine"`
-	Transform      *[16]float64       `json:"transform,omitempty"`
-	Content        contentJSON        `json:"content"`
-	Children       []tileJSON         `json:"children,omitempty"`
-}
-
-type boundingVolumeJSON struct {
-	Box [12]float64 `json:"box"`
-}
-
-type contentJSON struct {
-	URI string `json:"uri"`
-}
-
 // writeTileset writes the tileset.json of the tiles under root to dir, with
-// the given root transform, in column-major order, if not nil.
+// the given root transform, in column-major order, if not nil. A tileset of
+// more than maxTiles tiles moves subtrees into external tilesets in the data
+// folder, unless maxTiles is 0. Every file declares the splat extensions,
+// though CesiumJS reads them from tileset.json only.
 //
 // Tiles refine by replacement: the merged splats of a tile stand for the
 // splats of its children, and drawing both would double them.
-func writeTileset(dir string, root *tile, transform *[16]float64) error {
+func writeTileset(dir string, root *tile, transform *[16]float64, maxTiles int) error {
 	splatExtensions := []string{glb.ExtensionGaussianSplatting, glb.ExtensionSPZ}
-	tileset := tilesetJSON{
-		Asset:              assetJSON{Version: "1.1"},
+	header := tileset.Header{
+		Version:            "1.1",
 		ExtensionsUsed:     []string{contentGLTF},
 		ExtensionsRequired: []string{contentGLTF},
-		Extensions:         map[string]gltfJSON{contentGLTF: {ExtensionsUsed: splatExtensions, ExtensionsRequired: splatExtensions}},
-		GeometricError:     root.geometricError,
-		Root:               tileToJSON(root),
+		Extensions:         map[string]any{contentGLTF: contentGLTFExtension{ExtensionsUsed: splatExtensions, ExtensionsRequired: splatExtensions}},
 	}
-	tileset.Root.Transform = transform
-	data, err := json.Marshal(tileset)
-	if err != nil {
-		return err
+	rootTile := toTile(root)
+	rootTile.Transform = transform
+	create := func(name string) (io.WriteCloser, error) {
+		return os.Create(filepath.Join(dir, filepath.FromSlash(name)))
 	}
-	return os.WriteFile(filepath.Join(dir, "tileset.json"), data, 0o644)
+	_, err := tileset.Write(create, rootTile, header, tileset.RootOnly{}, tileset.Options{MaxTiles: maxTiles})
+	return err
 }
 
-func tileToJSON(t *tile) tileJSON {
-	out := tileJSON{
-		BoundingVolume: boundingVolumeJSON{Box: box(t.bounds)},
+func toTile(t *tile) *tileset.Tile {
+	out := &tileset.Tile{
+		Box:            box(t.bounds),
 		GeometricError: t.geometricError,
 		Refine:         "REPLACE",
-		Content:        contentJSON{URI: path.Join(dataDirName, contentName(t.id))},
+		Content:        path.Join(dataDirName, contentName(t.id)),
 	}
 	for _, child := range t.children {
-		out.Children = append(out.Children, tileToJSON(child))
+		out.Children = append(out.Children, toTile(child))
 	}
 	return out
 }

@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/mfbonfigli/gotiler/v3/internal/tileset"
 	"github.com/mfbonfigli/gotiler/v3/internal/viewer"
 	"github.com/mfbonfigli/gotiler/v3/plugins/compression"
 
@@ -365,6 +366,12 @@ func getFlags(c *cliOpts) []cli.Flag {
 			Usage:       "multiplier applied to all geometric error values in the output tileset.json. Controls at what distance the viewer switches between LOD levels. Values > 1 make tiles appear at greater distances, < 1 only up close. Does not change how many LOD levels are built or which points belong to each level. Default is 1.0.",
 			Destination: &c.geCorrection,
 		},
+		&cli.IntFlag{
+			Name:        "max-tiles-per-tileset",
+			Value:       c.maxTilesPerTileset,
+			Usage:       "the most tiles a tileset JSON file holds. Larger tilesets keep their top levels in tileset.json and move the subtrees below into external tilesets in the data folder, so viewers read only the top of the tree before showing it. 0 writes a single tileset.json. Default is 2000.",
+			Destination: &c.maxTilesPerTileset,
+		},
 		&cli.StringFlag{
 			Name:        "attributes",
 			Value:       c.attributes,
@@ -501,6 +508,7 @@ type cliOpts struct {
 	profileOutput         string
 	initialGeometricError float64
 	geCorrection          float64
+	maxTilesPerTileset    int
 	attributes            string
 	includeWithheld       bool
 	colorize              string
@@ -535,6 +543,7 @@ func defaultCliOptions() *cliOpts {
 		profileOutput:         "",
 		initialGeometricError: 0,
 		geCorrection:          1.0,
+		maxTilesPerTileset:    tileset.DefaultMaxTiles,
 		attributes:            "intensity,classification",
 		includeWithheld:       false,
 		colorize:              "",
@@ -575,6 +584,9 @@ func (c *cliOpts) validate() {
 	}
 	if c.geCorrection <= 0 {
 		log.Fatal("ge-correction must be greater than 0")
+	}
+	if c.maxTilesPerTileset < 0 {
+		log.Fatal("max-tiles-per-tileset must be 0 or more")
 	}
 	if _, err := model.ParseAttributes(strings.Split(c.attributes, ",")); err != nil {
 		log.Fatalf("--attributes: %v", err)
@@ -737,6 +749,14 @@ func boxRowWrapped(label, value string) string {
 	return strings.Join(rows, "\n")
 }
 
+// tilesPerFileDisp shows the most tiles per tileset file, 0 meaning one file.
+func tilesPerFileDisp(n int) string {
+	if n == 0 {
+		return "all in tileset.json"
+	}
+	return formatComma(n)
+}
+
 func formatComma(n int) string {
 	s := fmt.Sprintf("%d", n)
 	var buf []byte
@@ -784,6 +804,7 @@ func (c *cliOpts) printSummary(input, mode string) {
 		fmt.Fprintf(os.Stderr, "8-Bit:      %s\n", capitalize(fmt.Sprintf("%v", c.eightBit)))
 		fmt.Fprintf(os.Stderr, "Init GE:    %s\n", initialGeometricErrorDisp)
 		fmt.Fprintf(os.Stderr, "GE Corr:    %gx\n", c.geCorrection)
+		fmt.Fprintf(os.Stderr, "Tiles/File: %s\n", tilesPerFileDisp(c.maxTilesPerTileset))
 		fmt.Fprintf(os.Stderr, "Attribs:    %s\n", c.attributes)
 		fmt.Fprintf(os.Stderr, "Colorize:   %s\n", colorizeSummary(c.colorize))
 		fmt.Fprintf(os.Stderr, "Incl Withheld: %v\n", c.includeWithheld)
@@ -817,6 +838,7 @@ func (c *cliOpts) printSummary(input, mode string) {
 	fmt.Fprintln(os.Stderr, boxRow("• 8-Bit Color Corr:   ", capitalize(fmt.Sprintf("%v", c.eightBit))))
 	fmt.Fprintln(os.Stderr, boxRow("• Initial Geom Err:   ", initialGeometricErrorDisp))
 	fmt.Fprintln(os.Stderr, boxRow("• GE Correction:      ", fmt.Sprintf("%gx", c.geCorrection)))
+	fmt.Fprintln(os.Stderr, boxRow("• Max Tiles/File:     ", tilesPerFileDisp(c.maxTilesPerTileset)))
 	fmt.Fprintln(os.Stderr, boxRowWrapped("• Attributes:         ", c.attributes))
 	fmt.Fprintln(os.Stderr, boxRow("• Colorize:             ", colorizeSummary(c.colorize)))
 	fmt.Fprintln(os.Stderr, boxRow("• Include Withheld:     ", fmt.Sprintf("%v", c.includeWithheld)))
@@ -1039,6 +1061,7 @@ func (c *cliOpts) getTilerOptions() *tiler.TilerOptions {
 		tiler.WithRefineMode(refineMode),
 		tiler.WithInitialGeometricError(c.initialGeometricError),
 		tiler.WithGECorrection(c.geCorrection),
+		tiler.WithMaxTilesPerTileset(c.maxTilesPerTileset),
 		tiler.WithAttributes(attrs),
 	)
 	if c.placementMode() {

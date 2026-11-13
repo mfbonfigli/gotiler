@@ -24,6 +24,7 @@ type MockTiler struct {
 	RefineMode            model.RefineMode
 	InitialGeometricError float64
 	GECorrection          float64
+	MaxTilesPerTileset    int
 	Attributes            model.Attributes
 	Placement             *Placement
 	err                   error
@@ -43,6 +44,7 @@ func (m *MockTiler) ProcessFiles(inputFiles []string, outputFolder string, sourc
 	m.RefineMode = opts.refineMode
 	m.InitialGeometricError = opts.initialGeometricError
 	m.GECorrection = opts.geCorrection
+	m.MaxTilesPerTileset = opts.maxTilesPerTileset
 	m.Attributes = opts.attributes
 	m.Placement = opts.placement
 	return m.err
@@ -62,6 +64,7 @@ func (m *MockTiler) ProcessFolder(inputFolder, outputFolder string, sourceCRS st
 	m.RefineMode = opts.refineMode
 	m.InitialGeometricError = opts.initialGeometricError
 	m.GECorrection = opts.geCorrection
+	m.MaxTilesPerTileset = opts.maxTilesPerTileset
 	m.Attributes = opts.attributes
 	m.Placement = opts.placement
 	return m.err

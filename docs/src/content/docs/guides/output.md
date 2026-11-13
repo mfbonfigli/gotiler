@@ -26,6 +26,12 @@ Viewers pick which tiles to show from their geometric error, which gotiler deriv
 - `--initial-geometric-error` sets the minimum target geometric error, in meters, of the root tile. Higher values produce a coarser root tile that is visible from farther away. `0` (default) derives it from the dataset size.
 - `--ge-correction` multiplies every geometric error in `tileset.json` (default `1.0`). It controls at what distance viewers switch between levels: values above 1 make tiles appear from farther away, values below 1 only up close. It does not change how many levels are built or which points belong to each.
 
+## Large tilesets
+
+Viewers read the whole `tileset.json` before showing anything, and a cloud of billions of points has tens of thousands of tiles. A tileset of more than `--max-tiles-per-tileset` tiles (default 2,000) keeps only the top levels of its tree in `tileset.json`, and each subtree below them moves into an external tileset in the `data` folder, named after the tile it starts from, such as `data/0101d.json`. Viewers then read a small `tileset.json` first, and each external tileset only once the camera gets close to its tiles.
+
+Smaller tilesets keep a single `tileset.json`, and `--max-tiles-per-tileset 0` always writes one. External tilesets are part of the 3D Tiles standard, so CesiumJS and other 3D Tiles viewers read them.
+
 ## Refine mode
 
 `--refine-mode` (or `-r`) chooses how levels of detail relate:

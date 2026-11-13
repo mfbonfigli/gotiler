@@ -32,6 +32,7 @@ The flags of `gotiler pcloud`.
 | `--version`, `-v`           | `1.1`                      | 3D Tiles version: `1.0` (`.pnts`) or `1.1` (`.glb`). |
 | `--initial-geometric-error` | `0`                        | Root geometric error target in meters; `0` derives it from the dataset, see [Levels of detail](/gotiler/guides/output/#levels-of-detail). |
 | `--ge-correction`           | `1.0`                      | Multiplier applied to all output geometric errors. |
+| `--max-tiles-per-tileset`   | `2000`                     | Most tiles a tileset JSON file holds; larger tilesets move subtrees into external tilesets, see [Large tilesets](/gotiler/guides/output/#large-tilesets). `0` writes a single `tileset.json`. |
 | `--attributes`              | `intensity,classification` | Per-point attributes to export, or `none`, see [Attributes](/gotiler/guides/attributes/). |
 | `--include-withheld`        | `false`                    | Keep points flagged as withheld, which are dropped by default. |
 | `--colorize`                |                            | Color points by attribute or coordinate, e.g. `z:viridis`, see [Colorizing points](/gotiler/guides/colorizing/). |
@@ -71,6 +72,7 @@ The flags of `gotiler splat`, see [Gaussian splats](/gotiler/guides/gaussian-spl
 | `--max-sh-degree`           | `0`        | Highest spherical-harmonic degree to keep, from 0 to 3. Higher degrees keep the colors that change with the view direction, but take much more memory in viewers; `3` keeps the input's. |
 | `--min-opacity`             | `0.05`     | Drop the splats of lower opacity, from 0 to 1; `0` keeps them all. |
 | `--ge-correction`           | `1`        | Multiplier applied to all output geometric errors. |
+| `--max-tiles-per-tileset`   | `2000`     | Most tiles a tileset JSON file holds; larger tilesets move subtrees into external tilesets, see [Output](/gotiler/guides/gaussian-splats/output/). `0` writes a single `tileset.json`. |
 | `--input-up-axis`           | `z`        | Input axis that points up: `x`, `y` or `z`, optionally signed, such as `-y`. |
 | `--longitude`, `--latitude` | `0`        | Position of the bottom center of the splats, in EPSG:4326 degrees. |
 | `--height`                  | `0`        | Height of the bottom center in meters above the WGS84 ellipsoid. |

@@ -52,6 +52,8 @@ type splatOptions struct {
 	minOpacity    float64
 	geCorrection  float64
 	upAxis        string
+	// maxTilesPerTileset is the most tiles a tileset JSON file holds
+	maxTilesPerTileset int
 	// placement of the tileset, through its root transform
 	longitude, latitude, height float64
 	heading, pitch, roll        float64
@@ -70,6 +72,8 @@ func defaultSplatOptions() *splatOptions {
 		geCorrection:  defaults.GECorrection,
 		upAxis:        "z",
 		scale:         1,
+
+		maxTilesPerTileset: defaults.MaxTilesPerTileset,
 	}
 }
 
@@ -108,6 +112,8 @@ func (o *splatOptions) flags() []cli.Flag {
 			Usage: fmt.Sprintf("drop the splats of lower opacity, from 0 to 1. Default %g drops the almost invisible ones; 0 keeps them all.", o.minOpacity)},
 		&cli.Float64Flag{Name: "ge-correction", Value: o.geCorrection, Destination: &o.geCorrection,
 			Usage: "multiplier of the geometric errors of the tiles. Values above 1 make viewers switch to finer tiles from farther away, sharper but heavier; values below 1 only up close. Default 1."},
+		&cli.IntFlag{Name: "max-tiles-per-tileset", Value: o.maxTilesPerTileset, Destination: &o.maxTilesPerTileset,
+			Usage: fmt.Sprintf("the most tiles a tileset JSON file holds. Larger tilesets keep their top levels in tileset.json and move the subtrees below into external tilesets in the data folder, so viewers read only the top of the tree before showing it. 0 writes a single tileset.json. Default %d.", o.maxTilesPerTileset)},
 		&cli.StringFlag{Name: "input-up-axis", Value: o.upAxis, Destination: &o.upAxis,
 			Usage: `the input axis that points up: "x", "y" or "z", optionally signed. Scenes trained with OpenCV or COLMAP conventions usually need "-y". Default "z".`},
 		&cli.Float64Flag{Name: "longitude", Destination: &o.longitude,
@@ -146,6 +152,7 @@ func (o *splatOptions) tilingOptions(progress tree.ProgressReporter) (tiling.Opt
 	opts.MinOpacity = o.minOpacity
 	opts.UpAxis = o.upAxis
 	opts.GECorrection = o.geCorrection
+	opts.MaxTilesPerTileset = o.maxTilesPerTileset
 	opts.RootTransform = &transform
 	opts.Progress = progress
 	return opts, opts.Validate()
@@ -175,6 +182,9 @@ func (o *splatOptions) validate(input string) error {
 	}
 	if !(o.scale > 0) {
 		return fmt.Errorf("--scale must be positive, not %v", o.scale)
+	}
+	if o.maxTilesPerTileset < 0 {
+		return fmt.Errorf("--max-tiles-per-tileset must be 0 or more, not %d", o.maxTilesPerTileset)
 	}
 	info, err := os.Stat(input)
 	switch {
@@ -239,6 +249,7 @@ func (o *splatOptions) printSummary(input string, reader *ply.SplatReader, previ
 		{"Splats", formatComma(reader.NumberOfSplats())},
 		{"SH Degree", shDegree},
 		{"Splats/Tile", formatComma(o.splatsPerTile)},
+		{"Tiles/File", tilesPerFileDisp(o.maxTilesPerTileset)},
 		{"Min Opacity", fmt.Sprintf("%g", o.minOpacity)},
 		{"GE Correction", fmt.Sprintf("%gx", o.geCorrection)},
 		{"Up Axis", o.upAxis},

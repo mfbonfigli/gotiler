@@ -278,6 +278,7 @@ func TestMainProcessFile(t *testing.T) {
 		"-r", "replace",
 		"--initial-geometric-error", "128",
 		"--ge-correction", "1.5",
+		"--max-tiles-per-tileset", "300",
 		"--attributes", "intensity",
 		input})
 	if err != nil {
@@ -321,6 +322,9 @@ func TestMainProcessFile(t *testing.T) {
 	}
 	if actual := mockTiler.GECorrection; actual != 1.5 {
 		t.Errorf("expected tiler to be called with GECorrection %v but got %v", 1.5, actual)
+	}
+	if actual := mockTiler.MaxTilesPerTileset; actual != 300 {
+		t.Errorf("expected tiler to be called with MaxTilesPerTileset %v but got %v", 300, actual)
 	}
 	if !mockTiler.Attributes.Has(model.AttrIntensity) || mockTiler.Attributes.Has(model.AttrClassification) {
 		t.Errorf("expected Attributes to contain only intensity, got %v", mockTiler.Attributes)
