@@ -1311,6 +1311,10 @@ func SetupProfiling(profile string, output string) func() {
 	}
 }
 
+// progressRedrawInterval is the shortest time between two redraws of a
+// progress bar. The bar still shows its end as soon as a phase completes.
+const progressRedrawInterval = 300 * time.Millisecond
+
 // cliProgress holds the single active progress bar and tracks the current phase.
 // It is goroutine-safe: multiple worker callbacks may call handle concurrently.
 type cliProgress struct {
@@ -1351,6 +1355,9 @@ func (p *cliProgress) handle(e tiler.ProgressEvent) {
 			progressbar.OptionSetWidth(40),
 			progressbar.OptionSetPredictTime(false),
 			progressbar.OptionSetRenderBlankState(true),
+			// Redraw at most every progressRedrawInterval: each redraw writes
+			// to the console and syncs it, and the workers wait for it.
+			progressbar.OptionThrottle(progressRedrawInterval),
 			progressbar.OptionEnableColorCodes(true),
 			progressbar.OptionSetTheme(progressbar.Theme{
 				Saucer:        color + "█[reset]",
