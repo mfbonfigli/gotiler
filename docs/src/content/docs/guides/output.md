@@ -12,7 +12,7 @@ gotiler writes a `tileset.json` and its tiles into the output folder given with 
 `--version` (or `-v`) selects the output format: `1.1` (default) writes glTF (`.glb`) tiles, `1.0` writes `.pnts` tiles for viewers that only read 3D Tiles 1.0.
 
 ```bash
-gotiler -o ./out --version 1.0 ./input.las
+gotiler pcloud -o ./out --version 1.0 ./input.las
 ```
 
 ## Tile size
@@ -25,6 +25,12 @@ Viewers pick which tiles to show from their geometric error, which gotiler deriv
 
 - `--initial-geometric-error` sets the minimum target geometric error, in meters, of the root tile. Higher values produce a coarser root tile that is visible from farther away. `0` (default) derives it from the dataset size.
 - `--ge-correction` multiplies every geometric error in `tileset.json` (default `1.0`). It controls at what distance viewers switch between levels: values above 1 make tiles appear from farther away, values below 1 only up close. It does not change how many levels are built or which points belong to each.
+
+## Large tilesets
+
+Viewers read the whole `tileset.json` before showing anything, and a cloud of billions of points has tens of thousands of tiles. A tileset of more than `--max-tiles-per-tileset` tiles (default 2,000) is split: `tileset.json` keeps the top levels of the tree, and each subtree below them goes into an external tileset in the `data` folder, such as `data/0101d.json`. The cloud then shows sooner, as viewers fetch each subtree only once the camera gets close to it.
+
+Smaller tilesets keep a single `tileset.json`, and `--max-tiles-per-tileset 0` always writes one. External tilesets are part of the 3D Tiles standard, so CesiumJS and other 3D Tiles viewers read them.
 
 ## Refine mode
 
@@ -40,8 +46,8 @@ Viewers pick which tiles to show from their geometric error, which gotiler deriv
 `--meshopt-khr` uses `KHR_meshopt_compression` instead, the Khronos successor of the EXT extension, whose improved codec produces smaller tiles at the same quality. Viewer support is still limited (CesiumJS added it in version 1.143), so EXT remains the default.
 
 ```bash
-gotiler -o ./out --compression none ./input.las
-gotiler -o ./out --meshopt-khr ./input.las
+gotiler pcloud -o ./out --compression none ./input.las
+gotiler pcloud -o ./out --meshopt-khr ./input.las
 ```
 
 ## 3TZ archives
@@ -49,15 +55,15 @@ gotiler -o ./out --meshopt-khr ./input.las
 `--3tz` writes each tileset as a single OGC 3D Tiles Archive, `<out>/tileset.3tz`, instead of loose tile files. Folder inputs without `--join` get one archive per file, in `<out>/<name>/tileset.3tz`.
 
 ```bash
-gotiler -o ./out --3tz ./input.las
+gotiler pcloud -o ./out --3tz ./input.las
 ```
 
 ## Subsampling
 
-`--subsample` keeps a random percentage of the points, in (0, 100], thinning huge datasets while tiling. Points are dropped uniformly at random while reading.
+`--subsample` keeps the given percentage of the points, picked at random, to thin out huge datasets.
 
 ```bash
-gotiler -o ./out --subsample 25 ./input.las
+gotiler pcloud -o ./out --subsample 25 ./input.las
 ```
 
 ## Progress output

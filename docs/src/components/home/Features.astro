@@ -1,23 +1,58 @@
 ---
-// The feature grid: one tile per feature, joined by hairlines.
+// A feature grid, one tile per feature, joined by hairlines: the general
+// features, whose last two tiles lead to the point cloud and Gaussian splat
+// sections below, or the features of one of those sections.
 import { Icon } from '@astrojs/starlight/components';
 import PaletteIcon from './PaletteIcon.astro';
 
-const features = [
+interface Props {
+	grid?: 'general' | 'point-clouds' | 'gaussian-splats';
+}
+
+const { grid = 'general' } = Astro.props;
+
+interface Feature {
+	icon: string;
+	title: string;
+	text: string;
+	href?: string;
+}
+
+const general: Feature[] = [
 	{
 		icon: 'rocket',
 		title: 'Fast and out-of-core',
-		text: 'Uses every CPU core and fast NVMe drives, and tiles billion-point clouds without running out of RAM.',
+		text: 'Uses every CPU core and fast NVMe drives, and tiles billion-point clouds and scenes of hundreds of millions of splats without running out of RAM.',
+	},
+	{
+		icon: 'laptop',
+		title: 'Self-contained',
+		text: 'One executable and its bundled data folder, for Linux, macOS and Windows. Nothing else to install to run it.',
+	},
+	{
+		icon: 'analytics',
+		title: 'Point cloud tiling',
+		text: 'LAS, LAZ, E57 and PLY point clouds into compressed 3D Tiles 1.0 or 1.1, reprojected, colored and with their attributes.',
+		href: '#point-cloud-tiling',
+	},
+	{
+		icon: 'star',
+		title: 'Gaussian splat tiling',
+		text: 'Trained 3D Gaussian splat scenes into 3D Tiles 1.1 with levels of detail, for CesiumJS to stream.',
+		href: '#gaussian-splat-tiling',
+	},
+];
+
+const pointClouds: Feature[] = [
+	{
+		icon: 'document',
+		title: 'LAS, LAZ, E57 and PLY',
+		text: 'Reads LAS, LAZ, E57 and ASCII or binary PLY inputs.',
 	},
 	{
 		icon: 'database',
 		title: 'Compressed by default',
 		text: 'Compresses 3D Tiles 1.1 point clouds with meshopt compression and quantization, cutting tileset size by up to 70% or more.',
-	},
-	{
-		icon: 'document',
-		title: 'LAS, LAZ, E57 and PLY',
-		text: 'Reads LAS, LAZ, E57 and ASCII or binary PLY inputs.',
 	},
 	{
 		icon: 'random',
@@ -39,22 +74,42 @@ const features = [
 		title: 'Colorization',
 		text: 'Colorize point clouds from their attributes with 36 embedded ramps, or directly from an RGB GeoTIFF orthophoto. No extra tooling required.',
 	},
+];
+
+const gaussianSplats: Feature[] = [
 	{
-		icon: 'laptop',
-		title: 'Self-contained',
-		text: 'One executable and its bundled data folder, for Linux, macOS and Windows. Nothing else to install to run it.',
+		icon: 'code-branch',
+		title: 'Cutting edge algorithms',
+		text: "Builds every level of detail without retraining: splats merge in pairs as in NanoGS, chosen by Runnalls' closed-form bound for Gaussian mixture reduction.",
 	},
-] as const;
+	{
+		icon: 'document',
+		title: 'PLY input format',
+		text: 'Reads ASCII or binary PLY files of 3D Gaussian splats, as trainers and editors export them, with spherical harmonics up to degree 3.',
+	},
+	{
+		icon: 'database',
+		title: 'SPZ compression',
+		text: 'Writes the splats of every tile as SPZ-compressed glTF, with the KHR_gaussian_splatting extensions that CesiumJS reads.',
+	},
+	{
+		icon: 'setting',
+		title: 'Configurable SH and opacity threshold',
+		text: 'Choose the spherical-harmonic degree to keep and the opacity below which splats are dropped, to stream lighter tilesets.',
+	},
+];
+
+const features = { general, 'point-clouds': pointClouds, 'gaussian-splats': gaussianSplats }[grid];
 ---
 
 <ul class="features not-content">
 	{
-		features.map(({ icon, title, text }) => (
+		features.map(({ icon, title, text, href }) => (
 			<li>
 				<span class="icon">
-					{icon === 'palette' ? <PaletteIcon size="1.25rem" /> : <Icon name={icon} size="1.25rem" />}
+					{icon === 'palette' ? <PaletteIcon size="1.25rem" /> : <Icon name={icon as any} size="1.25rem" />}
 				</span>
-				<h3>{title}</h3>
+				<h3>{href ? <a href={href}>{title}</a> : title}</h3>
 				<p>{text}</p>
 			</li>
 		))
@@ -115,6 +170,21 @@ const features = [
 		font-size: var(--sl-text-base);
 		font-weight: 700;
 	}
+
+	h3 a {
+		color: inherit;
+		text-decoration: none;
+	}
+
+	h3 a::after {
+		content: ' →';
+		color: var(--sl-color-accent-high);
+	}
+
+	h3 a:hover {
+		text-decoration: underline;
+	}
+
 
 	p {
 		color: var(--sl-color-gray-3);

@@ -5,7 +5,9 @@
 	--sl-color-accent-low: #0f2550;
 	--sl-color-accent: #3d7cf5;
 	--sl-color-accent-high: #c6d9ff;
-	--gt-gradient: linear-gradient(100deg, #5b95ff 0%, #22b8c4 50%, #4bc96f 100%);
+	/* the gradient for dark backgrounds, also in the light theme's photo hero */
+	--gt-gradient-on-dark: linear-gradient(100deg, #5b95ff 0%, #22b8c4 50%, #4bc96f 100%);
+	--gt-gradient: var(--gt-gradient-on-dark);
 }
 
 :root[data-theme='light'] {

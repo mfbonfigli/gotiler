@@ -11,19 +11,21 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/mfbonfigli/gotiler/v3/internal/geom"
 )
 
-func rotationZ(degrees float64) matrix3 {
+func rotationZ(degrees float64) geom.Mat3 {
 	s, c := math.Sincos(degrees * math.Pi / 180)
-	return matrix3{{c, -s, 0}, {s, c, 0}, {0, 0, 1}}
+	return geom.Mat3{{c, -s, 0}, {s, c, 0}, {0, 0, 1}}
 }
 
-func rotationX(degrees float64) matrix3 {
+func rotationX(degrees float64) geom.Mat3 {
 	s, c := math.Sincos(degrees * math.Pi / 180)
-	return matrix3{{1, 0, 0}, {0, c, -s}, {0, s, c}}
+	return geom.Mat3{{1, 0, 0}, {0, c, -s}, {0, s, c}}
 }
 
-func scaled(m matrix3, factor float64) matrix3 {
+func scaled(m geom.Mat3, factor float64) geom.Mat3 {
 	for row := range 3 {
 		for col := range 3 {
 			m[row][col] *= factor
@@ -34,7 +36,7 @@ func scaled(m matrix3, factor float64) matrix3 {
 
 // columnMajor builds a 4x4 column-major transform from its linear part and
 // translation.
-func columnMajor(linear matrix3, tx, ty, tz float64) [16]float64 {
+func columnMajor(linear geom.Mat3, tx, ty, tz float64) [16]float64 {
 	return [16]float64{
 		linear[0][0], linear[1][0], linear[2][0], 0,
 		linear[0][1], linear[1][1], linear[2][1], 0,
@@ -44,7 +46,7 @@ func columnMajor(linear matrix3, tx, ty, tz float64) [16]float64 {
 }
 
 // placedTransform resembles the east-north-up root transform gotiler writes.
-var placedTransform = columnMajor(rotationX(-48).mul(rotationZ(102)), 4517590.9, 1096950.6, 4382030.8)
+var placedTransform = columnMajor(rotationX(-48).Mul(rotationZ(102)), 4517590.9, 1096950.6, 4382030.8)
 
 func transformJSON(transform [16]float64) string {
 	data, _ := json.Marshal(transform)
@@ -155,6 +157,39 @@ func TestOpenTilesetReadsTheRootTransform(t *testing.T) {
 	}
 }
 
+// splatTileset is a tileset of Gaussian splats as gotiler writes it, with the
+// given top-level extension fields.
+func splatTileset(extensions string) string {
+	return `{` + extensions + `,` + strings.TrimPrefix(sampleTileset(""), "{")
+}
+
+const splatExtensions = `"extensionsUsed":["3DTILES_content_gltf"],"extensionsRequired":["3DTILES_content_gltf"],` +
+	`"extensions":{"3DTILES_content_gltf":{` +
+	`"extensionsUsed":["KHR_gaussian_splatting","KHR_gaussian_splatting_compression_spz_2"],` +
+	`"extensionsRequired":["KHR_gaussian_splatting","KHR_gaussian_splatting_compression_spz_2"]}}`
+
+func TestOpenTilesetDetectsSplats(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    bool
+	}{
+		{"splats as gotiler writes them", splatTileset(splatExtensions), true},
+		{"points", sampleTileset(""), false},
+		{"splats only used, drawn as points", splatTileset(`"extensions":{"3DTILES_content_gltf":{"extensionsUsed":["KHR_gaussian_splatting","KHR_gaussian_splatting_compression_spz_2"]}}`), false},
+		{"uncompressed splats", splatTileset(`"extensions":{"3DTILES_content_gltf":{"extensionsRequired":["KHR_gaussian_splatting"]}}`), false},
+		{"splat extensions at the top level", splatTileset(`"extensionsRequired":["KHR_gaussian_splatting","KHR_gaussian_splatting_compression_spz_2"]`), false},
+		{"malformed extensions", splatTileset(`"extensions":"none"`), false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := mustOpenTileset(t, writeTilesetFile(t, tc.content)).splats; got != tc.want {
+				t.Errorf("splats = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestOpenTilesetMarksTilesetsThatCannotBeMoved(t *testing.T) {
 	const region = `{"region":[0.1,0.2,0.3,0.4,0,10]}`
 	const box = `{"box":[0,0,0,1,0,0,0,1,0,0,0,1]}`
@@ -192,7 +227,7 @@ func TestSaveRootTransformRewritesOnlyTheTransform(t *testing.T) {
 			path := writeTilesetFile(t, sampleTileset(original))
 			before := decodeJSONFile(t, path)
 			ts := mustOpenTileset(t, path)
-			moved := columnMajor(rotationZ(30).mul(linearPart(ts.rootTransform())), 4517600, 1096960, 4382040)
+			moved := columnMajor(rotationZ(30).Mul(linearPart(ts.rootTransform())), 4517600, 1096960, 4382040)
 
 			if err := ts.saveRootTransform(moved); err != nil {
 				t.Fatalf("saveRootTransform: %v", err)
@@ -224,7 +259,7 @@ func TestSaveRootTransformKeepsTheScaleOfTheCurrentTransform(t *testing.T) {
 	scaledRoot := columnMajor(scaled(rotationZ(10), 2), 100, 200, 300)
 	ts := mustOpenTileset(t, writeTilesetFile(t, sampleTileset(transformJSON(scaledRoot))))
 
-	rotatedKeepingScale := columnMajor(rotationX(15).mul(linearPart(scaledRoot)), 150, 250, 350)
+	rotatedKeepingScale := columnMajor(rotationX(15).Mul(linearPart(scaledRoot)), 150, 250, 350)
 	if err := ts.saveRootTransform(rotatedKeepingScale); err != nil {
 		t.Errorf("a rotation of a scaled root transform was rejected: %v", err)
 	}
@@ -235,8 +270,8 @@ func TestSaveRootTransformKeepsTheScaleOfTheCurrentTransform(t *testing.T) {
 
 func TestSaveRootTransformRejectsChangesOtherThanMovesAndRotations(t *testing.T) {
 	current := linearPart(placedTransform)
-	shear := matrix3{{1, 0.2, 0}, {0, 1, 0}, {0, 0, 1}}
-	mirror := matrix3{{-1, 0, 0}, {0, 1, 0}, {0, 0, 1}}
+	shear := geom.Mat3{{1, 0.2, 0}, {0, 1, 0}, {0, 0, 1}}
+	mirror := geom.Mat3{{-1, 0, 0}, {0, 1, 0}, {0, 0, 1}}
 	notAffine := columnMajor(current, 1, 2, 3)
 	notAffine[3] = 0.1
 	withNaN := placedTransform
@@ -247,8 +282,8 @@ func TestSaveRootTransformRejectsChangesOtherThanMovesAndRotations(t *testing.T)
 		wantErr   string
 	}{
 		{"scale", columnMajor(scaled(current, 1.5), 1, 2, 3), "not scale, skew or mirror it"},
-		{"shear", columnMajor(shear.mul(current), 1, 2, 3), "not scale, skew or mirror it"},
-		{"mirror", columnMajor(mirror.mul(current), 1, 2, 3), "not scale, skew or mirror it"},
+		{"shear", columnMajor(shear.Mul(current), 1, 2, 3), "not scale, skew or mirror it"},
+		{"mirror", columnMajor(mirror.Mul(current), 1, 2, 3), "not scale, skew or mirror it"},
 		{"projective row", notAffine, "end with the row 0 0 0 1"},
 		{"not finite", withNaN, "must hold finite numbers"},
 	}
@@ -262,9 +297,6 @@ func TestSaveRootTransformRejectsChangesOtherThanMovesAndRotations(t *testing.T)
 			}
 			if data, _ := os.ReadFile(path); string(data) != content {
 				t.Error("a rejected save changed the file")
-			}
-			if _, err := os.Stat(path + ".bak"); !errors.Is(err, fs.ErrNotExist) {
-				t.Error("a rejected save wrote a backup")
 			}
 		})
 	}
@@ -282,32 +314,27 @@ func TestSaveRootTransformRefusesTilesetsThatCannotBeMoved(t *testing.T) {
 	}
 }
 
-func TestSaveRootTransformBacksUpTheOriginalOnce(t *testing.T) {
-	original := sampleTileset(transformJSON(placedTransform))
-	path := writeTilesetFile(t, original)
+func TestSaveRootTransformSavesOverThePreviousSave(t *testing.T) {
+	path := writeTilesetFile(t, sampleTileset(transformJSON(placedTransform)))
 	ts := mustOpenTileset(t, path)
 	for i, degrees := range []float64{10, 20} {
-		moved := columnMajor(rotationZ(degrees).mul(linearPart(placedTransform)), 4517590.9, 1096950.6, 4382030.8)
+		moved := columnMajor(rotationZ(degrees).Mul(linearPart(placedTransform)), 4517590.9, 1096950.6, 4382030.8)
 		if err := ts.saveRootTransform(moved); err != nil {
 			t.Fatalf("save %d: %v", i+1, err)
 		}
-		backup, err := os.ReadFile(path + ".bak")
-		if err != nil {
-			t.Fatalf("after save %d: %v", i+1, err)
-		}
-		if string(backup) != original {
-			t.Errorf("after save %d the backup is not the original file", i+1)
+		if got := mustOpenTileset(t, path).rootTransform(); got != moved {
+			t.Errorf("after save %d the file holds the transform %v, want %v", i+1, got, moved)
 		}
 	}
 }
 
-func TestSaveRootTransformLeavesOnlyTheTilesetAndItsBackup(t *testing.T) {
+func TestSaveRootTransformLeavesOnlyTheTileset(t *testing.T) {
 	path := writeTilesetFile(t, sampleTileset(transformJSON(placedTransform)))
 	before, err := os.Stat(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	moved := columnMajor(rotationZ(5).mul(linearPart(placedTransform)), 1, 2, 3)
+	moved := columnMajor(rotationZ(5).Mul(linearPart(placedTransform)), 1, 2, 3)
 	if err := mustOpenTileset(t, path).saveRootTransform(moved); err != nil {
 		t.Fatalf("saveRootTransform: %v", err)
 	}
@@ -321,7 +348,8 @@ func TestSaveRootTransformLeavesOnlyTheTilesetAndItsBackup(t *testing.T) {
 		names = append(names, e.Name())
 	}
 	slices.Sort(names)
-	if want := []string{"tileset.json", "tileset.json.bak"}; !reflect.DeepEqual(names, want) {
+	// No backup and no temporary file stay behind.
+	if want := []string{"tileset.json"}; !reflect.DeepEqual(names, want) {
 		t.Errorf("folder holds %v, want %v", names, want)
 	}
 	after, err := os.Stat(path)
@@ -339,27 +367,11 @@ func TestFailedSaveKeepsTheCurrentTransform(t *testing.T) {
 	if err := os.Remove(path); err != nil {
 		t.Fatal(err)
 	}
-	moved := columnMajor(rotationZ(5).mul(linearPart(placedTransform)), 1, 2, 3)
+	moved := columnMajor(rotationZ(5).Mul(linearPart(placedTransform)), 1, 2, 3)
 	if err := ts.saveRootTransform(moved); err == nil {
 		t.Fatal("saving a deleted tileset succeeded")
 	}
 	if got := ts.rootTransform(); got != placedTransform {
 		t.Errorf("rootTransform after a failed save = %v, want the unchanged %v", got, placedTransform)
-	}
-}
-
-func TestMatrix3Inverse(t *testing.T) {
-	m := scaled(rotationX(33).mul(rotationZ(-71)), 2.5)
-	product := m.mul(m.inverse())
-	for row := range 3 {
-		for col := range 3 {
-			want := 0.0
-			if row == col {
-				want = 1
-			}
-			if math.Abs(product[row][col]-want) > 1e-12 {
-				t.Fatalf("m * m.inverse() = %v, want the identity", product)
-			}
-		}
 	}
 }

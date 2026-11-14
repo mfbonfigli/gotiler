@@ -16,6 +16,7 @@ Create options with `tiler.NewDefaultTilerOptions()`, or with `tiler.NewTilerOpt
 | `WithMutators(m)`               | none                      | Applies point transformations or filtering before tree insertion, see [Mutators](/gotiler/library/mutators/) |
 | `WithRefineMode(r)`             | `model.RefineAdd`         | Sets tileset refine mode: `ADD` or `REPLACE` |
 | `WithGECorrection(c)`           | `1.0`                     | Multiplies geometric error values written to `tileset.json` |
+| `WithMaxTilesPerTileset(n)`     | `2000`                    | Most tiles a tileset JSON file holds; larger tilesets move subtrees into external tilesets in the data folder, see [Large tilesets](/gotiler/guides/output/#large-tilesets); `0` writes a single `tileset.json` |
 | `WithInitialGeometricError(ge)` | `0`                       | Sets a minimum root geometric error target; `0` uses the automatic value |
 | `WithAttributes(attrs)`         | intensity, classification | Selects optional per-point attributes to export |
 | `WithProgressCallback(cb)`      | none                      | Receives progress events while tiling, see [Progress reporting](/gotiler/library/progress/) |

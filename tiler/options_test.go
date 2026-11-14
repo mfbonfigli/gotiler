@@ -23,6 +23,7 @@ func TestOptions(t *testing.T) {
 		WithEncoder("pnts"),
 		WithInitialGeometricError(128),
 		WithGECorrection(2.5),
+		WithMaxTilesPerTileset(300),
 		WithAttributes(intensityOnly),
 		WithWriterProvider(writerProvider),
 		WithTreeProvider(treeProvider),
@@ -52,6 +53,9 @@ func TestOptions(t *testing.T) {
 	if opts.geCorrection != 2.5 {
 		t.Errorf("expected geCorrection to be %v got %v", 2.5, opts.geCorrection)
 	}
+	if opts.maxTilesPerTileset != 300 {
+		t.Errorf("expected maxTilesPerTileset to be %v got %v", 300, opts.maxTilesPerTileset)
+	}
 	if !opts.attributes.Has(model.AttrIntensity) || opts.attributes.Has(model.AttrClassification) {
 		t.Errorf("expected attributes to contain only intensity, got %v", opts.attributes)
 	}
@@ -70,6 +74,9 @@ func TestDefaultOptions(t *testing.T) {
 	}
 	if opts.geCorrection != 1.0 {
 		t.Errorf("expected default geCorrection to be 1.0, got %v", opts.geCorrection)
+	}
+	if opts.maxTilesPerTileset != 2000 {
+		t.Errorf("expected default maxTilesPerTileset to be 2000, got %v", opts.maxTilesPerTileset)
 	}
 	if !opts.attributes.Has(model.AttrIntensity) || !opts.attributes.Has(model.AttrClassification) {
 		t.Errorf("expected default attributes to contain both intensity and classification, got %v", opts.attributes)

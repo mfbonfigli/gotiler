@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/mfbonfigli/gotiler/v3/internal/tileset"
 	"github.com/mfbonfigli/gotiler/v3/internal/viewer"
 	"github.com/mfbonfigli/gotiler/v3/plugins/compression"
 
@@ -150,11 +151,11 @@ type Options struct {
 	Branding      Branding
 	TilerProvider TilerProvider
 	ExtraCommands []CommandFactory
-	// PointCloudCommandName moves the point-cloud flags and action under the
-	// named subcommand. Leave empty to expose point-cloud conversion at root.
-	PointCloudCommandName    string
-	PointCloudCommandAliases []string
 }
+
+// pointCloudCommandName is the command that tiles point clouds. The app runs
+// it, with the same flags, when no command is given.
+const pointCloudCommandName = "pcloud"
 
 func DefaultTilerProvider() (tiler.Tiler, error) {
 	return tiler.NewGoTiler()
@@ -171,7 +172,7 @@ const logo = `
 ╚██████╔╝╚██████╔╝   ██║   ██║███████╗███████╗██║  ██║    ╚██████╗███████╗██║
  ╚═════╝  ╚═════╝    ╚═╝   ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝     ╚═════╝╚══════╝╚═╝
 -----------------------------------------------------------------------------
-A fast OGC 3D Tiles generator for point clouds.
+A fast OGC 3D Tiles generator for point clouds and Gaussian splats.
 Copyright YYYY - Massimo Federico Bonfigli
 build: ZZZZ
 {{end_color}}
@@ -180,7 +181,7 @@ build: ZZZZ
 func DefaultBranding() Branding {
 	return Branding{
 		Name:  "gotiler",
-		Usage: "transforms point cloud files into OGC 3D Tiles 1.0 or 1.1 format",
+		Usage: "converts point clouds and Gaussian splats into OGC 3D Tiles",
 		Logo:  logo,
 		Color: color,
 	}
@@ -195,18 +196,32 @@ func NewApp(opts Options) *cli.Command {
 		opts.TilerProvider = DefaultTilerProvider
 	}
 	c := defaultCliOptions()
+	prof := &profiler{}
+	c.profiler = prof
 	cmdCtx := Context{
 		BuildInfo: opts.BuildInfo,
 		Branding:  opts.Branding,
 	}
-	pointCloudAction := func(ctx context.Context, cmd *cli.Command) error {
+	tilePointClouds := func(cmd *cli.Command, showHelp func(*cli.Command) error) error {
 		if cmd.Args().Len() == 0 {
-			_ = cli.ShowAppHelp(cmd)
+			_ = showHelp(cmd)
 			return fmt.Errorf("input path must be set")
 		}
 		return pointCloudCommand(opts.TilerProvider, c, cmd.Args().First())
 	}
 	commands := []*cli.Command{
+		{
+			Name:      pointCloudCommandName,
+			Usage:     "convert a point cloud file or folder into 3D Tiles",
+			ArgsUsage: "<file or folder>",
+			Flags:     getPointCloudFlags(c),
+			Action: func(ctx context.Context, cmd *cli.Command) error {
+				return tilePointClouds(cmd, cli.ShowSubcommandHelp)
+			},
+		},
+		newSplatCommand(splatsCommandName),
+		hidden(newSplatCommand(legacySplatsCommandName)),
+		newViewCommand(),
 		{
 			Name:  "version",
 			Usage: "print the gotiler version",
@@ -216,28 +231,6 @@ func NewApp(opts Options) *cli.Command {
 				return nil
 			},
 		},
-		newViewCommand(),
-	}
-	var appFlags []cli.Flag
-	var appAction cli.ActionFunc
-	if opts.PointCloudCommandName == "" {
-		appFlags = getPointCloudFlags(c)
-		appAction = pointCloudAction
-	} else {
-		pointCloudCommandName := opts.PointCloudCommandName
-		commands = append(commands, &cli.Command{
-			Name:    pointCloudCommandName,
-			Aliases: opts.PointCloudCommandAliases,
-			Usage:   "convert a point cloud file or folder into 3D tiles",
-			Flags:   getPointCloudFlags(c),
-			Action: func(ctx context.Context, cmd *cli.Command) error {
-				if cmd.Args().Len() == 0 {
-					_ = cli.ShowSubcommandHelp(cmd)
-					return fmt.Errorf("input path must be set")
-				}
-				return pointCloudCommand(opts.TilerProvider, c, cmd.Args().First())
-			},
-		})
 	}
 	for _, factory := range opts.ExtraCommands {
 		if cmd := factory(cmdCtx); cmd != nil {
@@ -245,15 +238,49 @@ func NewApp(opts Options) *cli.Command {
 		}
 	}
 	return &cli.Command{
-		Name:                  opts.Branding.Name,
-		Usage:                 opts.Branding.Usage,
-		Version:               opts.BuildInfo.VersionString(),
-		HideVersion:           true,
-		Flags:                 appFlags,
-		Action:                appAction,
+		Name:        opts.Branding.Name,
+		Usage:       opts.Branding.Usage,
+		Description: fmt.Sprintf("Without a command, %[1]s runs %[2]s: see %[1]s %[2]s --help.", opts.Branding.Name, pointCloudCommandName),
+		Version:     opts.BuildInfo.VersionString(),
+		HideVersion: true,
+		// The root takes the point cloud flags for backward compatibility,
+		// but neither lists them nor passes them on to the commands. The
+		// profiling flags are global: every command takes them, and the
+		// root profiles whichever command runs.
+		Flags:  append(rootOnly(getPointCloudFlags(c)), prof.flags()...),
+		Before: prof.start,
+		After:  prof.after,
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			return tilePointClouds(cmd, cli.ShowAppHelp)
+		},
 		Commands:              commands,
 		EnableShellCompletion: true,
 	}
+}
+
+// hidden returns cmd left out of the help.
+func hidden(cmd *cli.Command) *cli.Command {
+	cmd.Hidden = true
+	return cmd
+}
+
+// rootOnly hides flags from the help and keeps them from the subcommands.
+func rootOnly(flags []cli.Flag) []cli.Flag {
+	for _, flag := range flags {
+		switch f := flag.(type) {
+		case *cli.StringFlag:
+			f.Hidden, f.Local = true, true
+		case *cli.BoolFlag:
+			f.Hidden, f.Local = true, true
+		case *cli.IntFlag:
+			f.Hidden, f.Local = true, true
+		case *cli.Float64Flag:
+			f.Hidden, f.Local = true, true
+		default:
+			panic(fmt.Sprintf("rootOnly: unsupported flag type %T", flag))
+		}
+	}
+	return flags
 }
 
 func normalizeBranding(branding Branding) Branding {
@@ -351,6 +378,12 @@ func getFlags(c *cliOpts) []cli.Flag {
 			Value:       c.geCorrection,
 			Usage:       "multiplier applied to all geometric error values in the output tileset.json. Controls at what distance the viewer switches between LOD levels. Values > 1 make tiles appear at greater distances, < 1 only up close. Does not change how many LOD levels are built or which points belong to each level. Default is 1.0.",
 			Destination: &c.geCorrection,
+		},
+		&cli.IntFlag{
+			Name:        "max-tiles-per-tileset",
+			Value:       c.maxTilesPerTileset,
+			Usage:       "the most tiles a tileset JSON file holds. Larger tilesets keep their top levels in tileset.json and move the subtrees below into external tilesets in the data folder, so viewers read only the top of the tree before showing it. 0 writes a single tileset.json. Default is 2000.",
+			Destination: &c.maxTilesPerTileset,
 		},
 		&cli.StringFlag{
 			Name:        "attributes",
@@ -455,20 +488,6 @@ func getFlags(c *cliOpts) []cli.Flag {
 			Usage:       "disable progress bars and print only milestone updates as plain text",
 			Destination: &c.plain,
 		},
-		&cli.StringFlag{
-			Name:        "profile",
-			Value:       c.profile,
-			Usage:       "Enable pprof profiling. Values: 'cpu' for CPU profile, 'memory' for heap profile. Empty = disabled.",
-			Destination: &c.profile,
-			Hidden:      true,
-		},
-		&cli.StringFlag{
-			Name:        "profile-output",
-			Value:       c.profileOutput,
-			Usage:       "Output file path for profile data. Defaults to 'pprof_<type>.prof' in the current directory.",
-			Destination: &c.profileOutput,
-			Hidden:      true,
-		},
 	}
 }
 
@@ -484,10 +503,9 @@ type cliOpts struct {
 	viewerPort            int
 	version               string
 	plain                 bool
-	profile               string
-	profileOutput         string
 	initialGeometricError float64
 	geCorrection          float64
+	maxTilesPerTileset    int
 	attributes            string
 	includeWithheld       bool
 	colorize              string
@@ -506,6 +524,8 @@ type cliOpts struct {
 	subsample       float64
 	geoTIFFColorize string
 	threeTZ         bool
+	// profiler is the global profile, which launch stops before exiting
+	profiler *profiler
 }
 
 func defaultCliOptions() *cliOpts {
@@ -518,10 +538,9 @@ func defaultCliOptions() *cliOpts {
 		version:               "1.1",
 		refineMode:            "add",
 		plain:                 false,
-		profile:               "",
-		profileOutput:         "",
 		initialGeometricError: 0,
 		geCorrection:          1.0,
+		maxTilesPerTileset:    tileset.DefaultMaxTiles,
 		attributes:            "intensity,classification",
 		includeWithheld:       false,
 		colorize:              "",
@@ -554,14 +573,14 @@ func (c *cliOpts) validate() {
 	if _, ok := version.Parse(c.version); !ok {
 		log.Fatal("invalid tileset version, the only allowed values are '1.0' and '1.1'")
 	}
-	if c.profile != "" && c.profile != "cpu" && c.profile != "memory" {
-		log.Fatal("invalid profile type, the only allowed values are 'cpu' and 'memory'")
-	}
 	if c.initialGeometricError < 0 {
 		log.Fatal("initial-geometric-error must be greater than or equal to 0")
 	}
 	if c.geCorrection <= 0 {
 		log.Fatal("ge-correction must be greater than 0")
+	}
+	if c.maxTilesPerTileset < 0 {
+		log.Fatal("max-tiles-per-tileset must be 0 or more")
 	}
 	if _, err := model.ParseAttributes(strings.Split(c.attributes, ",")); err != nil {
 		log.Fatalf("--attributes: %v", err)
@@ -724,6 +743,14 @@ func boxRowWrapped(label, value string) string {
 	return strings.Join(rows, "\n")
 }
 
+// tilesPerFileDisp shows the most tiles per tileset file, 0 meaning one file.
+func tilesPerFileDisp(n int) string {
+	if n == 0 {
+		return "all in tileset.json"
+	}
+	return formatComma(n)
+}
+
 func formatComma(n int) string {
 	s := fmt.Sprintf("%d", n)
 	var buf []byte
@@ -771,6 +798,7 @@ func (c *cliOpts) printSummary(input, mode string) {
 		fmt.Fprintf(os.Stderr, "8-Bit:      %s\n", capitalize(fmt.Sprintf("%v", c.eightBit)))
 		fmt.Fprintf(os.Stderr, "Init GE:    %s\n", initialGeometricErrorDisp)
 		fmt.Fprintf(os.Stderr, "GE Corr:    %gx\n", c.geCorrection)
+		fmt.Fprintf(os.Stderr, "Tiles/File: %s\n", tilesPerFileDisp(c.maxTilesPerTileset))
 		fmt.Fprintf(os.Stderr, "Attribs:    %s\n", c.attributes)
 		fmt.Fprintf(os.Stderr, "Colorize:   %s\n", colorizeSummary(c.colorize))
 		fmt.Fprintf(os.Stderr, "Incl Withheld: %v\n", c.includeWithheld)
@@ -804,6 +832,7 @@ func (c *cliOpts) printSummary(input, mode string) {
 	fmt.Fprintln(os.Stderr, boxRow("• 8-Bit Color Corr:   ", capitalize(fmt.Sprintf("%v", c.eightBit))))
 	fmt.Fprintln(os.Stderr, boxRow("• Initial Geom Err:   ", initialGeometricErrorDisp))
 	fmt.Fprintln(os.Stderr, boxRow("• GE Correction:      ", fmt.Sprintf("%gx", c.geCorrection)))
+	fmt.Fprintln(os.Stderr, boxRow("• Max Tiles/File:     ", tilesPerFileDisp(c.maxTilesPerTileset)))
 	fmt.Fprintln(os.Stderr, boxRowWrapped("• Attributes:         ", c.attributes))
 	fmt.Fprintln(os.Stderr, boxRow("• Colorize:             ", colorizeSummary(c.colorize)))
 	fmt.Fprintln(os.Stderr, boxRow("• Include Withheld:     ", fmt.Sprintf("%v", c.includeWithheld)))
@@ -1026,6 +1055,7 @@ func (c *cliOpts) getTilerOptions() *tiler.TilerOptions {
 		tiler.WithRefineMode(refineMode),
 		tiler.WithInitialGeometricError(c.initialGeometricError),
 		tiler.WithGECorrection(c.geCorrection),
+		tiler.WithMaxTilesPerTileset(c.maxTilesPerTileset),
 		tiler.WithAttributes(attrs),
 	)
 	if c.placementMode() {
@@ -1221,8 +1251,6 @@ func packageTileset(outputFolder string) error {
 }
 
 func launch(opts *cliOpts, function func(ctx context.Context) error) {
-	stopProfile := setupProfiling(opts)
-
 	ctx, _ := signal.NotifyContext(context.Background(), os.Interrupt)
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
@@ -1233,20 +1261,14 @@ func launch(opts *cliOpts, function func(ctx context.Context) error) {
 	}()
 	wg.Wait()
 
-	if stopProfile != nil {
-		stopProfile()
-	}
 	if runErr != nil {
+		// exiting skips the root command's After hook, which would write
+		// the profile
+		opts.profiler.finish()
 		fmt.Fprintf(os.Stderr, "\nError: %v\n", runErr)
 		os.Exit(1)
 	}
 	printDonationMessage()
-}
-
-// setupProfiling starts the requested pprof profile.
-// Returns a cleanup function that stops profiling and closes the output file.
-func setupProfiling(opts *cliOpts) func() {
-	return SetupProfiling(opts.profile, opts.profileOutput)
 }
 
 func SetupProfiling(profile string, output string) func() {
@@ -1296,6 +1318,10 @@ func SetupProfiling(profile string, output string) func() {
 	}
 }
 
+// progressRedrawInterval is the shortest time between two redraws of a
+// progress bar. The bar still shows its end as soon as a phase completes.
+const progressRedrawInterval = 300 * time.Millisecond
+
 // cliProgress holds the single active progress bar and tracks the current phase.
 // It is goroutine-safe: multiple worker callbacks may call handle concurrently.
 type cliProgress struct {
@@ -1336,6 +1362,9 @@ func (p *cliProgress) handle(e tiler.ProgressEvent) {
 			progressbar.OptionSetWidth(40),
 			progressbar.OptionSetPredictTime(false),
 			progressbar.OptionSetRenderBlankState(true),
+			// Redraw at most every progressRedrawInterval: each redraw writes
+			// to the console and syncs it, and the workers wait for it.
+			progressbar.OptionThrottle(progressRedrawInterval),
 			progressbar.OptionEnableColorCodes(true),
 			progressbar.OptionSetTheme(progressbar.Theme{
 				Saucer:        color + "█[reset]",

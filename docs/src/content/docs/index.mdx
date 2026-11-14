@@ -1,11 +1,11 @@
 ---
-title: Point clouds to 3D Tiles, fast
-description: gotiler converts LAS, LAZ, E57 and PLY point clouds into streaming-ready OGC 3D Tiles 1.0 and 1.1, ready for CesiumJS and other 3D Tiles viewers.
+title: Point clouds and Gaussian splats to 3D Tiles, fast
+description: gotiler converts LAS, LAZ, E57 and PLY point clouds and Gaussian splat scenes into streaming-ready OGC 3D Tiles, ready for CesiumJS and other 3D Tiles viewers.
 template: splash
 editUrl: false
 hero:
   title: <span class="gt-gradient">gotiler</span>
-  tagline: gotiler is a <strong>fast</strong>, <strong>lightweight</strong> and <strong>portable</strong> converter to transform massive LAS, LAZ, E57 and PLY datasets into OGC 3D Tiles.
+  tagline: gotiler is a <strong>fast</strong>, <strong>lightweight</strong> and <strong>portable</strong> converter to transform massive <strong>point clouds</strong> or <strong>Gaussian splat</strong> datasets into OGC 3D Tiles.
   actions:
     - text: Install
       link: '#quick-start'
@@ -13,6 +13,10 @@ hero:
     - text: Documentation
       link: /gotiler/getting-started/installation/
       icon: open-book
+      variant: secondary
+    - text: Live demo
+      link: /gotiler/demo/
+      icon: rocket
       variant: secondary
 ---
 
@@ -32,10 +36,36 @@ import Split from '../../components/home/Split.astro';
 	id="features"
 	eyebrow="Features"
 	title={'Turn massive scans into <span class="gt-gradient">streaming 3D Tiles</span> in seconds.'}
-	lead="Built for huge datasets and simple workflows: point gotiler at a file or a folder, and get a tileset any 3D Tiles viewer can stream."
+	lead="Built for huge datasets and simple workflows: point gotiler at a point cloud, a folder of them or a Gaussian splat scene, and get a tileset that CesiumJS and other 3D Tiles viewers can stream."
 />
 
 <Features />
+
+</Band>
+
+<Band tone="base">
+
+<SectionHeading
+	id="point-cloud-tiling"
+	eyebrow="Point cloud tiling"
+	title={'Fast, <span style="white-space: nowrap">feature-rich</span> tiler for <span class="gt-gradient"><span style="white-space: nowrap">billion-point</span> clouds</span>.'}
+	lead="Reproject, colorize and compress your LAS, LAZ, E57 and PLY point clouds, all in one self-contained tool."
+/>
+
+<Features grid="point-clouds" />
+
+</Band>
+
+<Band tone="teal">
+
+<SectionHeading
+	id="gaussian-splat-tiling"
+	eyebrow="Gaussian splat tiling"
+	title={'3D <span class="gt-gradient">Gaussian splat tiler</span> for <span style="white-space: nowrap">high-fidelity</span> visualization.'}
+	lead="Transform your massive PLY Gaussian splat datasets into georeferenced, compressed and streamable 3D Tiles with hierarchical levels of detail."
+/>
+
+<Features grid="gaussian-splats" />
 
 </Band>
 
@@ -97,13 +127,24 @@ import Split from '../../components/home/Split.astro';
 
    ```bash
    # Tile a LAS, LAZ, E57 or PLY file into ./out
-   gotiler -o ./out ./input.las
+   gotiler pcloud -o ./out ./input.las
 
    # Tile every file of a folder into its own tileset
-   gotiler -o ./out ./las_folder
+   gotiler pcloud -o ./out ./las_folder
 
    # Merge a folder into one tileset, packed as a .3tz archive
-   gotiler -o ./out --join --3tz ./las_folder
+   gotiler pcloud -o ./out --join --3tz ./las_folder
+   ```
+
+   </TabItem>
+   <TabItem label="Gaussian Splats">
+
+   ```bash
+   # Tile a Gaussian splat scene, then place it on the globe
+   gotiler splats -o ./out ./scene.ply
+
+   # A scene trained with OpenCV axes, placed in Rome
+   gotiler splats -o ./out --input-up-axis -y --longitude 12.4924 --latitude 41.8902 ./scene.ply
    ```
 
    </TabItem>
@@ -111,7 +152,7 @@ import Split from '../../components/home/Split.astro';
 
    ```bash
    # Set the input CRS, here with a vertical datum
-   gotiler -o ./out -c EPSG:32633+3855 ./input.las
+   gotiler pcloud -o ./out -c EPSG:32633+3855 ./input.las
    ```
 
    </TabItem>
@@ -119,10 +160,10 @@ import Split from '../../components/home/Split.astro';
 
    ```bash
    # Color points by elevation
-   gotiler -o ./out --colorize z:viridis ./input.las
+   gotiler pcloud -o ./out --colorize z:viridis ./input.las
 
    # Color by intensity on a reversed, 8-band turbo ramp
-   gotiler -o ./out --colorize intensity:turbo:reverse:steps=8 ./input.las
+   gotiler pcloud -o ./out --colorize intensity:turbo:reverse:steps=8 ./input.las
    ```
 
    </TabItem>
@@ -130,10 +171,10 @@ import Split from '../../components/home/Split.astro';
 
    ```bash
    # Tile, then check the result on a globe
-   gotiler -o ./out --preview ./input.las
+   gotiler pcloud -o ./out --preview ./input.las
 
    # Tile a Y-up model without a CRS, then move it into place
-   gotiler -o ./out --crs local --input-up-axis y --preview ./model.ply
+   gotiler pcloud -o ./out --crs local --input-up-axis y --preview ./model.ply
 
    # Open an existing tileset
    gotiler view ./out
@@ -163,7 +204,7 @@ import Split from '../../components/home/Split.astro';
 
 - **Search an address**, or click **Pick position** and then the globe, to move the model there.
 - **Drag the gizmo's** arrows and rings, or type offsets and rotations.
-- **Save position** writes the new root transform into `tileset.json`, keeping a backup of the original.
+- **Save position** stores the new position in `tileset.json`, without rewriting the tiles.
 - The viewer only listens on `127.0.0.1`, behind a random access token.
 
 ```bash

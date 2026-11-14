@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"slices"
 	"sync"
+
+	"github.com/mfbonfigli/gotiler/v3/internal/geom"
 )
 
 const defaultTilesetFile = "tileset.json"
@@ -44,6 +46,9 @@ type tilesetFile struct {
 	// readOnlyReason explains why the tileset cannot be moved, empty when it
 	// can.
 	readOnlyReason string
+	// splats is set when the tileset holds Gaussian splats that CesiumJS
+	// draws as such.
+	splats bool
 }
 
 // openTileset opens a tileset.json, given its path or the folder holding it.
@@ -109,7 +114,25 @@ func (t *tilesetFile) parse(data []byte) error {
 	case !isInvertibleAffine(t.transform):
 		t.readOnlyReason = "its root transform cannot be inverted"
 	}
+	t.splats = requiresSplatExtensions(t.document)
 	return nil
+}
+
+// requiresSplatExtensions reports whether a tileset requires the glTF
+// extensions of SPZ-compressed Gaussian splats. CesiumJS draws the content as
+// splats only then, and as points otherwise.
+func requiresSplatExtensions(document map[string]json.RawMessage) bool {
+	var extensions struct {
+		ContentGLTF struct {
+			ExtensionsRequired []string `json:"extensionsRequired"`
+		} `json:"3DTILES_content_gltf"`
+	}
+	if err := json.Unmarshal(document["extensions"], &extensions); err != nil {
+		return false
+	}
+	required := extensions.ContentGLTF.ExtensionsRequired
+	return slices.Contains(required, "KHR_gaussian_splatting") &&
+		slices.Contains(required, "KHR_gaussian_splatting_compression_spz_2")
 }
 
 // rootTransform returns the current root transform, the identity when the
@@ -122,8 +145,7 @@ func (t *tilesetFile) rootTransform() [16]float64 {
 
 // saveRootTransform writes transform as the new root transform. It accepts
 // only transforms that move and rotate the tileset relative to its current
-// root transform. The first save keeps a copy of the original file as
-// tileset.json.bak.
+// root transform.
 func (t *tilesetFile) saveRootTransform(transform [16]float64) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -151,9 +173,6 @@ func (t *tilesetFile) saveRootTransform(transform [16]float64) error {
 		return err
 	}
 
-	if err := backupOnce(t.path); err != nil {
-		return fmt.Errorf("backing up %s: %w", t.path, err)
-	}
 	if err := writeFileAtomically(t.path, data); err != nil {
 		return fmt.Errorf("writing %s: %w", t.path, err)
 	}
@@ -173,25 +192,8 @@ func encodeJSON(v any) ([]byte, error) {
 	return bytes.TrimSuffix(buf.Bytes(), []byte("\n")), nil
 }
 
-func backupOnce(path string) error {
-	original, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	backup, err := os.OpenFile(path+".bak", os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
-	if errors.Is(err, fs.ErrExist) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	if _, err := backup.Write(original); err != nil {
-		backup.Close() //nolint:errcheck
-		return err
-	}
-	return backup.Close()
-}
-
+// writeFileAtomically replaces path with data through a temporary file, so
+// that a failed write leaves the previous file intact.
 func writeFileAtomically(path string, data []byte) error {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -252,13 +254,10 @@ func (t tileVolumes) usesRegion() bool {
 	return slices.ContainsFunc(t.Children, tileVolumes.usesRegion)
 }
 
-// matrix3 is a row-major 3x3 matrix.
-type matrix3 [3][3]float64
-
 // linearPart returns the rotation and scale part of a column-major 4x4
 // transform.
-func linearPart(m [16]float64) matrix3 {
-	var out matrix3
+func linearPart(m [16]float64) geom.Mat3 {
+	var out geom.Mat3
 	for row := range 3 {
 		for col := range 3 {
 			out[row][col] = m[col*4+row]
@@ -267,45 +266,9 @@ func linearPart(m [16]float64) matrix3 {
 	return out
 }
 
-func (a matrix3) mul(b matrix3) matrix3 {
-	var out matrix3
-	for row := range 3 {
-		for col := range 3 {
-			out[row][col] = a[row][0]*b[0][col] + a[row][1]*b[1][col] + a[row][2]*b[2][col]
-		}
-	}
-	return out
-}
-
-func (a matrix3) transpose() matrix3 {
-	var out matrix3
-	for row := range 3 {
-		for col := range 3 {
-			out[row][col] = a[col][row]
-		}
-	}
-	return out
-}
-
-func (a matrix3) determinant() float64 {
-	return a[0][0]*(a[1][1]*a[2][2]-a[1][2]*a[2][1]) -
-		a[0][1]*(a[1][0]*a[2][2]-a[1][2]*a[2][0]) +
-		a[0][2]*(a[1][0]*a[2][1]-a[1][1]*a[2][0])
-}
-
-// inverse returns the inverse of a, which must have a non-zero determinant.
-func (a matrix3) inverse() matrix3 {
-	det := a.determinant()
-	return matrix3{
-		{(a[1][1]*a[2][2] - a[1][2]*a[2][1]) / det, (a[0][2]*a[2][1] - a[0][1]*a[2][2]) / det, (a[0][1]*a[1][2] - a[0][2]*a[1][1]) / det},
-		{(a[1][2]*a[2][0] - a[1][0]*a[2][2]) / det, (a[0][0]*a[2][2] - a[0][2]*a[2][0]) / det, (a[0][2]*a[1][0] - a[0][0]*a[1][2]) / det},
-		{(a[1][0]*a[2][1] - a[1][1]*a[2][0]) / det, (a[0][1]*a[2][0] - a[0][0]*a[2][1]) / det, (a[0][0]*a[1][1] - a[0][1]*a[1][0]) / det},
-	}
-}
-
-func (a matrix3) isRotation() bool {
+func isRotation(m geom.Mat3) bool {
 	const tolerance = 1e-6
-	gram := a.transpose().mul(a)
+	gram := m.Transpose().Mul(m)
 	for row := range 3 {
 		for col := range 3 {
 			want := 0.0
@@ -317,7 +280,7 @@ func (a matrix3) isRotation() bool {
 			}
 		}
 	}
-	return a.determinant() > 0
+	return m.Determinant() > 0
 }
 
 func isAffine(m [16]float64) bool {
@@ -330,7 +293,7 @@ func isAffine(m [16]float64) bool {
 }
 
 func isInvertibleAffine(m [16]float64) bool {
-	return isAffine(m) && linearPart(m).determinant() != 0
+	return isAffine(m) && linearPart(m).Determinant() != 0
 }
 
 // checkRigidChange verifies that going from the current transform to next
@@ -342,8 +305,8 @@ func checkRigidChange(current, next [16]float64) error {
 	if !isAffine(next) {
 		return fmt.Errorf("%w: it must hold finite numbers and end with the row 0 0 0 1", errInvalidTransform)
 	}
-	change := linearPart(next).mul(linearPart(current).inverse())
-	if !change.isRotation() {
+	change := linearPart(next).Mul(linearPart(current).Inverse())
+	if !isRotation(change) {
 		return fmt.Errorf("%w: it must only move and rotate the tileset, not scale, skew or mirror it", errInvalidTransform)
 	}
 	return nil

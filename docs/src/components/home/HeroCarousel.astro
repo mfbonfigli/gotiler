@@ -1,0 +1,355 @@
+---
+// The carousel behind the home page hero: screenshots that fill the hero from
+// edge to edge of the window and cross-fade every 6 seconds. Their labels,
+// credits and dots sit at the bottom of the hero. The slides stop when the pause button is pressed or
+// the keyboard focus enters the carousel, and start stopped when the reader
+// asked for reduced motion; the mouse resting on the controls holds the
+// current slide. The dots and a swipe change the slide.
+//
+// The hero must be positioned and isolated: the backdrop is placed against
+// it, behind its text.
+import type { ImageMetadata } from 'astro';
+import { Image } from 'astro:assets';
+
+export interface Slide {
+	src: ImageMetadata;
+	alt: string;
+	// the name of the scene, shown at the bottom of the hero
+	label: string;
+	// the credits, as HTML, shown under the label
+	credit?: string;
+}
+
+interface Props {
+	label: string;
+	slides: Slide[];
+}
+
+const { label, slides } = Astro.props;
+// on portrait screens the hero is taller than wide, and the images, cropped
+// to fill it, wider than the screen
+const sizes = '(max-aspect-ratio: 1/1) 150vh, 100vw';
+const hidden = (i: number) => (i === 0 ? {} : { 'aria-hidden': 'true', inert: true });
+---
+
+<section class="carousel" aria-roledescription="carousel" aria-label={label} data-hero-carousel>
+	<div class="backdrop" aria-live="off" data-slides>
+		{
+			slides.map((slide, i) => (
+				<div
+					class="slide"
+					role="group"
+					aria-roledescription="slide"
+					aria-label={`${i + 1} of ${slides.length}`}
+					data-active={i === 0 ? '' : undefined}
+					{...hidden(i)}
+				>
+					<Image
+						src={slide.src}
+						alt={slide.alt}
+						widths={[960, 1280, 1920, 2560, slide.src.width].filter((width) => width <= slide.src.width)}
+						sizes={sizes}
+						loading={i === 0 ? 'eager' : 'lazy'}
+						fetchpriority={i === 0 ? 'high' : undefined}
+					/>
+				</div>
+			))
+		}
+	</div>
+	<div class="controls" data-controls>
+		<div class="captions">
+			{
+				slides.map((slide, i) => (
+					<p class="caption" data-active={i === 0 ? '' : undefined} {...hidden(i)}>
+						<strong>{slide.label}</strong>
+						{slide.credit && <span set:html={slide.credit} />}
+					</p>
+				))
+			}
+		</div>
+		<div class="buttons">
+			<button class="toggle" type="button" aria-label="Pause the slides" data-toggle>
+				<svg class="pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14" /></svg>
+				<svg class="play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z" /></svg>
+			</button>
+			<div class="dots">
+				{
+					slides.map((_, i) => (
+						<button
+							type="button"
+							aria-label={`Show slide ${i + 1}`}
+							aria-current={i === 0 ? 'true' : undefined}
+							data-dot={i}
+						/>
+					))
+				}
+			</div>
+		</div>
+	</div>
+</section>
+
+<script>
+	const interval = 6000;
+
+	const setActive = (element: HTMLElement, active: boolean) => {
+		element.toggleAttribute('data-active', active);
+		element.toggleAttribute('inert', !active);
+		if (active) element.removeAttribute('aria-hidden');
+		else element.setAttribute('aria-hidden', 'true');
+	};
+
+	for (const carousel of document.querySelectorAll<HTMLElement>('[data-hero-carousel]')) {
+		const slides = [...carousel.querySelectorAll<HTMLElement>('.slide')];
+		const captions = [...carousel.querySelectorAll<HTMLElement>('.caption')];
+		const dots = [...carousel.querySelectorAll<HTMLButtonElement>('[data-dot]')];
+		const toggle = carousel.querySelector<HTMLButtonElement>('[data-toggle]')!;
+		const backdrop = carousel.querySelector<HTMLElement>('[data-slides]')!;
+		const controls = carousel.querySelector<HTMLElement>('[data-controls]')!;
+		let current = 0;
+		let shownAt = performance.now();
+		let stopped = false;
+		let held = false;
+
+		const show = (index: number) => {
+			current = (index + slides.length) % slides.length;
+			shownAt = performance.now();
+			slides.forEach((slide, i) => setActive(slide, i === current));
+			captions.forEach((caption, i) => setActive(caption, i === current));
+			dots.forEach((dot, i) => {
+				if (i === current) dot.setAttribute('aria-current', 'true');
+				else dot.removeAttribute('aria-current');
+			});
+		};
+
+		// stopped slides are announced when they change, rotating ones are not
+		const setStopped = (value: boolean) => {
+			stopped = value;
+			shownAt = performance.now();
+			toggle.toggleAttribute('data-stopped', value);
+			toggle.setAttribute('aria-label', value ? 'Play the slides' : 'Pause the slides');
+			backdrop.setAttribute('aria-live', value ? 'polite' : 'off');
+		};
+		setStopped(matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+		toggle.addEventListener('click', () => setStopped(!stopped));
+		dots.forEach((dot, i) => dot.addEventListener('click', () => show(i)));
+		carousel.addEventListener('focusin', (event) => {
+			if ((event.target as HTMLElement).matches(':focus-visible')) setStopped(true);
+		});
+		controls.addEventListener('pointerenter', (event) => {
+			if (event.pointerType === 'mouse') held = true;
+		});
+		controls.addEventListener('pointerleave', () => {
+			held = false;
+		});
+
+		// a swipe anywhere on the hero, by touch or pen: a mouse drag selects text
+		const hero = carousel.parentElement ?? carousel;
+		let swipeStart: number | undefined;
+		hero.addEventListener('pointerdown', (event) => {
+			swipeStart = event.pointerType === 'mouse' ? undefined : event.clientX;
+		});
+		hero.addEventListener('pointerup', (event) => {
+			if (swipeStart === undefined) return;
+			const distance = event.clientX - swipeStart;
+			swipeStart = undefined;
+			if (Math.abs(distance) > 40) show(current + (distance < 0 ? 1 : -1));
+		});
+		hero.addEventListener('pointercancel', () => {
+			swipeStart = undefined;
+		});
+
+		// each slide, shown by hand or not, stays for the whole interval
+		setInterval(() => {
+			if (stopped || held || document.hidden) shownAt = performance.now();
+			else if (performance.now() - shownAt >= interval) show(current + 1);
+		}, 250);
+	}
+</script>
+
+<style>
+	/* Starlight puts the hero 1.5rem under the top bar, and the page content
+	   1.5rem under the hero: the backdrop reaches over both gaps, and from edge
+	   to edge of the window. Starlight's main element clips what passes the
+	   window's sides, so the page does not scroll sideways. */
+	.backdrop {
+		position: absolute;
+		z-index: -1;
+		top: -1.5rem;
+		bottom: -1.5rem;
+		left: 50%;
+		width: 100vw;
+		overflow: hidden;
+		translate: -50%;
+		background: #14161b;
+		touch-action: pan-y;
+	}
+
+	:global([data-has-hero] main) {
+		overflow-x: clip;
+	}
+
+	.slide {
+		position: absolute;
+		inset: 0;
+		opacity: 0;
+		transition: opacity 1s ease;
+	}
+
+	.slide[data-active] {
+		opacity: 1;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.slide {
+			transition: none;
+		}
+	}
+
+	.slide img {
+		display: block;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		user-select: none;
+		-webkit-user-drag: none;
+	}
+
+	/* the controls sit at the right, straight on the photos: a shadow keeps
+	   the captions readable on bright skies and roofs */
+	.controls {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: flex-end;
+		gap: 0.5rem 1rem;
+		width: fit-content;
+		max-width: 100%;
+		margin-left: auto;
+		text-shadow:
+			0 1px 3px rgb(0 0 0 / 0.8),
+			0 0 12px rgb(0 0 0 / 0.6);
+	}
+
+	/* the captions share one grid cell, so the controls keep their size */
+	.captions {
+		display: grid;
+		text-align: right;
+	}
+
+	.caption {
+		display: flex;
+		flex-direction: column;
+		grid-area: 1 / 1;
+		margin: 0;
+		color: rgb(255 255 255 / 0.9);
+		font-size: var(--sl-text-xs);
+		line-height: 1.4;
+		visibility: hidden;
+	}
+
+	.caption[data-active] {
+		visibility: visible;
+	}
+
+	.caption strong {
+		color: #fff;
+		font-size: var(--sl-text-sm);
+	}
+
+	.caption :global(a) {
+		color: inherit;
+	}
+
+	/* the pause button and the dots wrap together */
+	.buttons {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+	}
+
+	.toggle {
+		display: grid;
+		place-items: center;
+		width: 2rem;
+		height: 2rem;
+		padding: 0;
+		border: 1px solid rgb(255 255 255 / 0.4);
+		border-radius: 50%;
+		background: rgb(0 0 0 / 0.3);
+		color: #fff;
+		cursor: pointer;
+	}
+
+	.toggle:hover {
+		background: rgb(0 0 0 / 0.6);
+	}
+
+	.toggle svg {
+		width: 0.9rem;
+		height: 0.9rem;
+		fill: currentColor;
+		stroke: currentColor;
+		stroke-width: 3;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+
+	.toggle .play,
+	.toggle[data-stopped] .pause {
+		display: none;
+	}
+
+	.toggle[data-stopped] .play {
+		display: block;
+	}
+
+	.dots {
+		display: flex;
+		gap: 0.5rem;
+	}
+
+	.dots button {
+		width: 0.6rem;
+		height: 0.6rem;
+		padding: 0;
+		border: 0;
+		border-radius: 999px;
+		background: rgb(255 255 255 / 0.5);
+		box-shadow: 0 0 4px rgb(0 0 0 / 0.6);
+		cursor: pointer;
+		transition:
+			width 0.3s ease,
+			background 0.3s ease;
+	}
+
+	.dots button[aria-current] {
+		width: 1.5rem;
+		background: #fff;
+	}
+
+	.toggle:focus-visible,
+	.dots button:focus-visible,
+	.caption :global(a:focus-visible) {
+		outline: 2px solid #fff;
+		outline-offset: 2px;
+	}
+
+	/* on phones the controls span the column: the captions on the left, the
+	   buttons on the right, under them if they do not fit beside them */
+	@media (max-width: 30rem) {
+		.controls {
+			width: auto;
+			margin-left: 0;
+		}
+
+		.captions {
+			flex: 1 1 12rem;
+			text-align: left;
+		}
+
+		.buttons {
+			margin-left: auto;
+		}
+	}
+</style>

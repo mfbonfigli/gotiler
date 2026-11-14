@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/mfbonfigli/gotiler/v3/internal/geom"
 	"github.com/mfbonfigli/gotiler/v3/tiler/model"
 )
 
@@ -83,7 +84,7 @@ func (p Placement) Transform() (model.Transform, error) {
 	}
 
 	// local east-north-up axes as columns of the ENU-to-ECEF rotation
-	enu := mat3{
+	enu := geom.Mat3{
 		{-sinLon, -sinLat * cosLon, cosLat * cosLon},
 		{cosLon, -sinLat * sinLon, cosLat * sinLon},
 		{0, cosLat, sinLat},
@@ -92,9 +93,9 @@ func (p Placement) Transform() (model.Transform, error) {
 	// heading-pitch-roll in the local east-north-up frame, following the
 	// CesiumJS convention: rotation about -z by heading, about -y by pitch,
 	// about +x by roll
-	hpr := rotZ(-heading).mul(rotY(-pitch)).mul(rotX(roll))
+	hpr := rotZ(-heading).Mul(rotY(-pitch)).Mul(rotX(roll))
 
-	rotation := enu.mul(hpr).mul(upAxisRotation(p.UpAxis))
+	rotation := enu.Mul(hpr).Mul(upAxisRotation(p.UpAxis))
 
 	// forward: scaled rotation plus translation; inverse: transposed rotation
 	// divided by the scale (valid because the rotation part is orthonormal)
@@ -143,65 +144,48 @@ func (p Placement) validate() error {
 
 // upAxisRotation maps the input model's up axis to the local Z axis while
 // keeping the frame right-handed.
-func upAxisRotation(axis Axis) mat3 {
+func upAxisRotation(axis Axis) geom.Mat3 {
 	switch axis {
 	case AxisY:
 		// (x, y, z) -> (x, -z, y): the glTF-style Y-up to Z-up rotation
-		return mat3{
+		return geom.Mat3{
 			{1, 0, 0},
 			{0, 0, -1},
 			{0, 1, 0},
 		}
 	case AxisX:
 		// (x, y, z) -> (-z, y, x)
-		return mat3{
+		return geom.Mat3{
 			{0, 0, -1},
 			{0, 1, 0},
 			{1, 0, 0},
 		}
 	default:
-		return mat3{
-			{1, 0, 0},
-			{0, 1, 0},
-			{0, 0, 1},
-		}
+		return geom.IdentityMat3()
 	}
 }
 
-// mat3 is a row-major 3x3 matrix.
-type mat3 [3][3]float64
-
-func (a mat3) mul(b mat3) mat3 {
-	var out mat3
-	for r := 0; r < 3; r++ {
-		for c := 0; c < 3; c++ {
-			out[r][c] = a[r][0]*b[0][c] + a[r][1]*b[1][c] + a[r][2]*b[2][c]
-		}
-	}
-	return out
-}
-
-func rotX(angle float64) mat3 {
+func rotX(angle float64) geom.Mat3 {
 	s, c := math.Sin(angle), math.Cos(angle)
-	return mat3{
+	return geom.Mat3{
 		{1, 0, 0},
 		{0, c, -s},
 		{0, s, c},
 	}
 }
 
-func rotY(angle float64) mat3 {
+func rotY(angle float64) geom.Mat3 {
 	s, c := math.Sin(angle), math.Cos(angle)
-	return mat3{
+	return geom.Mat3{
 		{c, 0, s},
 		{0, 1, 0},
 		{-s, 0, c},
 	}
 }
 
-func rotZ(angle float64) mat3 {
+func rotZ(angle float64) geom.Mat3 {
 	s, c := math.Sin(angle), math.Cos(angle)
-	return mat3{
+	return geom.Mat3{
 		{c, -s, 0},
 		{s, c, 0},
 		{0, 0, 1},

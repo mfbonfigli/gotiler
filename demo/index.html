@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>gotiler live demo</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='10' fill='%233f8cff'/%3E%3Ccircle cx='12' cy='12' r='4' fill='%23ffffff'/%3E%3C/svg%3E" />
+    <script>
+      // Cesium loads its workers and assets from this base URL.
+      window.CESIUM_BASE_URL = 'https://cdn.jsdelivr.net/npm/cesium@1.147.0/Build/Cesium/';
+    </script>
+    <script type="importmap">
+      { "imports": { "cesium": "https://cdn.jsdelivr.net/npm/cesium@1.147.0/Build/Cesium/index.js" } }
+    </script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.147.0/Build/Cesium/Widgets/widgets.css" />
+    <link rel="stylesheet" href="demo.css" />
+    <script type="module" src="main.js"></script>
+  </head>
+  <body>
+    <div id="globe"></div>
+
+    <nav id="datasets" class="glass" aria-label="Datasets">
+      <div class="brand"><b>gotiler</b><span>live demo</span></div>
+      <div id="dataset-list" class="dataset-list"></div>
+    </nav>
+
+    <div id="toolbar" class="glass" role="toolbar" aria-label="View">
+      <div class="segmented" id="navigation" role="group" aria-label="Navigation">
+        <button type="button" aria-pressed="true" data-navigation="orbit" title="Orbit with the mouse">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M3 12a9 4 0 0 0 18 0a9 4 0 0 0 -18 0" /></svg>Orbit
+        </button>
+        <button type="button" aria-pressed="false" data-navigation="fly" title="Fly with WASD and the mouse (F)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12l20-8-8 20-2-9z" /></svg>Fly
+        </button>
+      </div>
+      <button type="button" class="icon" id="home" title="Back to the whole dataset" aria-label="Back to the whole dataset">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7" /><path d="M5 10v10h14V10" /></svg>
+      </button>
+      <button type="button" class="icon" id="settings-toggle" aria-pressed="true" aria-controls="panel" title="Display settings" aria-label="Display settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12" /><circle cx="16" cy="6" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="18" r="2" /></svg>
+      </button>
+      <button type="button" class="icon" id="fullscreen" title="Full screen" aria-label="Full screen">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
+      </button>
+    </div>
+
+    <aside id="panel" class="glass" aria-label="Display settings">
+      <section>
+        <h2>Level of detail</h2>
+        <div class="row"><label for="detail">Detail</label><output id="detail-value" for="detail"></output></div>
+        <input id="detail" type="range" min="1" max="32" step="1" />
+        <p class="note">More detail loads more tiles. The value is the maximum screen-space error, in pixels.</p>
+        <div class="row">
+          <span id="bounds-label">Show tile bounds</span>
+          <button type="button" class="switch" role="switch" id="bounds" aria-labelledby="bounds-label"></button>
+        </div>
+      </section>
+
+      <section id="color-section">
+        <h2>Color</h2>
+        <div class="choices" role="group" aria-label="Color by">
+          <button type="button" aria-pressed="true" data-color="rgb">RGB</button>
+          <button type="button" aria-pressed="false" data-color="class">Class</button>
+          <button type="button" aria-pressed="false" data-color="height">Height</button>
+        </div>
+        <div id="height-settings" class="sub" hidden>
+          <div class="ramps" id="ramps" role="group" aria-label="Color ramp"></div>
+          <div class="row"><label for="height-from">From</label><output id="height-from-value" for="height-from"></output></div>
+          <input id="height-from" type="range" step="0.5" />
+          <div class="row"><label for="height-to">To</label><output id="height-to-value" for="height-to"></output></div>
+          <input id="height-to" type="range" step="0.5" />
+          <p class="note">Heights above the lowest point of the dataset.</p>
+        </div>
+      </section>
+
+      <section id="classes-section">
+        <h2>Classes</h2>
+        <div class="legend" id="classes"></div>
+        <p class="note">Click a class to hide or show its points, in any color mode.</p>
+      </section>
+
+      <section id="points-section">
+        <h2>Points</h2>
+        <div class="row"><label for="point-size">Size</label><output id="point-size-value" for="point-size"></output></div>
+        <input id="point-size" type="range" min="1" max="10" step="1" />
+        <div class="row">
+          <span id="attenuation-label">Grow with distance</span>
+          <button type="button" class="switch" role="switch" id="attenuation" aria-labelledby="attenuation-label"></button>
+        </div>
+      </section>
+
+    </aside>
+
+    <div id="hint" class="glass" hidden>
+      <span><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> move</span>
+      <span><kbd>E</kbd> / <kbd>Q</kbd> up / down</span>
+      <span><kbd>Shift</kbd> faster</span>
+      <span>Wheel: speed <span id="speed" class="speed"></span></span>
+      <span><kbd>Esc</kbd> releases the mouse</span>
+      <span id="hint-lead" class="lead"></span>
+    </div>
+
+    <div id="status" class="glass" role="status" hidden></div>
+  </body>
+</html>

@@ -12,7 +12,7 @@ import (
 	"github.com/mfbonfigli/gotiler/v3/tiler/plugin"
 )
 
-// writeTilesetJSON runs writeSquashedTileset for the given encoder against a
+// writeTilesetJSON runs writeTileset for the given encoder against a
 // mock tree carrying the given attribute summaries and returns the parsed
 // tileset.json.
 func writeTilesetJSON(t *testing.T, encoderID string, summaries []model.AttributeSummary) map[string]any {
@@ -31,8 +31,8 @@ func writeTilesetJSON(t *testing.T, encoderID string, summaries []model.Attribut
 	if err != nil {
 		t.Fatalf("NewWriter: %v", err)
 	}
-	if err := w.writeSquashedTileset(root, w.writerProvider); err != nil {
-		t.Fatalf("writeSquashedTileset: %v", err)
+	if err := w.writeTileset(root, w.writerProvider); err != nil {
+		t.Fatalf("writeTileset: %v", err)
 	}
 	var out map[string]any
 	if err := json.Unmarshal(buf.Bytes(), &out); err != nil {
@@ -161,8 +161,8 @@ func TestTilesetMetadataKeepsIntegerPrecision(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewWriter: %v", err)
 	}
-	if err := w.writeSquashedTileset(root, w.writerProvider); err != nil {
-		t.Fatalf("writeSquashedTileset: %v", err)
+	if err := w.writeTileset(root, w.writerProvider); err != nil {
+		t.Fatalf("writeTileset: %v", err)
 	}
 	// uint64 must be marshaled as an exact integer, not a float64
 	if !bytes.Contains(buf.Bytes(), []byte(`"MAX_BIG":4611686018427387904`)) {

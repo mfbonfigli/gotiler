@@ -1,35 +1,95 @@
 ---
 // Replaces Starlight's hero, used only by the home page, with a product-style
 // one: a headline whose <span class="gt-gradient"> words take the brand
-// gradient, the tagline and actions.
+// gradient, the tagline and actions, over a carousel of tilesets that fills
+// the window's width. The photos make the hero dark in both themes.
 import { LinkButton } from '@astrojs/starlight/components';
+import HeroCarousel, { type Slide } from './home/HeroCarousel.astro';
+import melbourne from '../assets/home/melbourne-point-cloud.webp';
+import lublinOldTown from '../assets/home/lublin-old-town-splats.webp';
+import jastrzebiaGora from '../assets/home/jastrzebia-gora-splats.webp';
 
 const { data } = Astro.locals.starlightRoute.entry;
 const { title = data.title, tagline, actions = [] } = data.hero || {};
+
+// the credit for both Gaussian splat scenes
+const teleportourCredit =
+	'3D scanning data created and provided by <a href="https://www.linkedin.com/in/andrii-shramko/">Andrii Shramko</a>, <a href="https://www.linkedin.com/company/teleportour/">Teleportour</a> · <a href="https://teleportour.com">teleportour.com</a>';
+const slides: Slide[] = [
+	{
+		src: jastrzebiaGora,
+		alt: 'A Gaussian splat scene of Jastrzębia Góra as 3D Tiles: the houses and gardens of the seaside village, between the woods and the Baltic Sea.',
+		label: 'Jastrzębia Góra, Poland, 104M Gaussian splats',
+		credit: teleportourCredit,
+	},
+	{
+		src: melbourne,
+		alt: 'The City of Melbourne point cloud as 3D Tiles: the skyline of the central business district behind the Yarra River and the parks south of it.',
+		label: 'Melbourne point cloud, 350M points',
+		credit:
+			'Point cloud: <a href="https://data.melbourne.vic.gov.au/explore/dataset/city-of-melbourne-3d-point-cloud-2018/information/">City of Melbourne</a>, CC BY 4.0',
+	},
+	{
+		src: lublinOldTown,
+		alt: 'A Gaussian splat scene of Lublin as 3D Tiles: the red roofs of the old town around a medieval gate tower and a square.',
+		label: 'Lublin, Poland, 259M Gaussian splats',
+		credit: teleportourCredit,
+	},
+];
 ---
 
 <div class="hero not-content">
-	<h1 id="_top" data-page-title set:html={title} />
-	{tagline && <p class="tagline" set:html={tagline} />}
-	<div class="actions">
-		{
-			actions.map(({ link, text, variant, icon }) => (
-				<LinkButton href={link} variant={variant} icon={icon?.name}>
-					{text}
-				</LinkButton>
-			))
-		}
+	<div class="copy">
+		<h1 id="_top" data-page-title set:html={title} />
+		{tagline && <p class="tagline" set:html={tagline} />}
+		<div class="actions">
+			{
+				actions.map(({ link, text, variant, icon }) => (
+					<LinkButton href={link} variant={variant} icon={icon?.name}>
+						{text}
+					</LinkButton>
+				))
+			}
+		</div>
 	</div>
+	<HeroCarousel label="Tilesets made with gotiler" slides={slides} />
 </div>
 
 <style>
 	.hero {
-		padding-block: 1rem 2rem;
+		/* the dark theme's colors, for the text and buttons over the photos */
+		--sl-color-white: hsl(0, 0%, 100%);
+		--sl-color-black: hsl(224, 10%, 10%);
+		--sl-color-text-accent: #c6d9ff;
+		--gt-gradient: var(--gt-gradient-on-dark);
+
+		position: relative;
+		isolation: isolate;
+		display: flex;
+		flex-direction: column;
+		gap: 1.5rem;
+		min-height: min(calc(80svh - var(--sl-nav-height)), 50rem);
+		padding-block: 2rem 0;
+		color: var(--sl-color-white);
 	}
 
-	@media (min-width: 60rem) {
-		.hero {
-			padding-block: 3rem 4rem;
+	/* The copy sits in the middle of the space the controls leave, on a
+	   blurred dark panel that keeps it readable and leaves the rest of the
+	   photo untouched. */
+	.copy {
+		width: fit-content;
+		margin-block: auto;
+		padding: 1.5rem 1.25rem;
+		border: 1px solid rgb(255 255 255 / 0.12);
+		border-radius: 1.25rem;
+		background: rgb(0 0 0 / 0.45);
+		-webkit-backdrop-filter: blur(8px);
+		backdrop-filter: blur(8px);
+	}
+
+	@media (min-width: 50rem) {
+		.copy {
+			padding: 2.25rem 2.5rem;
 		}
 	}
 
@@ -44,7 +104,8 @@ const { title = data.title, tagline, actions = [] } = data.hero || {};
 
 	.tagline {
 		max-width: 36rem;
-		color: var(--sl-color-gray-2);
+		color: rgb(255 255 255 / 0.85);
+		margin: 0;
 		font-size: var(--sl-text-xl);
 		line-height: 1.5;
 	}

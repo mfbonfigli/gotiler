@@ -19,6 +19,26 @@ const inDocs = Astro.url.pathname !== home;
 		<span data-count></span>
 		<span class="sr-only">stars</span>
 	</span>
+	<script is:inline>
+		// Shows the count that the script below cached while the page is still
+		// loading, so that it is there when the page is first drawn: that script
+		// runs only once the page is loaded, and the badge would pop in on every
+		// page.
+		(() => {
+			try {
+				const cached = JSON.parse(localStorage.getItem('gotiler-github-stars') ?? 'null');
+				if (typeof cached?.count !== 'number') return;
+				const stars = document.currentScript.previousElementSibling;
+				stars.querySelector('[data-count]').textContent = new Intl.NumberFormat('en', {
+					notation: 'compact',
+					maximumFractionDigits: 1,
+				}).format(cached.count);
+				stars.hidden = false;
+			} catch {
+				// without storage, the script below shows the count once it has it
+			}
+		})();
+	</script>
 </a>
 <a class="icon-link ko-fi" href="https://ko-fi.com/mfbonfigli" title="Support gotiler on Ko-fi">
 	<span class="sr-only">Support gotiler on Ko-fi</span>
@@ -29,6 +49,7 @@ const inDocs = Astro.url.pathname !== home;
 	// GitHub allows 60 unauthenticated API requests an hour per visitor, so the
 	// count is kept in localStorage for an hour and shared by every page.
 	const api = 'https://api.github.com/repos/mfbonfigli/gotiler';
+	// the inline script in the badge reads it too
 	const cacheKey = 'gotiler-github-stars';
 	const maxAge = 60 * 60 * 1000;
 

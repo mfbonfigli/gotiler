@@ -1,0 +1,37 @@
+---
+// The site title in the header: the logo, the gopher and the "gotiler"
+// lettering of the banner side by side, with the title for screen readers.
+// Starlight's own draws the logo files at full size, both the light and the
+// dark one, as browsers fetch hidden images too: this one draws them with
+// Astro's Image, at the size the header shows them, and loads them at once,
+// as the header is always in view.
+import { Image } from 'astro:assets';
+import logoDark from '../assets/logo-dark.png';
+import logoLight from '../assets/logo-light.png';
+
+const { siteTitle, siteTitleHref } = Astro.locals.starlightRoute;
+// the logo is 2.5rem tall in the header of wide screens, 2rem on others
+const height = 40;
+const densities = [1, 2, 3];
+---
+
+<a href={siteTitleHref} class="site-title sl-flex">
+	<Image class="light:sl-hidden print:hidden" src={logoDark} alt="gotiler" height={height} densities={densities} loading="eager" />
+	<Image class="dark:sl-hidden print:block" src={logoLight} alt="gotiler" height={height} densities={densities} loading="eager" />
+	<span class="sr-only" translate="no">{siteTitle}</span>
+</a>
+
+<style>
+	.site-title {
+		align-items: center;
+		gap: var(--sl-nav-gap);
+		min-width: 0;
+	}
+	img {
+		height: calc(var(--sl-nav-height) - 2 * var(--sl-nav-pad-y));
+		width: auto;
+		max-width: 100%;
+		object-fit: contain;
+		object-position: 0 50%;
+	}
+</style>

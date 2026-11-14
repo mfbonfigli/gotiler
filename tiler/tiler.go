@@ -93,6 +93,7 @@ func NewGoTiler() (*GoTiler, error) {
 				writer.WithWriterMiddleware(opts.writerMiddleware...),
 				writer.WithWriterFinalizer(opts.writerFinalizers...),
 				writer.WithGECorrection(opts.geCorrection),
+				writer.WithMaxTilesPerTileset(opts.maxTilesPerTileset),
 				writer.WithAttributes(opts.attributes),
 			}
 			if opts.writerProvider != nil {

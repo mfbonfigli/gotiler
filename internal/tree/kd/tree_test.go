@@ -328,3 +328,80 @@ func TestVoxelSampleSplit_ResidualCollection(t *testing.T) {
 		}
 	}
 }
+
+// TestVoxelSampleSplit_SpreadsTheSelectionWhateverTheInputOrder samples half
+// of a slab of points given in scan order, sorted along X. The pass that fills
+// the quota must not favor the start of the input: every strip of the slab
+// keeps about half of its points.
+func TestVoxelSampleSplit_SpreadsTheSelectionWhateverTheInputOrder(t *testing.T) {
+	const n, strips = 100_000, 10
+	rng := rand.New(rand.NewSource(7))
+	pts := make([]model.Point, n)
+	for i := range pts {
+		pts[i] = model.Point{X: rng.Float32() * 100, Y: rng.Float32() * 100, Z: rng.Float32() * 2}
+	}
+	sort.Slice(pts, func(a, b int) bool { return pts[a].X < pts[b].X })
+
+	cfg := NewTree(WithPointsPerTile(n)).config
+	selected, _, err := voxelSampleSplit(pts, n/2, false, context.Background(), cfg)
+	if err != nil {
+		t.Fatalf("voxelSampleSplit: %v", err)
+	}
+	if len(selected) != n/2 {
+		t.Fatalf("expected %d selected points, got %d", n/2, len(selected))
+	}
+	var counts [strips]int
+	for _, p := range selected {
+		counts[min(int(p.X/(100/strips)), strips-1)]++
+	}
+	// Each strip holds about 10,000 points: a fair selection keeps 5000 of
+	// them, give or take 2%. Keeping the first points of the last pass left
+	// the first strip with 8700 and the others with 4600.
+	for strip, count := range counts {
+		if count < 4500 || count > 5500 {
+			t.Errorf("strip %d keeps %d points, want about 5000: %v", strip, count, counts)
+			break
+		}
+	}
+
+	again, _, err := voxelSampleSplit(pts, n/2, false, context.Background(), cfg)
+	if err != nil {
+		t.Fatalf("voxelSampleSplit: %v", err)
+	}
+	for i := range selected {
+		if selected[i].X != again[i].X || selected[i].Y != again[i].Y || selected[i].Z != again[i].Z {
+			t.Fatalf("sampling the same points again selected another point at index %d", i)
+		}
+	}
+}
+
+func TestRandomSubset(t *testing.T) {
+	indices := make([]int, 1000)
+	for i := range indices {
+		indices[i] = i * 3
+	}
+	chosen := randomSubset(indices, 400)
+	if len(chosen) != 400 {
+		t.Fatalf("expected 400 indices, got %d", len(chosen))
+	}
+	firstHalf := 0
+	for i, idx := range chosen {
+		if idx%3 != 0 || idx < 0 || idx >= 3000 {
+			t.Fatalf("index %d was not among the candidates", idx)
+		}
+		if i > 0 && idx <= chosen[i-1] {
+			t.Fatalf("indices are not distinct and ascending at position %d: %d after %d", i, idx, chosen[i-1])
+		}
+		if idx < 1500 {
+			firstHalf++
+		}
+	}
+	// A fair choice takes about half of the indices from each half of the
+	// candidates, give or take a few standard deviations (8).
+	if firstHalf < 160 || firstHalf > 240 {
+		t.Errorf("%d of 400 chosen indices come from the first half of the candidates", firstHalf)
+	}
+	if all := randomSubset(indices[:5], 5); len(all) != 5 {
+		t.Errorf("choosing all 5 candidates returned %d", len(all))
+	}
+}

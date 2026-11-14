@@ -60,8 +60,8 @@ func TestNewAppSupportsBrandingAndExtraCommands(t *testing.T) {
 	if app.Command("version") == nil {
 		t.Fatal("expected version command to be registered")
 	}
-	if app.Command("file") != nil || app.Command("folder") != nil || app.Command("pointcloud") != nil || app.Command("pc") != nil || app.Command("pcloud") != nil {
-		t.Fatal("expected point-cloud commands to be absent by default")
+	if app.Command("pcloud") == nil {
+		t.Fatal("expected the pcloud command to be registered")
 	}
 	if err := app.Run(context.Background(), []string{"gotiler-cli", "extra"}); err != nil {
 		t.Fatal(err)
@@ -100,7 +100,7 @@ func TestHelpWrapsFlagUsageIntoAlignedColumns(t *testing.T) {
 	}})
 	buf := &bytes.Buffer{}
 	app.Writer = buf
-	if err := app.Run(context.Background(), []string{"gotiler", "--help"}); err != nil {
+	if err := app.Run(context.Background(), []string{"gotiler", "pcloud", "--help"}); err != nil {
 		t.Fatal(err)
 	}
 	out := buf.String()
@@ -135,16 +135,108 @@ func TestMainWithoutArgsShowsHelp(t *testing.T) {
 	if called {
 		t.Fatal("expected missing input to not initialize the tiler")
 	}
-	out := buf.String()
-	if !strings.Contains(out, "COMMANDS") || !strings.Contains(out, "version") || !strings.Contains(out, "--out") {
-		t.Fatalf("expected app help to include commands, version, and point-cloud flags, got %q", out)
+	if out := buf.String(); !strings.Contains(out, "COMMANDS") || !strings.Contains(out, "gotiler pcloud --help") {
+		t.Fatalf("expected app help to list the commands and point to pcloud, got %q", out)
 	}
 }
 
-func TestConfiguredPointCloudCommandWithoutArgsShowsHelp(t *testing.T) {
+func TestRootHelpListsTheCommands(t *testing.T) {
+	help := func(args ...string) string {
+		t.Helper()
+		app := NewApp(Options{})
+		buf := &bytes.Buffer{}
+		app.Writer = buf
+		if err := app.Run(context.Background(), append([]string{"gotiler"}, args...)); err != nil {
+			t.Fatal(err)
+		}
+		return buf.String()
+	}
+	out := help("--help")
+	if again := help("help"); again != out {
+		t.Errorf("gotiler help printed %q, want the same as gotiler --help: %q", again, out)
+	}
+	_, commands, _ := strings.Cut(out, "COMMANDS:\n")
+	commands, _, _ = strings.Cut(commands, "\n\n")
+	var names []string
+	for _, line := range strings.Split(commands, "\n") {
+		// Command lines are indented by 3 spaces, wrapped usage lines by more.
+		if fields := strings.Fields(line); len(fields) > 0 && !strings.HasPrefix(line, "    ") {
+			names = append(names, strings.TrimSuffix(fields[0], ","))
+		}
+	}
+	if want := []string{"pcloud", "splats", "view", "version", "help"}; !reflect.DeepEqual(names, want) {
+		t.Errorf("the help lists the commands %v, want %v:\n%s", names, want, out)
+	}
+	if want := "Without a command, gotiler runs pcloud: see gotiler pcloud --help."; !strings.Contains(out, want) {
+		t.Errorf("the help does not say %q:\n%s", want, out)
+	}
+	for _, flag := range []string{"--out", "--crs", "--points-per-tile", "--port"} {
+		if strings.Contains(out, flag) {
+			t.Errorf("the root help lists the point cloud flag %s:\n%s", flag, out)
+		}
+	}
+}
+
+func TestCommandHelpHasNoGlobalOptions(t *testing.T) {
+	for _, command := range []string{"pcloud", "splats", "view", "version"} {
+		app := NewApp(Options{})
+		buf := &bytes.Buffer{}
+		app.Writer = buf
+		if err := app.Run(context.Background(), []string{"gotiler", command, "--help"}); err != nil {
+			t.Fatal(err)
+		}
+		if out := buf.String(); strings.Contains(out, "GLOBAL OPTIONS") {
+			t.Errorf("gotiler %s --help lists global options:\n%s", command, out)
+		}
+	}
+}
+
+func TestCommandsRejectPointCloudFlags(t *testing.T) {
+	for _, args := range [][]string{
+		{"splats", "--crs", "EPSG:4326", "-o", "out", "scene.ply"},
+		{"splats", "--8-bit", "-o", "out", "scene.ply"},
+		{"splats", "--3tz", "-o", "out", "scene.ply"},
+		{"view", "--crs", "EPSG:4326", "tileset.json"},
+	} {
+		app := NewApp(Options{})
+		buf := &bytes.Buffer{}
+		app.Writer, app.ErrWriter = buf, buf
+		err := app.Run(context.Background(), append([]string{"gotiler"}, args...))
+		if err == nil || !strings.Contains(err.Error(), "flag provided but not defined") {
+			t.Errorf("gotiler %v returned %v, want an undefined flag error", args, err)
+		}
+	}
+}
+
+func TestPointCloudCommandMatchesTheRoot(t *testing.T) {
+	input := filepath.Join(t.TempDir(), "myfile.las")
+	if err := touchFile(input); err != nil {
+		t.Fatal(err)
+	}
+	run := func(args ...string) *tiler.MockTiler {
+		t.Helper()
+		mockTiler := &tiler.MockTiler{}
+		app := NewApp(Options{TilerProvider: func() (tiler.Tiler, error) {
+			return mockTiler, nil
+		}})
+		args = append(args, "-o", "out", "--crs", "local", "--longitude", "12.5", "--latitude", "41.9", "--heading", "30",
+			"-p", "5000", "--8-bit", "-r", "replace", "-v", "1.0", "--ge-correction", "1.5", "--attributes", "intensity", "--plain", input)
+		if err := app.Run(context.Background(), append([]string{"gotiler"}, args...)); err != nil {
+			t.Fatal(err)
+		}
+		// The options hold the progress callbacks, and the context differs.
+		mockTiler.Opts, mockTiler.Ctx = nil, nil
+		return mockTiler
+	}
+	root, pcloud := run(), run("pcloud")
+	if !pcloud.ProcessFilesCalled || !reflect.DeepEqual(pcloud, root) {
+		t.Errorf("gotiler pcloud tiled with %+v, want the same as gotiler: %+v", pcloud, root)
+	}
+}
+
+func TestPointCloudCommandWithoutArgsShowsHelp(t *testing.T) {
 	called := false
 	app := NewApp(Options{
-		PointCloudCommandName: "pcloud",
 		TilerProvider: func() (tiler.Tiler, error) {
 			called = true
 			return &tiler.MockTiler{}, nil
@@ -186,6 +278,7 @@ func TestMainProcessFile(t *testing.T) {
 		"-r", "replace",
 		"--initial-geometric-error", "128",
 		"--ge-correction", "1.5",
+		"--max-tiles-per-tileset", "300",
 		"--attributes", "intensity",
 		input})
 	if err != nil {
@@ -229,6 +322,9 @@ func TestMainProcessFile(t *testing.T) {
 	}
 	if actual := mockTiler.GECorrection; actual != 1.5 {
 		t.Errorf("expected tiler to be called with GECorrection %v but got %v", 1.5, actual)
+	}
+	if actual := mockTiler.MaxTilesPerTileset; actual != 300 {
+		t.Errorf("expected tiler to be called with MaxTilesPerTileset %v but got %v", 300, actual)
 	}
 	if !mockTiler.Attributes.Has(model.AttrIntensity) || mockTiler.Attributes.Has(model.AttrClassification) {
 		t.Errorf("expected Attributes to contain only intensity, got %v", mockTiler.Attributes)
@@ -291,7 +387,7 @@ func TestMainProcessFolder(t *testing.T) {
 	}
 }
 
-func TestConfiguredPointCloudCommandFolderJoin(t *testing.T) {
+func TestPointCloudCommandFolderJoin(t *testing.T) {
 	tmp, err := os.MkdirTemp(os.TempDir(), "tst")
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
@@ -307,7 +403,6 @@ func TestConfiguredPointCloudCommandFolderJoin(t *testing.T) {
 
 	mockTiler := &tiler.MockTiler{}
 	app := NewApp(Options{
-		PointCloudCommandName: "pcloud",
 		TilerProvider: func() (tiler.Tiler, error) {
 			return mockTiler, nil
 		},

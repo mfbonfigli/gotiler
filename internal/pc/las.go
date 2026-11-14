@@ -3,7 +3,9 @@ package pc
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
 	"math"
+	"runtime"
 	"sync"
 
 	"github.com/mfbonfigli/golaz"
@@ -21,9 +23,6 @@ func init() {
 	plugin.RegisterPointCloudReader(".laz", factory)
 }
 
-// GoLasReader wraps a golaz.Reader implementing the specific interface LasReader required by gotiler.
-// golaz.Reader is not goroutine-safe, so all reads are serialised with mu while keeping a reusable
-// scan buffer to avoid per-point allocations.
 // lasExtraAttr is one requested extra-byte attribute, resolved once at
 // construction so the per-point path does no name canonicalization, no
 // descriptor map lookup and no interface boxing: the raw little-endian bytes
@@ -75,16 +74,38 @@ var lasExtraByteAliases = map[string][]string{
 	"echowidth":       lasPulseWidthNames,
 }
 
+// GoLasReader wraps a golaz.Reader implementing the pointcloud.Reader
+// interface required by gotiler.
+//
+// Files with several chunks are decoded by a few goroutines (see
+// las_parallel.go); the others are read sequentially through the golaz
+// Reader, which is not goroutine-safe. Either way mu serialises the calls, so
+// a GoLasReader is safe for concurrent use, and points come out in file order.
 type GoLasReader struct {
-	r             *golaz.Reader
+	r         *golaz.Reader
+	crs       string
+	requested map[string]string // source canonical name -> requested canonical name
+	schema    []model.AttributeDescriptor
+	mu        sync.Mutex
+
+	// lasPointEncoder converts the points of the sequential path. It also
+	// holds the conversion settings every chunk decoder copies.
+	lasPointEncoder
+
+	// chunked is set when the file is decoded chunk by chunk on several
+	// goroutines; nil when it is read sequentially through r.
+	chunked *lasChunkPipeline
+}
+
+// lasPointEncoder turns decoded golaz points into gotiler points: colour
+// depth conversion and packing of the requested attributes. It keeps a
+// reusable scan buffer and an attribute arena to avoid per-point allocations,
+// so each goroutine that decodes points needs its own.
+type lasPointEncoder struct {
 	eightBitColor bool
-	crs           string
-	requested     map[string]string // source canonical name -> requested canonical name
-	schema        []model.AttributeDescriptor
 	plan          lasEncodePlan  // byte offsets of requested standard fields, resolved at construction
 	extraAttrs    []lasExtraAttr // requested extra-byte attributes, resolved at construction
 	arena         model.AttributeValuesArena
-	mu            sync.Mutex
 	scanBuf       golaz.Point
 }
 
@@ -92,6 +113,12 @@ type GoLasReader struct {
 // the CRS from the LAS metadata and return an error in case of issues.
 // attrs lists the optional per-point attributes to emit; nil means none.
 func NewGoLasReader(fileName string, crs string, eightBitColor bool, attrs model.Attributes) (*GoLasReader, error) {
+	return newGoLasReader(fileName, crs, eightBitColor, attrs, min(runtime.GOMAXPROCS(0), lasMaxDecodeWorkers))
+}
+
+// newGoLasReader is NewGoLasReader with an explicit limit on the goroutines
+// that decode the file; 1 forces sequential reading.
+func newGoLasReader(fileName string, crs string, eightBitColor bool, attrs model.Attributes, maxWorkers int) (*GoLasReader, error) {
 	r, err := golaz.Open(fileName)
 	if err != nil {
 		return nil, err
@@ -103,17 +130,47 @@ func NewGoLasReader(fileName string, crs string, eightBitColor bool, attrs model
 			return nil, fmt.Errorf("no CRS provided and was not possible to determine CRS from LAS file %s", fileName)
 		}
 	}
-	f := &GoLasReader{
-		r:             r,
-		eightBitColor: eightBitColor,
-		crs:           crs,
-	}
+	f := &GoLasReader{r: r, crs: crs}
+	f.eightBitColor = eightBitColor
 	if len(attrs) > 0 {
 		f.requested = buildRequestedMap(attrs)
 		f.extraAttrs = f.buildExtraAttrPlan()
 		f.buildSchema()
 	}
+	// Files golaz cannot split into chunks (legacy pointwise compression, a
+	// missing or damaged chunk table) are read sequentially, as are files
+	// with nothing to gain from it.
+	if chunks, err := r.Chunks(); err == nil {
+		if workers := lasDecodeWorkers(chunks, maxWorkers); workers > 0 {
+			f.chunked = newLasChunkPipeline(len(chunks), workers, f.newChunkDecoder)
+		}
+	}
 	return f, nil
+}
+
+// newChunkDecoder returns a decoder for one worker of the chunk pipeline,
+// with its own golaz decode state, scan buffer and attribute arena.
+func (f *GoLasReader) newChunkDecoder() (lasChunkDecoder, error) {
+	dec, err := f.r.NewChunkDecoder()
+	if err != nil {
+		return nil, err
+	}
+	enc := &lasPointEncoder{eightBitColor: f.eightBitColor, plan: f.plan, extraAttrs: f.extraAttrs}
+	return func(chunk int, dst []geom.Point64) ([]geom.Point64, error) {
+		if err := dec.Load(chunk); err != nil {
+			return dst, err
+		}
+		for {
+			err := dec.Scan(&enc.scanBuf)
+			if err == io.EOF {
+				return dst, nil
+			}
+			if err != nil {
+				return dst, err
+			}
+			dst = append(dst, enc.point())
+		}
+	}, nil
 }
 
 // AttributeSchema implements pointcloud.Reader.
@@ -130,40 +187,54 @@ func (f *GoLasReader) GetCRS() string {
 }
 
 func (f *GoLasReader) Reset() error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.chunked != nil {
+		f.chunked.reset()
+		return nil
+	}
 	return f.r.Reset()
 }
 
 func (f *GoLasReader) Close() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.chunked != nil {
+		f.chunked.close() // the chunk decoders read through r: stop them first
+	}
 	f.r.Close()
 }
 
 func (f *GoLasReader) GetNext() (geom.Point64, error) {
 	f.mu.Lock()
-	err := f.r.Scan(&f.scanBuf)
-	if err != nil {
-		f.mu.Unlock()
+	defer f.mu.Unlock()
+	if f.chunked != nil {
+		return f.chunked.next()
+	}
+	if err := f.r.Scan(&f.scanBuf); err != nil {
 		return geom.Point64{}, err
 	}
-	x, y, z := f.scanBuf.X, f.scanBuf.Y, f.scanBuf.Z
-	red, green, blue, _ := f.scanBuf.RGB()
-	attrs := f.encodeAttributesLocked()
-	f.mu.Unlock()
+	return f.point(), nil
+}
 
+// point converts the point in scanBuf.
+func (e *lasPointEncoder) point() geom.Point64 {
+	red, green, blue, _ := e.scanBuf.RGB()
 	var corr uint16 = 256
-	if f.eightBitColor {
+	if e.eightBitColor {
 		corr = 1
 	}
 	return geom.Point64{
 		Vector: model.Vector{
-			X: x,
-			Y: y,
-			Z: z,
+			X: e.scanBuf.X,
+			Y: e.scanBuf.Y,
+			Z: e.scanBuf.Z,
 		},
 		R:          uint8(red / corr),
 		G:          uint8(green / corr),
 		B:          uint8(blue / corr),
-		Attributes: attrs,
-	}, nil
+		Attributes: e.encodeAttributes(),
+	}
 }
 
 // buildRequestedMap maps every source attribute name that should be emitted to
@@ -243,9 +314,8 @@ func (f *GoLasReader) buildExtraAttrPlan() []lasExtraAttr {
 // standard LAS point field, or -1 when the field is not part of the schema
 // (not requested, or not carried by the file's point format). It is resolved
 // once at construction so the per-point path is straight-line binary encoding:
-// encodeAttributesLocked runs on the serial producer goroutine while the
-// reader mutex is held, so per-point work there directly stretches the reading
-// phase's wall time.
+// encodeAttributes runs for every point on the goroutine that decodes it, so
+// per-point work there directly stretches the reading phase.
 type lasEncodePlan struct {
 	size                        int
 	intensity                   int
@@ -377,10 +447,9 @@ func b2u8(v bool) byte {
 	return 0
 }
 
-// encodeAttributesLocked encodes the requested attributes of the point in
-// scanBuf into a packed AttributeValues buffer laid out per f.schema.
-// Must be called with f.mu held.
-func (f *GoLasReader) encodeAttributesLocked() model.AttributeValues {
+// encodeAttributes encodes the requested attributes of the point in scanBuf
+// into a packed AttributeValues buffer laid out per the schema of the reader.
+func (f *lasPointEncoder) encodeAttributes() model.AttributeValues {
 	p := &f.plan
 	if p.size == 0 {
 		return nil

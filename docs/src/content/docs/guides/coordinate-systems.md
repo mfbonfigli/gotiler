@@ -17,11 +17,11 @@ LAS and LAZ files usually declare their coordinate system in their metadata, whi
 - a WKT definition
 
 ```bash
-gotiler -o ./out --crs EPSG:32633 ./scan.e57
-gotiler -o ./out -c EPSG:32633+3855 ./input.las
+gotiler pcloud -o ./out --crs EPSG:32633 ./scan.e57
+gotiler pcloud -o ./out -c EPSG:32633+3855 ./input.las
 ```
 
-For clouds that have no geographic coordinate system at all, such as scans in a scanner frame or models from photogrammetry or CAD, use `--crs local`: see [Placing ungeoreferenced point clouds](/gotiler/guides/placing-ungeoreferenced-clouds/).
+For clouds that have no geographic coordinate system at all, such as scans in a scanner frame or models from photogrammetry or CAD, use `--crs local`: see [Placing ungeoreferenced assets](/gotiler/guides/placing-ungeoreferenced-clouds/).
 
 ## Heights
 
@@ -32,5 +32,5 @@ Such conversions may need datum grids that are not bundled with gotiler. Downloa
 `--z-offset` (or `-z`) adds a fixed vertical offset, in meters, to every point. Use it only when the input elevation is already referred to the WGS84 ellipsoid or geoid, for example to correct a known constant shift.
 
 ```bash
-gotiler -o ./out -c EPSG:32633 --z-offset 42.5 ./input.las
+gotiler pcloud -o ./out -c EPSG:32633 --z-offset 42.5 ./input.las
 ```

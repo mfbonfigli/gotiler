@@ -12,8 +12,8 @@ gotiler can replace the colors of the points while tiling, either from the value
 `--colorize attribute:gradient[:modifier...]` replaces point colors using a numeric attribute or a local coordinate (`x`, `y` or `z`):
 
 ```bash
-gotiler -o ./out --colorize z:viridis ./input.las
-gotiler -o ./out --colorize classification:las-classification ./input.las
+gotiler pcloud -o ./out --colorize z:viridis ./input.las
+gotiler pcloud -o ./out --colorize classification:las-classification ./input.las
 ```
 
 No bounds are needed: the gradient spans the 2nd to 98th percentile of the values found in the data, so outliers and skewed distributions (typical for intensity or amplitude) don't wash it out. Gradients with an absolute scale, like `las-classification`, are applied as is.
@@ -32,7 +32,7 @@ Modifiers can be combined:
 | `blend=A`            | Blends the gradient with the original point color (`1` = gradient only, `0.5` = even mix).       |
 
 ```bash
-gotiler -o ./out --colorize intensity:turbo:reverse:steps=8:stretch=5,95 ./input.las
+gotiler pcloud -o ./out --colorize intensity:turbo:reverse:steps=8:stretch=5,95 ./input.las
 ```
 
 ## From a GeoTIFF orthophoto
@@ -40,7 +40,7 @@ gotiler -o ./out --colorize intensity:turbo:reverse:steps=8:stretch=5,95 ./input
 `--geotiff-colorize` colors points from an RGB/RGBA GeoTIFF orthophoto, sampled at each point's location and reprojected on the fly when the CRSs differ. Points outside the orthophoto keep their original colors.
 
 ```bash
-gotiler -o ./out --geotiff-colorize ./ortho.tif ./input.las
+gotiler pcloud -o ./out --geotiff-colorize ./ortho.tif ./input.las
 ```
 
 :::note

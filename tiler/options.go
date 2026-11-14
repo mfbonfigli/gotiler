@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"runtime"
 
+	"github.com/mfbonfigli/gotiler/v3/internal/tileset"
 	"github.com/mfbonfigli/gotiler/v3/tiler/model"
 	"github.com/mfbonfigli/gotiler/v3/tiler/mutator"
 	"github.com/mfbonfigli/gotiler/v3/tiler/plugin"
@@ -20,6 +21,7 @@ type TilerOptions struct {
 	encoderID             string
 	initialGeometricError float64
 	geCorrection          float64
+	maxTilesPerTileset    int
 	attributes            model.Attributes
 	writerProvider        plugin.WriterProvider
 	writerMiddleware      []plugin.WriterMiddleware
@@ -46,6 +48,7 @@ func NewDefaultTilerOptions() *TilerOptions {
 		refineMode:            model.RefineAdd,
 		initialGeometricError: 0,
 		geCorrection:          1.0,
+		maxTilesPerTileset:    tileset.DefaultMaxTiles,
 		attributes:            model.DefaultAttributes(),
 	}
 }
@@ -78,6 +81,9 @@ func (opts *TilerOptions) validate() error {
 	}
 	if opts.numWorkers <= 0 {
 		return fmt.Errorf("number of workers must be greater than zero, got %d", opts.numWorkers)
+	}
+	if opts.maxTilesPerTileset < 0 {
+		return fmt.Errorf("max tiles per tileset must be 0 or more, got %d", opts.maxTilesPerTileset)
 	}
 	switch opts.refineMode {
 	case model.RefineAdd, model.RefineReplace:
@@ -170,6 +176,14 @@ func WithRefineMode(r model.RefineMode) tilerOptionsFn {
 // values < 1 only up close. Default is 1.0 (no correction).
 func WithGECorrection(c float64) tilerOptionsFn {
 	return func(o *TilerOptions) { o.geCorrection = c }
+}
+
+// WithMaxTilesPerTileset sets the most tiles a tileset JSON file holds. The
+// subtrees of larger tilesets move into external tilesets, next to their
+// tiles in the data folder, so viewers read only the top of the tree before
+// showing it. 0 writes a single tileset.json. Default is 2000.
+func WithMaxTilesPerTileset(n int) tilerOptionsFn {
+	return func(o *TilerOptions) { o.maxTilesPerTileset = n }
 }
 
 // WithAttributes sets which optional per-point attributes are written to output tiles.
