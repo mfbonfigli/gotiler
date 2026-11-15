@@ -1,6 +1,7 @@
 package tiling
 
 import (
+	"sync"
 	"sync/atomic"
 
 	"github.com/mfbonfigli/gotiler/v3/tiler/tree"
@@ -15,13 +16,17 @@ var Phases = []tree.PhaseInfo{
 
 // phaseReporter reports the progress of one phase, throttling its detail
 // updates to one every so many items. A nil phaseReporter reports nothing.
-// It is safe for concurrent use.
+// It is safe for concurrent use, and reports its updates in the order of
+// their counts.
 type phaseReporter struct {
 	out   tree.ProgressReporter
 	phase string
 	every int64
 	total atomic.Int64
-	count atomic.Int64
+	// mu orders the updates: it is held from counting the items to reporting
+	// them, so that an update never follows one of a higher count.
+	mu    sync.Mutex
+	count int64
 }
 
 func newPhaseReporter(out tree.ProgressReporter, phase string, total, every int64) *phaseReporter {
@@ -36,7 +41,9 @@ func newPhaseReporter(out tree.ProgressReporter, phase string, total, every int6
 // milestone reports a start, an end or another landmark of the phase.
 func (r *phaseReporter) milestone(message string) {
 	if r != nil {
-		r.report(message, true, r.count.Load())
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		r.report(message, true, r.count)
 	}
 }
 
@@ -46,9 +53,11 @@ func (r *phaseReporter) add(n int) {
 	if r == nil || n == 0 {
 		return
 	}
-	count := r.count.Add(int64(n))
-	if (count-int64(n))/r.every != count/r.every {
-		r.report("", false, count)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.count += int64(n)
+	if (r.count-int64(n))/r.every != r.count/r.every {
+		r.report("", false, r.count)
 	}
 }
 
@@ -59,6 +68,7 @@ func (r *phaseReporter) setTotal(total int64) {
 	}
 }
 
+// report sends an update. The caller holds mu.
 func (r *phaseReporter) report(message string, milestone bool, count int64) {
 	total := r.total.Load()
 	percent := -1.0
