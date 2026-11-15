@@ -221,6 +221,7 @@ func NewApp(opts Options) *cli.Command {
 		},
 		newSplatCommand(splatsCommandName),
 		hidden(newSplatCommand(legacySplatsCommandName)),
+		newMeshCommand(),
 		newViewCommand(),
 		{
 			Name:  "version",

@@ -326,12 +326,18 @@ type splatProgress struct {
 }
 
 func newSplatProgress(plain bool, input string) *splatProgress {
+	return newPhaseProgress(plain, input, tiling.Phases)
+}
+
+// newPhaseProgress returns the progress of a tiling that goes through the
+// given phases.
+func newPhaseProgress(plain bool, input string, phases []tree.PhaseInfo) *splatProgress {
 	p := &splatProgress{listener: progressListener, phases: map[string]tiler.Phase{}, input: input, start: time.Now()}
 	if plain {
 		p.listener = plainListener
 	}
-	for i, phase := range tiling.Phases {
-		p.phases[phase.Name] = tiler.Phase{Index: i + 1, Total: len(tiling.Phases), Name: phase.Label, Unit: phase.Unit}
+	for i, phase := range phases {
+		p.phases[phase.Name] = tiler.Phase{Index: i + 1, Total: len(phases), Name: phase.Label, Unit: phase.Unit}
 	}
 	return p
 }

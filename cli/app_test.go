@@ -164,7 +164,7 @@ func TestRootHelpListsTheCommands(t *testing.T) {
 			names = append(names, strings.TrimSuffix(fields[0], ","))
 		}
 	}
-	if want := []string{"pcloud", "splats", "view", "version", "help"}; !reflect.DeepEqual(names, want) {
+	if want := []string{"pcloud", "splats", "mesh", "view", "version", "help"}; !reflect.DeepEqual(names, want) {
 		t.Errorf("the help lists the commands %v, want %v:\n%s", names, want, out)
 	}
 	if want := "Without a command, gotiler runs pcloud: see gotiler pcloud --help."; !strings.Contains(out, want) {
@@ -178,7 +178,7 @@ func TestRootHelpListsTheCommands(t *testing.T) {
 }
 
 func TestCommandHelpHasNoGlobalOptions(t *testing.T) {
-	for _, command := range []string{"pcloud", "splats", "view", "version"} {
+	for _, command := range []string{"pcloud", "splats", "mesh", "view", "version"} {
 		app := NewApp(Options{})
 		buf := &bytes.Buffer{}
 		app.Writer = buf
