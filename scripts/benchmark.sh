@@ -10,10 +10,10 @@ INPUT_S3="s3://mfb-data-files/Helsinki_RGB_Class_TM35FIN_EPSG3067.las"
 INPUT_EPSG="3067"
 
 PY3DTILES_VERSION="12.1.1"
-MAGO_VERSION="1.15.4"
-MAGO_URL="https://github.com/Gaia3D/mago-3d-tiler/releases/download/v1.15.4/mago-3d-tiler-1.15.4.jar"
-GOTILER_REPO="mfbonfigli/gocesiumtiler"
-GOTILER_VERSION="v3.0.0"
+MAGO_VERSION="1.16.4"
+MAGO_URL="https://github.com/Gaia3D/mago-3d-tiler/releases/download/v1.16.4/mago-3d-tiler-1.16.4.jar"
+GOTILER_REPO="mfbonfigli/gotiler"
+GOTILER_VERSION="v3.2.0"
 GOTILER_URL="${GOTILER_URL:-}"
 GOTILER_LOCAL_DIR=""
 GOTILER_ASSET_REGEX="(gotiler|gocesiumtiler).*((linux|lin).*(amd64|x64)|(amd64|x64).*(linux|lin)|\\.zip$)"
@@ -71,7 +71,7 @@ Benchmark inputs and versions:
   --gotiler-repo OWNER/REPO    GitHub repo used if --gotiler-url is omitted
   --gotiler-version TAG        GitHub release tag used if --gotiler-url is omitted
   --py3dtiles-version VERSION  Default: 12.1.1
-  --mago-version VERSION       Default: 1.15.4
+  --mago-version VERSION       Default: 1.16.4
   --mago-url URL               Direct mago jar URL
   --s3-download-mode MODE      presign, no-sign, or instance-profile. Default: presign
   --presign-expires SECONDS    Presigned input URL lifetime. Default: 86400
@@ -724,6 +724,7 @@ main() {
     --out "$OUTPUT_ROOT/gotiler" \
     --crs "EPSG:${INPUT_EPSG}" \
     --version "1.0" \
+    --attributes "none" \
     "$INPUT_FILE"
 
   run_benchmark \

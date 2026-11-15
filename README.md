@@ -56,9 +56,9 @@ Time and peak memory to tile the [Helsinki point cloud](https://zenodo.org/recor
 
 | tool | execution time | max memory |
 |------|----------------|------------|
-| **gotiler v3.0** | **1m 50s** | **605 MB** |
-| [py3dtiles 12.1.1](https://gitlab.com/py3dtiles/py3dtiles) | 7m 11s | 2.56 GB |
-| [mago 3d tiler 1.15.4](https://github.com/Gaia3D/mago-3d-tiler) | 14m 17s | 16.81 GB |
+| **gotiler v3.2** | **1m 34s** | **767 MB** |
+| [py3dtiles 12.1.1](https://gitlab.com/py3dtiles/py3dtiles) | 7m 5s | 2.36 GB |
+| [mago 3d tiler 1.16.4](https://github.com/Gaia3D/mago-3d-tiler) | 14m 18s | 16.81 GB |
 
 `gotiler splats` tiles the [Lublin, Poland](https://superspl.at/scene/2f1ddf5f) scene, 259M Gaussian splats in a 16.3 GB PLY file, in **5m 50s** with its default options, on a desktop with an Intel Core i5-13600K, 32 GB of RAM and a Samsung 980 PRO NVMe SSD running Windows 11.
 
