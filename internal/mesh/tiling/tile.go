@@ -46,7 +46,7 @@ type Options struct {
 	// TrianglesPerTile is how many triangles a tile holds, about, at most:
 	// leaves are planned from samples, and cutting the surface along their
 	// borders adds triangles. Leaves hold fewer where the textures of that
-	// many would not fit MaxTextureSize, and tiles above them up to twice as
+	// many would not fit MaxTextureSize, and tiles above them up to four times as
 	// many where the shape of the surface needs them.
 	TrianglesPerTile int
 	// MaxTextureSize is the largest side of the texture of a tile, in

@@ -34,7 +34,7 @@ const (
 	// maxOverTarget is how many times the triangles of a tile, as the
 	// options set them, a tile above the leaves can hold, where its shape
 	// needs them, before the limit of its simplification is raised.
-	maxOverTarget = 2
+	maxOverTarget = 4
 	// maxRaises is how many times that limit can be raised, by √2 each
 	// time, to get within that.
 	maxRaises = 8
